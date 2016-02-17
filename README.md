@@ -1,0 +1,2 @@
+AnimeUltima EnRadiant — Shit's Getting Real — is a project that aims to improve/fix the functions of AnimeUltima, an Anime site. 
+It's currently in development by two community members, Mike32 (b-fuze), and Samu (TDN).
