@@ -10,7 +10,7 @@ var babel    = require("babel-core");
 process.chdir(path.dirname(process.argv[1]));
 
 // Current time
-var time = (new Date()).toGMTString().replace(/ GMT|,/ig,"").replace(/\s/g,"-").toLowerCase();
+var time = (new Date()).toGMTString().replace(/ GMT|,/ig,"").replace(/:/g,".").replace(/\s/g,"-").toLowerCase();
 
 // Arguments
 var out = null;
