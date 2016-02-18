@@ -83,8 +83,9 @@
     
     // Constructor interface
     if (typeof aurMod.interface === "function") {
-      aurMod.interface.apply(aurInstance, args);
-      aurInstance.constructor = aurMod;
+      aurInstance = new (Function.prototype.bind.apply(aurMod.interface, [null].concat(args)));
+      // aurMod.interface.apply(aurInstance, args);
+      // aurInstance.constructor = aurMod;
       
     // Object interface
     } else if (jSh.type(aurMod.interface) === "object") {

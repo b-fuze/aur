@@ -12,9 +12,20 @@ process.chdir(path.dirname(process.argv[1]));
 // Current time
 var time = (new Date()).toGMTString().replace(/ GMT|,/ig,"").replace(/\s/g,"-").toLowerCase();
 
+// Arguments
+var out = null;
+var cat = null;
+
+process.argv.slice(2).forEach(function(arg) {
+  if (arg[0] === "-" && arg.toLowerCase() === "-cat")
+    cat = true;
+  else
+    out = arg;
+});
+
 // Get paths
 var AURPATH = path.dirname(process.argv[1]) + "/";
-var AUROUT  = process.argv[2] || `${AURPATH}build/bleeding/aur.build.${time}.js`;
+var AUROUT  = out || `${AURPATH}build/bleeding/aur.build.${time}.js`;
 
 // AUR uncompliled source cram
 var AURSRC = "";
@@ -37,7 +48,7 @@ function getFolder(fpath) {
 }
 
 // Get LCES/jSh
-var lces = `function lces(l){return LCES.components[l]};lces.rc = [];lces.loadedDeps = false;${ getFile(AURPATH + "src/lces.current.js", true) }lces.rc.forEach(f => f());`;
+var lces = `function lces(l){return LCES.components[l]};lces.rc = [];lces.loadedDeps = false;${ getFile(AURPATH + "src/lces.current.js", true) }lces.rc.forEach(f => f());lces.init();`;
 
 // Get core files
 getFile(AURPATH + "src/aur.core.js");
@@ -50,9 +61,9 @@ getFolder(AURPATH + "src/mods/core");
 getFolder(AURPATH + "src/mods/misc");
 
 // Transform to ES5.1
-var result = babel.transform(AURSRC, {presets: ["es2015"]}).code;
+var result = cat ? AURSRC : babel.transform(AURSRC, {presets: ["es2015"]}).code;
 // Uglify this shit
-result = uglify.minify(result, {
+result = cat ? result : uglify.minify(result, {
   fromString: true,
   compress: {
     sequences     : true,  // join consecutive statemets with the “comma operator”
@@ -75,10 +86,10 @@ result = uglify.minify(result, {
     warnings      : true   // warn about potentially dangerous optimizations/code
   },
   mangle: true
-});
+}).code;
 
 // Concat it to lces
-result = lces + result.code;
+result = getFile(AURPATH + "src/userscript.head.js", true) + lces + result + "AUR.triggerEvent(\"load\",{});";
 
 // Write it out
 fs.writeFileSync(AUROUT, result);
