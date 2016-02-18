@@ -379,7 +379,21 @@ lces.rc[0] = function() {
     else
       return children[off];
   }
-
+  
+  jSh.getParent = function(jump) {
+    if (jSh.type(jump) !== "number" || jump < 0)
+      return null;
+    
+    var par = this;
+    while (jump < 0 && par !== document.body) {
+      par = par.parentNode;
+      
+      jump--;
+    }
+    
+    return par;
+  }
+  
   // Assert whether node 'e' is a child of node 'p'
   jSh.isDescendant = function(e, p) {
     var parent = e.parentNode;
@@ -410,9 +424,10 @@ lces.rc[0] = function() {
     
     // Check if should shorten
     if (e && !e.getChild) {
-      e.getChild = jSh.getChild;
-      e.on = jSh.onEvent;
-      e.jSh = jSh;
+      e.getParent = jSh.getParent;
+      e.getChild  = jSh.getChild;
+      e.on        = jSh.onEvent;
+      e.jSh       = jSh;
       
       // Improve append and removechild methods
       e.__apch = e.appendChild;
@@ -607,14 +622,13 @@ lces.rc[9] = function() {
   }
 }
 // LCES Core code, depends on jShorts2.js
+lces.global = this;
 
 lces.rc[2] = function() {
   // AUCP LCES JS code (Acronym Galore! :D)
 
-  // Some handy tools first...
-
   // On another note, these *LV* things might be useless...
-
+  
   window.LCESVar = function(n) {
     this.LCESVAR = true; // Might be needed in the future.
     this.id = n;
@@ -7147,7 +7161,7 @@ lces.rc[4] = function() {
    * @returns {boolean} Returns false for a negative assertion, otherwise the newFunction to be appended to the MockupElement
    */
   lces.template.isChild = function(args, that) {
-    if (that === window) {
+    if (that === lces.global) {
       var newFunction = function templChild() {
         if (this !== window) {
           var newElm = new templChild.templChildFunc();
