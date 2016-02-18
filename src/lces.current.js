@@ -2,16 +2,18 @@
 //
 // Supposed to shorten my writing of vanilla JS, some quick shortcuts.
 
-if (!window.lces)
-  lces = {rc: [], onlyjSh: true};
+if (!this.lces)
+  lces = {rc: [], onlyjSh: true, global: this};
+else
+  lces.global = this;
 
 lces.rc[0] = function() {
   
-  window.undf = undefined;
-
+  lces.global.undf = undefined;
+  
   // Quick console prone errors mitigation
-  if (!window.console)
-    Object.defineProperty(window, "console", {
+  if (!lces.global.console)
+    Object.defineProperty(lces.global, "console", {
       value: {
         log: function() {},
         error: function() {},
@@ -23,11 +25,11 @@ lces.rc[0] = function() {
     });
 
   // Main DOM Manipulation function
-  window.jSh = function jSh(src, first) {
+  lces.global.jSh = function jSh(src, first) {
     if (typeof src === "string") {
       // "Locate" mode
       
-      var parent   = this === window ? document : (this instanceof Node || jSh.MockupElement && this instanceof jSh.MockupElement ? this : (window.lcWidget && this instanceof lcWidget ? this.element : document));
+      var parent   = this === jSh.global ? document : (this instanceof Node || jSh.MockupElement && this instanceof jSh.MockupElement ? this : (lces.global.lcWidget && this instanceof lcWidget ? this.element : document));
       var selector = jSh.determineSelector(src);
       
       
@@ -50,7 +52,9 @@ lces.rc[0] = function() {
       return e;
     }
   }
-
+  
+  // Global
+  jSh.global = lces.global;
 
   // JS functions
 
@@ -509,7 +513,7 @@ lces.rc[0] = function() {
     if (jSh.MockupElement && obj instanceof jSh.MockupElement)
       return obj;
     
-    if (window.lcWidget && obj instanceof lcWidget && obj.element instanceof Node)
+    if (lces.global.lcWidget && obj instanceof lcWidget && obj.element instanceof Node)
       return obj.element;
     
     return null
@@ -629,18 +633,18 @@ lces.rc[2] = function() {
 
   // On another note, these *LV* things might be useless...
   
-  window.LCESVar = function(n) {
+  lces.global.LCESVar = function(n) {
     this.LCESVAR = true; // Might be needed in the future.
     this.id = n;
   }
-  window.LV = function(n) {
+  lces.global.LV = function(n) {
     return new LCESVar(n);
   }
-  window.isLV = function(v) {
+  lces.global.isLV = function(v) {
     return v instanceof LCESVar;
   }
 
-  window.LCES = {
+  lces.global.LCES = {
     // Core things go here
     EXTENDED_COMPONENT: LV(5), // I'll start from 5 because 0 or 1 can mean anything...
     BASE_COMPONENT: LV(6),
@@ -659,7 +663,7 @@ lces.rc[2] = function() {
   // For faster reference
   var Object = window.Object;
   
-  window.lcComponentMethods = {
+  lces.global.lcComponentMethods = {
     setState: function(state, stateStatus, recurring, recurred) {
       if (!this.states[state]) {
         // Since we don't have it, we'll make it.
@@ -1065,7 +1069,7 @@ lces.rc[2] = function() {
   
   // AUCP LCES Constructors
 
-  window.lcComponent = function() {
+  lces.global.lcComponent = function() {
     // This should be the fundamental building block
     // of the AUCP component linked event system. I can't
     // come up with something better to call it so just
@@ -1183,7 +1187,7 @@ lces.rc[2] = function() {
   lcComponent.prototype.constructor = lcComponent;
 
 
-  window.lcGroup = function() {
+  lces.global.lcGroup = function() {
     var extended = lcComponent.call(this);
     if (!extended)
       this.type = "LCES Group";
@@ -1314,7 +1318,7 @@ lces.rc[2] = function() {
 
   // LCES Server Related Components
 
-  window.lcData = function() { // This should be for stuff that is shared with the server's DB
+  lces.global.lcData = function() { // This should be for stuff that is shared with the server's DB
     var extended = lcComponent.call(this);
     if (!extended)
       this.type = "LCES Data Link";
@@ -1342,7 +1346,7 @@ lces.rc[2] = function() {
     });
   }
 
-  window.lcRequest = function(args) { // args: {method, uri | url, callback, query, formData, async}
+  lces.global.lcRequest = function(args) { // args: {method, uri | url, callback, query, formData, async}
     var extended = lcComponent.call(this);
     if (!extended)
       this.type = "LCES Request";
@@ -1676,12 +1680,12 @@ lces.rc[50] = function() {
   
 // LCES User module core
 lces.rc[10] = function() {
-  var jSh     = window.jSh;
-  var lces    = window.lces;
-  var Object  = window.Object;
-  var Boolean = window.Boolean;
+  var jSh     = lces.global.jSh;
+  // var lces    = window.lces;
+  var Object  = lces.global.Object;
+  var Boolean = lces.global.Boolean;
   
-  var lcComponent = window.lcComponent;
+  var lcComponent = lces.global.lcComponent;
   
   // Create user module
   lces.user = new lcComponent();
@@ -1693,7 +1697,7 @@ lces.rc[10] = function() {
   // Setting entry constructor
   settings.Setting = function Setting(name, types, defValue, multiple) {
     // Check if not initialized
-    if (this === window || this === settings)
+    if (this === lces.global || this === settings)
       return new Setting(name, types, defValue, multiple);
     
     this.type = "LCES User Setting Entry";
@@ -2487,7 +2491,7 @@ lces.rc[5] = function() {
     ])
   ])});
 
-  window.lcSlider = function(refElm) {
+  lces.global.lcSlider = function(refElm) {
     // Check if called as a template child
     var isTemplChild = lces.template.isChild(arguments, this);
     if (isTemplChild)
@@ -7163,7 +7167,7 @@ lces.rc[4] = function() {
   lces.template.isChild = function(args, that) {
     if (that === lces.global) {
       var newFunction = function templChild() {
-        if (this !== window) {
+        if (this !== lces.global) {
           var newElm = new templChild.templChildFunc();
           
           newElm.Component = newElm.component;
