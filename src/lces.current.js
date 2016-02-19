@@ -389,7 +389,7 @@ lces.rc[0] = function() {
       return null;
     
     var par = this;
-    while (jump < 0 && par !== document.body) {
+    while (jump > 0 && par !== document.body) {
       par = par.parentNode;
       
       jump--;

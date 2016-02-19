@@ -378,8 +378,17 @@
       background: #303a44;
     }
     
+    table#animetable td.td-lang-dubbed a {
+      color: #c3c5c7;
+      background: #3d3944;
+    }
+    
     table#animetable td.td-lang-subbed a:hover {
       background: #3A4652;
+    }
+    
+    table#animetable td.td-lang-dubbed a:hover {
+      background: #494452;
     }
     
     table#animetable tr:hover td.title, table#animetable tr:hover td.epnum, table#animetable tr:hover td.airdate {
@@ -426,6 +435,24 @@
     }
     
     /* ---------- Comment Textbox ---------- */
+    
+    .success {
+      border: 0px;
+      border-left: 5px solid #6ABF19;
+      color: #6ABF19;
+    }
+    
+    .error {
+      border: 0px;
+      border-left: 5px solid #BF1919;
+      color: #BF1919;
+    }
+    
+    .success, .error {
+      margin: 15px 0px;
+      background: #131417;
+      padding-left: 10px;
+    }
     
     #comment-field {
       width: 100%;
