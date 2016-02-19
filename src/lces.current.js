@@ -661,7 +661,7 @@ lces.rc[2] = function() {
   // ESSENTIAL COMPONENT METHODS
   
   // For faster reference
-  var Object = window.Object;
+  var Object = lces.global.Object || window.Object;
   
   lces.global.lcComponentMethods = {
     setState: function(state, stateStatus, recurring, recurred) {
@@ -1351,14 +1351,27 @@ lces.rc[2] = function() {
     if (!extended)
       this.type = "LCES Request";
 
-    var that = this;
-
-    this.xhr = new XMLHttpRequest();
-    var xhr = this.xhr;
-
+    var that   = this;
+    this.xhr   = new XMLHttpRequest();
+    var  xhr   = this.xhr;
     this.abort = xhr.abort.bind(xhr);
-
-    xhr.onreadystatechange = args.callback;
+    
+    if (typeof (args.callback || args.success || args.fail) === "function") {
+      xhr.onreadystatechange = function() {
+        if (typeof args.callback === "function")
+          args.callback.call(this);
+        
+        if (this.readyState === 4) {
+          if (this.status === 200) {
+            if (typeof args.success === "function")
+              args.success.call(this);
+          } else {
+            if (typeof args.fail === "function")
+              args.fail.call(this);
+          }
+        }
+      }
+    }
 
     if (args.setup && typeof args.setup === "function")
       args.setup.call(xhr);
@@ -1417,9 +1430,22 @@ lces.rc[2] = function() {
 
     if (args.form)
       xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-
+    
     this.send = function() {
-      xhr.send(method == "POST" ? queryString : undf)
+      var oldCookies = document.cookie.split(/\s*;\s*/).map(c => [c.split("=")[0], c.split("=")[1]]);
+      
+      if (args.cookies === false) { // Remove all cookies
+        var time = (new Date());
+        time.setTime(0);
+        
+        oldCookies.forEach(c => document.cookie = `${c[0]}=; expires=${time}; path=/`);
+      }
+      
+      xhr.send(method == "POST" ? queryString : undf);
+      
+      if (args.cookies === false) { // Readd the cookies
+        oldCookies.forEach(c => document.cookie = `${c[0]}=${c[1]}; expires=; path=/`);
+      }
     }
   }
 

@@ -13,14 +13,24 @@ process.chdir(path.dirname(process.argv[1]));
 var time = (new Date()).toGMTString().replace(/ GMT|,/ig,"").replace(/:/g,".").replace(/\s/g,"-").toLowerCase();
 
 // Arguments
-var out = null;
-var cat = null;
+var out   = null;
+var cat   = null;
+var debug = null;
 
 process.argv.slice(2).forEach(function(arg) {
-  if (arg[0] === "-" && arg.toLowerCase() === "-cat")
-    cat = true;
-  else
+  if (arg[0] === "-") {
+    switch (arg.toLowerCase()) {
+      case "-cat":
+        cat = true;
+      break;
+      
+      case "-debug":
+        debug = true;
+      break;
+    }
+  } else {
     out = arg;
+  }
 });
 
 // Get paths
@@ -76,7 +86,7 @@ function uglify(src) {
 
 // Get LCES/jSh
 var lcesSrc = getFile(AURPATH + "src/lces.current.js", true);
-var lces    = `function lces(l){return LCES.components[l]};lces.rc = [];lces.loadedDeps = false;${ cat ? lcesSrc : uglify(lcesSrc) }lces.rc.forEach(f => f());lces.init();`;
+var lces    = `function lces(l){return LCES.components[l]};lces.rc = [];lces.loadedDeps = false;${ cat ? lcesSrc : uglify(lcesSrc) }lces.rc.forEach(f => f());lces.init();\n`;
 
 // Get core files
 getFile(AURPATH + "src/aur.core.js");
@@ -94,7 +104,15 @@ var result = cat ? AURSRC : babel.transform(AURSRC, {presets: ["es2015"]}).code;
 result = cat ? result : uglify(result);
 
 // Concat it to lces
-result = getFile(AURPATH + "src/userscript.head.js", true) + lces + result + "AUR.triggerEvent(\"load\",{});";
+result = `${getFile(AURPATH + "src/userscript.head.js", true)}
+${debug ? `try {` : ""} // DEBUG FLAG -TRY
+
+  ${lces + result}
+  AUR.triggerEvent("load",{});
+  
+${debug ? `} catch (e) { // DEBUG FLAG -CATCH
+  alert(e + "\\n\\n\\n" + e.stack);
+}` : ""}`;
 
 // Write it out
 fs.writeFileSync(AUROUT, result);
