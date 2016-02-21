@@ -32,15 +32,15 @@
         }
       });
       
-      req.send();
+      // req.send();
       
-      alert(
-        `Like: ${e.like}
-         ID:   ${e.commentId}
+      // alert(
+      //   `Like: ${e.like}
+      //    ID:   ${e.commentId}
          
-         DB:   ${JSON.stringify(aurdb.getDB("comment-votes"))}
-         XHR:  ${XMLHttpRequest + req.xhr.responseText + req.xhr.onreadystatechange}`.replace(/\n\s+/g, "\n")
-      );
+      //    DB:   ${JSON.stringify(aurdb.getDB("comment-votes"))}
+      //    XHR:  ${XMLHttpRequest + req.xhr.responseText + req.xhr.onreadystatechange}`.replace(/\n\s+/g, "\n")
+      // );
     });
   });
 })();
