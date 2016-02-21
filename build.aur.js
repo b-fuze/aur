@@ -86,7 +86,8 @@ function uglify(src) {
 
 // Get LCES/jSh
 var lcesSrc = getFile(AURPATH + "src/lces.current.js", true);
-var lces    = `function lces(l){return LCES.components[l]};lces.rc = [];lces.loadedDeps = false;${ cat ? lcesSrc : uglify(lcesSrc) }lces.rc.forEach(f => f());lces.init();\n`;
+var lcesSrc = cat ? lcesSrc : uglify(babel.transform(lcesSrc, {presets: ["es2015"]}).code);
+var lces    = `function lces(l){return LCES.components[l]};lces.rc = [];lces.loadedDeps = false;${ lcesSrc }lces.rc.forEach(f => f());lces.init();\n`;
 
 // Get core files
 getFile(AURPATH + "src/aur.core.js");
