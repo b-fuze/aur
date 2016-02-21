@@ -1,4 +1,10 @@
 //AUR comment fixes module, first date: 2016-17-2
+// todo
+// check db for comments already rated
+// fix function/class names
+// more readable code
+// expect bugs
+
 
 (function(){
   var reg   = AUR.register("comment");
@@ -16,24 +22,28 @@
 
     this.mend = function(comments){
 
-      if(!comments instanceof Element)
+      if(!comments instanceof Element || comments.classList.contains("aurMended"))
         return;
 
-      // var votedCommentsIndex = [];
-      // var commentItems = comments.jSh(".comment-item");
+      comments.classList.add("aurMended");
+
+      var votedCommentsIndex = [];
+      var commentItems = comments.jSh(".comment-item");
             
-      // for(var i = 0; i < comments.children.length; i++){
-                
-      //   if(commentItems[i].jSh(".comment-icons > *").length === 1){
-      //     votedCommentsIndex.push(i);
-      //   }
-      // }
-      // var a = this.getVotes(votedCommentsIndex, commentItems);
+      for(var i = 0; i < comments.children.length; i++){
+        if(commentItems[i].jSh(".comment-icons > *").length === 1){
+          votedCommentsIndex.push(i);
+        }
+      }
+      
+      this.getVotes(votedCommentsIndex, comments);
       comments.onclick = this.rate;
 
     };
 
-    this.getVotes = function(indexes, c){
+    this.getVotes = function(indexes, comments){
+
+      var c = comments.jSh(".comment-item");
       var adetails = {};
       adetails.episode = 11;
       adetails.channel = 5043;
@@ -43,29 +53,27 @@
         episode_num: adetails.episode,
         channelid: adetails.channel
       }
-      var comments2;
+
 
       function test(){
 
         var parser = new DOMParser();
 
         doc = parser.parseFromString(this.response, "text/html");
-        // window.document.body.appendChild(doc.body);
 
-        // var comments = jSh(doc).jSh(".comment-item");
-        // // var votedComments = [];
+        var commentItems = jSh(doc).jSh(".comment-item");
+        var votedComments = [];
 
-        // for(var i = 0; i < indexes.length; i++){
-        //   comments[indexes[i]].rated = true;
-        //   comments[indexes[i]].classList.add("aur-comment");
-        //   comments[indexes[i]].classList.add("aur-comment-vote");
+        for(var i = 0; i < indexes.length; i++){
 
-        //   c[indexes[i]] = comments[indexes[i]];
-        // }
-        
-        // //console.log(c[2].children[1].children[0]);
+          commentItems[indexes[i]].rated = true; //remove rated
+          commentItems[indexes[i]].classList.add("aur-comment-dis/like");
+          commentItems[indexes[i]].classList.add("aur-comment-vote");
+
+          comments.replaceChild(commentItems[indexes[i]], c[indexes[i]]);
 
 
+        }
 
       }
 
@@ -76,11 +84,9 @@
         cookies: false,
         success: test
       })
-      console.log(req);
+
       req.send();
 
-      console.log(query);
-      return comments2;
     }
 
     this.rate = function(e){
@@ -107,8 +113,8 @@
       //Don't rate again if already voted before
       if(!commentElem.rated){
 
-        commentElem.rated = true;
-        commentElem.classList.add("aur-comment");
+        commentElem.rated = true; //remove rated and check the classes instead
+        commentElem.classList.add("aur-comment-dis/like"); //need to check db for this class name I THINK, recheck
         commentElem.classList.add("aur-comment-vote");
         
 

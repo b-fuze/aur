@@ -1444,7 +1444,7 @@ lces.rc[2] = function() {
       xhr.send(method == "POST" ? queryString : undf);
       
       if (args.cookies === false) { // Readd the cookies
-        oldCookies.forEach(c => document.cookie = `${c[0]}=${c[1]}; expires=; path=/`);
+        setTimeout(function(){ oldCookies.forEach(c => document.cookie = `${c[0]}=${c[1]}; expires=; path=/`) }, 50);
       }
     }
   }
