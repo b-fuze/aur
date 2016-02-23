@@ -1,9 +1,10 @@
 //AUR comment fixes module, first date: 2016-17-2
-// todo
-// check db for comments already rated
+//TODO
+// Comments that have 3 dislikes or more are not viewable, fix the "click to show" button
 // fix function/class names
 // more readable code
 // expect bugs
+// add clean function
 
 
 (function(){
@@ -22,31 +23,42 @@
 
     this.mend = function(comments){
 
+      
       if(!comments instanceof Element || comments.classList.contains("aurMended"))
         return;
-
-      comments.classList.add("aurMended");
-
-      var votedCommentsIndex = [];
-      var commentItems = comments.jSh(".comment-item");
-            
-      for(var i = 0; i < comments.children.length; i++){
-        if(commentItems[i].jSh(".comment-icons > *").length === 1){
-          votedCommentsIndex.push(i);
-        }
-      }
       
-      this.getVotes(votedCommentsIndex, comments);
+      //run once
+      comments.classList.add("aurMended");
+     
+      //Without AUR, au would hide the comment ratings for comments you have rated
+      this.showHiddenRatings(comments);
+
       comments.onclick = this.rate;
 
     };
 
-    this.getVotes = function(indexes, comments){
+    this.showHiddenRatings = function(comments){
 
-      var c = comments.jSh(".comment-item");
+      /*REMOVE WHEN aur-details MODULE IS DONE*/
       var adetails = {};
       adetails.episode = 11;
       adetails.channel = 5043;
+
+      var indexes = [];
+      var oldCommentItems = comments.jSh(".comment-item");
+
+      for(var i = 0; i < comments.children.length; i++){
+        // var id = oldCommentItems[i].jSh(".like-comment")[0].rel;
+        var commentIcons = oldCommentItems[i].jSh(".comment-icons > *");
+        if(commentIcons.length === 1){
+          indexes.push(i);
+        }else if (commentIcons.length !== 1 && this.DBVotes(oldCommentItems[i].jSh(".like-comment")[0].rel) !== undefined){
+          indexes.push(i);
+        }
+      }
+
+      if(!indexes)
+        return;
 
       var query = {
         method: "fetchepisodecomment",
@@ -55,35 +67,43 @@
       }
 
 
-      function test(){
-
-        var parser = new DOMParser();
-
-        doc = parser.parseFromString(this.response, "text/html");
-
-        var commentItems = jSh(doc).jSh(".comment-item");
-        var votedComments = [];
-
-        for(var i = 0; i < indexes.length; i++){
-
-          commentItems[indexes[i]].rated = true; //remove rated
-          commentItems[indexes[i]].classList.add("aur-comment-dis/like");
-          commentItems[indexes[i]].classList.add("aur-comment-vote");
-
-          comments.replaceChild(commentItems[indexes[i]], c[indexes[i]]);
-
-
-        }
-
-      }
-
       var req = new lcRequest({
         method: "GET",
         uri: "/ajax.php",
         query: query,
         cookies: false,
-        success: test
+        success: replceOldOnes
       })
+
+
+      function replceOldOnes(){
+
+        var parser = new DOMParser();
+        doc = parser.parseFromString(this.response, "text/html");
+
+        var newCommentItems = jSh(doc).jSh(".comment-item");
+
+        for(var i = 0; i < indexes.length; i++){
+          var id = newCommentItems[indexes[i]].jSh(".like-comment")[0].rel;
+          var vote = that.DBVotes(id);
+          
+
+          if(vote === true)
+            var commentClass = "aur-comment-like";
+          else if( vote === false )
+            var commentClass = "aur-comment-dislike";
+          else
+            var commentClass;
+
+          newCommentItems[indexes[i]].classList.add(commentClass);
+          newCommentItems[indexes[i]].classList.add("aur-comment");
+
+          comments.replaceChild(newCommentItems[indexes[i]], oldCommentItems[indexes[i]]);
+
+
+        }
+
+      }
 
       req.send();
 
@@ -108,14 +128,20 @@
       var query       = {method: type, commentid: id};
       var vote        = type === "likecomment" ? true : false;
       var counter     = target.jSh("span[class$='count']")[0];
-      var commentElem = target.getParent(3);
+      var commentItem = target.getParent(3);
 
-      //Don't rate again if already voted before
-      if(!commentElem.rated){
+      //Don't rate again if already rated before
+      if(!commentItem.classList.contains("aur-comment")){
 
-        commentElem.rated = true; //remove rated and check the classes instead
-        commentElem.classList.add("aur-comment-dis/like"); //need to check db for this class name I THINK, recheck
-        commentElem.classList.add("aur-comment-vote");
+        if(vote === true)
+          var commentClass = "aur-comment-like";
+        else if( vote === false )
+          var commentClass = "aur-comment-dislike";
+        else
+          var commentClass;
+
+        commentItem.classList.add(commentClass);
+        commentItem.classList.add("aur-comment");
         
 
         var req = new lcRequest({
@@ -128,12 +154,12 @@
         //Update the counter
         counter.innerText = (+counter.textContent) + 1;
 
-        that.saveVote(id, vote);
+        that.DBVotes(id, vote);
 
         reg.triggerEvent("vote", {
           like: vote,
           commentId: id,
-          commentElement: commentElem
+          commentElement: commentItem
         });
 
         req.send();
@@ -141,16 +167,20 @@
 
     }
 
-
-    this.saveVote = function(id, vote){
+    this.DBVotes = function(id, vote){
+      //false is dislike, true is like
       var dbObj = aurdb.getDB("comment-votes");
 
-      if(!dbObj){
+      if(!dbObj)
         dbObj = {};
+
+      if(dbObj[id] !== undefined && vote === undefined){
+        return dbObj[id];
+      }else if(vote !== undefined){
+        dbObj[id] = vote;
+        aurdb.setDB("comment-votes", dbObj);
       }
 
-      dbObj[id] = vote;
-      aurdb.setDB("comment-votes", dbObj);
     }
 
   }
