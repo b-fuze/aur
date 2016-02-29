@@ -95,6 +95,10 @@
       right: -20px;
     }
     
+    #header-span {
+      min-height: 78px;
+    }
+    
     #header-span, #header-container {
       background: #33373D;
       border: 0px;
@@ -170,6 +174,7 @@
       border-color: #3E424A;
       padding: 6px;
       padding-left: 0px;
+      padding-right: 0px;
     }
     
     #main-content-hp > h3:nth-child(1), #main-content-hp > div.nr-top {
@@ -182,6 +187,8 @@
     
     .nr-toggle-view {
       vertical-align: super;
+      position: relative;
+      top: 1px;
     }
     
     #new-episodes {
@@ -217,6 +224,44 @@
     
     #new-anime > li::before {
       content: none;
+    }
+    
+    /* ---------- Newly Added Series  */
+    
+    #new-anime-div {
+      float: none;
+      width: auto !important;
+    }
+    
+    #new-anime {
+      padding: 0px;
+    }
+    
+    #new-anime li {
+      position: relative;
+      padding: 7px 5px;
+      margin: 0px 0px 10px;
+      border: 0px;
+      border-left: 5px solid #08090A;
+      background: #131417;
+      overflow: hidden;
+    }
+    
+    #new-anime h2 {
+      margin-bottom: 5px;
+    }
+    
+    #new-anime-div br {
+      display: none;
+    }
+    
+    #new-anime .release-date {
+      position: absolute;
+      right: 0px;
+      bottom: 0px;
+      padding: 3px 5px;
+      border-right: 2px solid #5a2818;
+      color: #808080;
     }
     
     /* ---------- New Anime Shows This Season ---------- */
@@ -279,7 +324,40 @@
       background: #1E2024;
     }
     
-    /* ---------- Video Page ---------- */
+    /* ---------- Episode/Video Page ---------- */
+    
+    .nextepisode .aur-refactor {
+      display: none;
+    }
+    
+    .nextepisode > a {
+      font-size: 13px;
+      margin: 0px;
+    }
+    
+    .nextepisode > a:not(:first-child) {
+      position: absolute;
+      right: 0px;
+      top: 0px;
+      display: inline-block;
+    }
+    
+    .nextepisode > a:nth-child(2) {
+      margin: 0px auto;
+      left: 0px;
+      width: fit-content;
+      width: -moz-fit-content;
+      width: -webkit-fit-content;
+    }
+    
+    .nextepisode {
+      padding: 0px;
+      margin-bottom: 10px;
+      margin-top: 15px;
+      height: 20px;
+      position: relative;
+      float: none;
+    }
     
     #watchlist img {
       display: none;
@@ -342,6 +420,29 @@
     }
     
     /* ---------- Channel Page ---------- */
+    
+    .nr-content .section {
+      position: relative;
+    }
+    
+    #the-latest-episode {
+      background: #ff9900;
+      color: #fff;
+      border-bottom-right-radius: 2.5px;
+      border-bottom-left-radius: 2.5px;
+    }
+    
+    #latest-episode-ongoing {
+      position: absolute;
+      top: 0px;
+      right: 0px;
+      margin: 0px;
+    }
+    
+    .anime-desc p {
+      min-height: 100px;
+      max-width: 480px;
+    }
     
     #animetable {
       border-spacing: 2px;
@@ -448,7 +549,13 @@
       color: #BF1919;
     }
     
-    .success, .error {
+    .notice {
+      border: 0px;
+      border-left: 5px solid #FFD324;
+      color: #FFD324;
+    }
+    
+    .success, .error, .notice {
       margin: 15px 0px;
       background: #131417;
       padding-left: 10px;

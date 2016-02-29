@@ -6,6 +6,10 @@ var path     = require("path");
 var uglifyjs = require("uglify-js");
 var babel    = require("babel-core");
 
+// Buildtime vars
+var coreModules = [];
+var miscModules = [];
+
 // CD to the current dir
 process.chdir(path.dirname(process.argv[1]));
 
@@ -38,6 +42,7 @@ var AURPATH = path.dirname(process.argv[1]) + "/";
 var AUROUT  = out || `${AURPATH}build/bleeding/aur.build.${time}.js`;
 
 // AUR uncompliled source cram
+// var EMPTYCORE, EMPTYMISC;
 var AURSRC = "";
 
 // Source fetching functions
@@ -50,8 +55,11 @@ function getFile(fpath, ret) {
   AURSRC += "\n\n" + src;
 }
 
-function getFolder(fpath) {
+function getFolder(fpath, dumpModName) {
   var files = fs.readdirSync(fpath);
+  
+  if (dumpModName)
+    dumpModName.push.apply(dumpModName, files.map(f => f.split(".")[0]));
   
   files[0] = getFile(`${fpath}/${files[0]}`, true);
   AURSRC += files.reduce((src, file) => `${src} \n ${getFile(`${fpath}/${file}`, true)}`);
@@ -94,10 +102,14 @@ getFile(AURPATH + "src/aur.core.js");
 getFile(AURPATH + "src/aur.mod.js");
 
 // Get core modules
-getFolder(AURPATH + "src/mods/core");
+getFolder(AURPATH + "src/mods/core", coreModules);
 
 // Get misc modules
-getFolder(AURPATH + "src/mods/misc");
+getFolder(AURPATH + "src/mods/misc", miscModules);
+
+// Add module names
+AURSRC = AURSRC.replace(/EMPTYCORE/, '"' + coreModules.join('", "') + '"');
+AURSRC = AURSRC.replace(/EMPTYMISC/, '"' + miscModules.join('", "') + '"');
 
 // Transform to ES5.1
 var result = cat ? AURSRC : babel.transform(AURSRC, {presets: ["es2015"]}).code;

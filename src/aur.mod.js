@@ -4,6 +4,13 @@
   var modArray = []; // Array containing all the registered modules
   var nameMap  = {}; // Module name map
   
+  var coreList = [EMPTYCORE]; // Replaced by build.aur.js
+  var miscList = [EMPTYMISC]; // Ditto
+  var mixList  = coreList.concat(miscList);
+  
+  // Prematurely imported modules
+  var preimports = {};
+  
   // Imported module instance methods
   var instMethods = {
     on: function(evt, callback) {
@@ -49,6 +56,12 @@
     
     // Events
     this.addEvent("modKill");
+    this.addEvent("loaded");
+    
+    // Check the dummy interfaces
+    if (preimports[modName]) {
+      // DO MAGIC HERE
+    }
   }
   
   jSh.inherit(ModRegister, lcComponent);
@@ -58,7 +71,7 @@
   // modName: Required. Module name
   //
   // Description: Register a new module in the AUR module system.
-  AUR.register = function(modName) {
+  AUR.register = function(modName, premInterface) {
     // Check module name
     if (jSh.type(modName) !== "string" || modName.length === 0)
       return null;
@@ -77,9 +90,28 @@
     var aurMod = nameMap[modName];
     var aurInstance = {};
     
-    // Check for module
-    if (!aurMod || modArray.indexOf(aurMod) === -1)
+    // Check for loaded module
+    if (!aurMod || modArray.indexOf(aurMod) === -1) {
+      // Check if module will load at all
+      if (mixList.indexOf(modName) !== -1) {
+        if (!preimports[modName])
+          preimports[modName] = [];
+        
+        var dummyInterface = {__events: {}};
+        preimports[modName].push(dummyInterface);
+        
+        dummyInterface.on = function(evt, callback) {
+          if (!this.__events[evt])
+            this.__events[evt] = [];
+          
+          this.__events[evt].push(callback);
+        }
+        
+        return dummyInterface;
+      }
+      
       return null;
+    }
     
     // Constructor interface
     if (typeof aurMod.interface === "function") {
