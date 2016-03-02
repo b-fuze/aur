@@ -8,9 +8,6 @@
   var miscList = [EMPTYMISC]; // Ditto
   var mixList  = coreList.concat(miscList);
   
-  // Prematurely imported modules
-  var preimports = {};
-  
   // Imported module instance methods
   var instMethods = {
     on: function(evt, callback) {
@@ -57,11 +54,6 @@
     // Events
     this.addEvent("modKill");
     this.addEvent("loaded");
-    
-    // Check the dummy interfaces
-    if (preimports[modName]) {
-      // DO MAGIC HERE
-    }
   }
   
   jSh.inherit(ModRegister, lcComponent);
@@ -94,19 +86,8 @@
     if (!aurMod || modArray.indexOf(aurMod) === -1) {
       // Check if module will load at all
       if (mixList.indexOf(modName) !== -1) {
-        if (!preimports[modName])
-          preimports[modName] = [];
         
-        var dummyInterface = {__events: {}};
-        preimports[modName].push(dummyInterface);
-        
-        dummyInterface.on = function(evt, callback) {
-          if (!this.__events[evt])
-            this.__events[evt] = [];
-          
-          this.__events[evt].push(callback);
-        }
-        
+        var dummyInterface = {loaded: false};
         return dummyInterface;
       }
       
@@ -130,7 +111,73 @@
     
     // Module-specific properties
     aurInstance.modName = aurMod.modName;
+    aurInstance.loaded  = true;
     
     return aurInstance;
+  }
+  
+  var loadedModules = {};
+  mixList.forEach(m => { loadedModules[m] = {loaded: false, callbacks: []} });
+  
+  AUR.onLoaded = function() {
+    var callback;
+    var mods = [];
+    
+    jSh.toArr(arguments).forEach((arg, i, arr) => {
+      if (i + 1 === arr.length) {
+        if (jSh.type(arg) !== "function")
+          return false;
+        
+        callback = arg;
+      } else {
+        if (jSh.type(arg) === "string" && mixList.indexOf(arg) !== -1)
+          mods.push(arg);
+      }
+    });
+    
+    // Check if callback is valid and can continue
+    if (!callback)
+      return false;
+    
+    var mods    = mods[0] ? mods : mixList;
+    var loadObj = {m: mods, cb: callback, loaded: false};
+    var load    = true;
+    
+    // Check if required modules are loaded already
+    loadObj.m.forEach(m => !loadedModules[m].loaded && (load = false));
+    
+    if (!load)
+      mods.forEach(mod => {
+        loadedModules[mod].callbacks.push(loadObj);
+      });
+    else
+      callback(); // Modules are loaded already, invoke callback
+  }
+  
+  AUR.__triggerLoaded = function(modName) {
+    var modObj    = loadedModules[modName]
+    var callbacks = modObj.callbacks;
+    
+    modObj.loaded = true;
+    
+    for (var i=0,l=callbacks.length; i<l; i++) {
+      var loadObj = callbacks[i];
+      
+      if (!loadObj.loaded) {
+        var modArr  = loadObj.m;
+        var loaded  = true;
+        
+        for (var j=0,l2=modArr.length; j<l2; j++) {
+          if (!loadedModules[modArr[j]].loaded)
+            loaded = false;
+        }
+        
+        if (loaded) {
+          // All required modules are loaded, invoke the callback
+          loadObj.loaded = true;
+          loadObj.cb();
+        }
+      }
+    }
   }
 })();

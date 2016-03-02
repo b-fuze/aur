@@ -226,7 +226,7 @@
       content: none;
     }
     
-    /* ---------- Newly Added Series  */
+    /* ---------- Newly Added Series ---------- */
     
     #new-anime-div {
       float: none;

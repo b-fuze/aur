@@ -20,8 +20,14 @@ var time = (new Date()).toGMTString().replace(/ GMT|,/ig,"").replace(/:/g,".").r
 var out   = null;
 var cat   = null;
 var debug = null;
+var excl  = [];
 
-process.argv.slice(2).forEach(function(arg) {
+// Loop arguments
+var args = process.argv.slice(2);
+
+for (var i=0,l=args.length; i<l; i++) {
+  var arg = args[i];
+  
   if (arg[0] === "-") {
     switch (arg.toLowerCase()) {
       case "-cat":
@@ -31,11 +37,32 @@ process.argv.slice(2).forEach(function(arg) {
       case "-debug":
         debug = true;
       break;
+      
+      case "-excl":
+        i++;
+        var arg     = args[i];
+        var nextArg = args[i + 1];
+        
+        var following = true;
+        var follow    = /^(?:[a-z\d\-]+,)+$/i;
+        var followcap = /^(?:[a-z\d\-]+,)*[a-z\d\-]+$/i;
+        
+        while (nextArg && (follow.test(arg) || following && followcap.test(arg))) {
+          excl.push.apply(excl, arg.trim().toLowerCase().split(/\s*,\s*/).filter(s => !!s.trim()));
+          
+          // Set follow flag to continue to next argument
+          following = follow.test(arg);
+          
+          i++;
+          arg       = nextArg;
+          nextArg   = args[i];
+        }
+      break;
     }
   } else {
     out = arg;
   }
-});
+}
 
 // Get paths
 var AURPATH = path.dirname(process.argv[1]) + "/";
@@ -46,6 +73,14 @@ var AUROUT  = out || `${AURPATH}build/bleeding/aur.build.${time}.js`;
 var AURSRC = "";
 
 // Source fetching functions
+function mn(str) { // Module name
+  return str.split(".")[0];
+}
+
+function excld(name) {
+  return excl.indexOf(mn(name).toLowerCase()) !== -1;
+}
+
 function getFile(fpath, ret) {
   var src = fs.readFileSync(fpath, {encoding: "utf8"});
   
@@ -56,14 +91,18 @@ function getFile(fpath, ret) {
 }
 
 function getFolder(fpath, dumpModName) {
-  var files = fs.readdirSync(fpath);
+  var files = fs.readdirSync(fpath).filter(f => !excld(f));
   
   if (dumpModName)
-    dumpModName.push.apply(dumpModName, files.map(f => f.split(".")[0]));
+    dumpModName.push.apply(dumpModName, files.map(f => mn(f)));
   
   files[0] = getFile(`${fpath}/${files[0]}`, true);
-  AURSRC += files.reduce((src, file) => `${src} \n ${getFile(`${fpath}/${file}`, true)}`);
+  
+  AURSRC += files.reduce((src, file) => `${src} \n ${getFile(`${fpath}/${file}`, true)}` + (
+    `\nAUR.__triggerLoaded("${mn(file)}");`
+  ));
 }
+console.log(excl);
 
 function uglify(src) {
   return uglifyjs.minify(src, {
