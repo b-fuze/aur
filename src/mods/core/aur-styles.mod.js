@@ -38,6 +38,9 @@
     this.setState("enabled", true);
     this.setState("src", style);
     
+    this.addStateListener("enabled", onChange);
+    this.addStateListener("src", onChange);
+    
     // Render the styles
     renderStyles();
   }
@@ -45,13 +48,13 @@
   // Style block methods
   AURStyleBlock.prototype.enable = function() {
     this.enabled = true;
-    
-    renderStyles();
   }
   
   AURStyleBlock.prototype.disable = function() {
     this.enabled = false;
-    
+  }
+  
+  function onChange() {
     renderStyles();
   }
   

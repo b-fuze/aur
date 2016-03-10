@@ -102,7 +102,6 @@ function getFolder(fpath, dumpModName) {
     `\nAUR.__triggerLoaded("${mn(file)}");`
   ));
 }
-console.log(excl);
 
 function uglify(src) {
   return uglifyjs.minify(src, {

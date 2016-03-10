@@ -2,6 +2,8 @@
 //
 // Build script: /aur/build.aur.js
 
+var AURGlobal = this;
+
 // Add constant AUR to window
 jSh.constProp(window, "AUR", new lcComponent());
 
