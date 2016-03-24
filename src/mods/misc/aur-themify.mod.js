@@ -26,6 +26,10 @@ var styling = `
     color: #0089CC;
   }
   
+  a img:hover {
+    opacity: 1;
+  }
+  
   /* ---------- Header ---------- */
   
   #header-left {
@@ -706,28 +710,79 @@ var styling = `
     color: #B6B9BF;
   }
   
+  .comment-item .comment-user {
+    position: absolute;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    left: 0px;
+    top: 0px;
+    height: 100%;
+    width: 134px;
+    padding: 0px;
+  }
+  
   .comment-item .comment-user br {
     display: none;
   }
   
   .comment-item .comment-user a {
-    position: absolute;
-    left: 0px;
-    top: 0px;
-    height: 100%;
-    width: 134px;
+    display: inline-block;
+    // position: absolute;
+    // top: 0px;
+    // right: 0px;
+    // left: 0px;
+    // bottom: 0px;
+    // margin: auto auto;
+    // width: -moz-fit-content;
+    // width: -webkit-fit-content;
+    // height: -moz-fit-content;
+    // height: -webkit-fit-content;
+    // max-height: 80px;
   }
   
   .comment-item .comment-user a img {
-    position: absolute;
-    left: 0px;
-    top: 0px;
-    right: 0px;
-    bottom: 0px;
-    margin: auto auto;
+    display: block;
     max-height: 80px;
-    padding: 0px;
     border: 0px;
+    padding: 0px;
+  }
+  
+  .comment-item .comment-content p {
+    word-wrap: break-word;
+  }
+  
+  .comment-item > .clear {
+    position: absolute;
+    z-index: 1000;
+    bottom: 0px;
+    left: -5px;
+    height: 19px;
+    width: 100px;
+    overflow: hidden;
+  }
+  
+  .comment-item > .clear .mod-delete-comment {
+    padding: 0px !important;
+    display: inline-block;
+    transform: translate(0px, 100%);
+    opacity: 0;
+    box-shadow: 0px 2px 2px rgba(0, 0, 0, 0.25);
+    transition: transform 250ms cubic-bezier(.31,.26,.1,.92), opacity 250ms cubic-bezier(.31,.26,.1,.92);
+  }
+  
+  .comment-item:hover > .clear .mod-delete-comment {
+    opacity: 1;
+    transform: translate(0px, 0%);
+  }
+  
+  .comment-item > .clear .mod-delete-comment a {
+    color: #ffffff !important;
+    display: inline-block;
+    text-align: center;
+    background: rgb(19, 20, 23) none repeat scroll 0% 0%;
+    border-left: 5px solid #ff0000;
+    padding: 3px 5px !important;
   }
   
   .comment-icons {
@@ -828,7 +883,9 @@ var styling = `
   }
   
   .comment-content {
+    float: none;
     width: 430px;
+    margin-left: 134px;
   }
   
   .comment-item .comment-content > p:last-child strong, .comment-item .comment-content > p:last-child span.time {
@@ -886,4 +943,4 @@ var styling = `
 // Add important clause
 styling = styling.replace(/([a-z\-\d]+\s*:\s*)([#\d\.\s,a-z()\-]+);/ig, function(m, p1, p2) {
   return p1 + p2 + " !important;";
-}).replace(/\n\s*\/\/[^\n]+\n/g, "\n");
+}).replace(/\n\s*\/\/[^\n]+/gi, "");
