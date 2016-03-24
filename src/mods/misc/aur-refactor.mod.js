@@ -1,7 +1,8 @@
 // AUR Refactor Module
 
-
-var page = AUR.import("aur-page");
+var regs    = AUR.register("aur-refactor");
+var page    = AUR.import("aur-page");
+var details = AUR.import("aur-details");
 
 function remove(e) {
   e.parentNode.removeChild(e);
@@ -98,35 +99,37 @@ if (page.isChannel) {
 }
 
 if (page.isEpisode) {
-  remove(jSh("#fb-like"));
-  remove(jSh(".fornoobs")[0]);
-  
-  // Fix bug in aur-themify
-  var episodeLinks = jSh(".nextepisode")[0].children;
-  
-  if (episodeLinks.length < 3 && /all/i.test(episodeLinks[0].textContent))
-    jSh(".nextepisode")[0].insertBefore(
-      jSh.c("a", {prop: {href: ""}, text: ih("&nbsp;"), className: ".aur-refactor"}),
-      jSh(".nextepisode")[0].getChild(0)
-    );
-  
-  // Fix episode details
-  if (jSh(".uploader-info")[0]) {
-    var strong = jSh(".uploader-info")[0].jSh("strong").slice(0, 3);
+  if (details.episodeAvailable)  {
+    remove(jSh("#fb-like"));
+    remove(jSh(".fornoobs")[0]);
     
-    strong.forEach(e => e.textContent = e.textContent.replace(":", ""));
-  }
-  
-  // Fix reporting pane
-  var report = jSh("#report-form");
-  report.getChild(-1).appendChild(jSh.c("input", {
-    sel: ".button-link",
-    attr: {
-      type: "button",
-      value: "Close",
-      onclick: `$("#report-form").slideUp("slow");`
+    // Fix bug in aur-themify
+    var episodeLinks = jSh(".nextepisode")[0].children;
+    
+    if (episodeLinks.length < 3 && /all/i.test(episodeLinks[0].textContent))
+      jSh(".nextepisode")[0].insertBefore(
+        jSh.c("a", {prop: {href: ""}, text: ih("&nbsp;"), className: ".aur-refactor"}),
+        jSh(".nextepisode")[0].getChild(0)
+      );
+    
+    // Fix episode details
+    if (jSh(".uploader-info")[0]) {
+      var strong = jSh(".uploader-info")[0].jSh("strong").slice(0, 3);
+      
+      strong.forEach(e => e.textContent = e.textContent.replace(":", ""));
     }
-  }));
+    
+    // Fix reporting pane
+    var report = jSh("#report-form");
+    report.getChild(-1).appendChild(jSh.c("input", {
+      sel: ".button-link",
+      attr: {
+        type: "button",
+        value: "Close",
+        onclick: `$("#report-form").slideUp("slow");`
+      }
+    }));
+  }
 }
 
 if (page.isSearch) {

@@ -61,7 +61,7 @@ var animeProps = [
       return null;
   }],
   ["episodeTitle", function() {
-    if (page.isEpisode) {
+    if (page.isEpisode && jSh("#pembed")) {
       var h1 = jSh("#main-content").jSh("h1")[0];
       
       if (h1.nextElementSibling && h1.nextElementSibling.tagName === "P") {
@@ -87,14 +87,25 @@ var animeProps = [
       return null;
   }],
   ["mirror", function() {
-    if (page.isEpisode)
+    if (page.isEpisode && jSh("#pembed"))
       return jSh(".uploader-info")[0].textContent.match(/video\s+site:\s*([a-z\d]+)\s*language:/i)[1];
     else
       return null;
   }],
   ["mirrorURL", function() {
+    if (page.isEpisode && jSh("#pembed")) {
+      var pembed = jSh("#pembed");
+      
+      var embed  = pembed.jSh("embed")[0];
+      var iframe = pembed.jSh("iframe")[0];
+      
+      return (embed || iframe || {src: null}).src;
+    } else
+      return null;
+  }],
+  ["episodeAvailable", function() {
     if (page.isEpisode)
-      return jSh("#pembed").jSh("iframe")[0].src;
+      return !!jSh("#pembed");
     else
       return null;
   }]
