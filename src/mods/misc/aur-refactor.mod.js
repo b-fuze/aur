@@ -1,8 +1,8 @@
 // AUR Refactor Module
 
-var regs    = AUR.register("aur-refactor");
-var page    = AUR.import("aur-page");
-var details = AUR.import("aur-details");
+var regs   = AUR.register("aur-refactor");
+var page   = AUR.import("aur-page");
+var detail = AUR.import("aur-details");
 
 function remove(e) {
   e.parentNode.removeChild(e);
@@ -99,7 +99,7 @@ if (page.isChannel) {
 }
 
 if (page.isEpisode) {
-  if (details.episodeAvailable)  {
+  if (detail.anime.episodeAvailable) {
     remove(jSh("#fb-like"));
     remove(jSh(".fornoobs")[0]);
     
