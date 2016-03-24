@@ -6,6 +6,7 @@ var AURGlobal = this;
 
 // Add constant AUR to window
 jSh.constProp(this, "AUR", new lcComponent());
+var AUR = this.AUR;
 
 AUR.addEvent("load");
 
