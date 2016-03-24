@@ -37,15 +37,10 @@ reg.interface = function(){
 
   this.showHiddenRatings = function(comments){
 
-    /*REMOVE WHEN aur-details MODULE IS DONE*/
-    var details = {};
-    details.episodeId = jSh("#epid").value;
-    details.channelId = jSh("#chid").value;
-
     var indexes = [];
     var oldCommentItems = comments.jSh(".comment-item");
 
-    for(var i = 0; i < comments.children.length; i++){
+    for(var i = 0; i < oldCommentItems.length; i++){
       // var id = oldCommentItems[i].jSh(".like-comment")[0].rel;
       var commentIcons = oldCommentItems[i].jSh(".comment-icons > *");
       if(commentIcons.length === 1){
@@ -60,8 +55,8 @@ reg.interface = function(){
 
     var query = {
       method: "fetchepisodecomment",
-      episode_num: details.episodeId,
-      channelid: details.channelId
+      episode_num: details.anime.episode,
+      channelid: details.anime.channel
     }
 
 
