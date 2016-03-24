@@ -223,7 +223,7 @@ lces.rc[0] = function() {
     if (typeof className == "object") {
       var args = className;
 
-      className  = args.className || args.class;
+      className  = args.className || args.class || args.sel;
       text       = args.text;
       child      = args.child || args.children;
       attributes = args.attributes || args.attr;
@@ -366,7 +366,9 @@ lces.rc[0] = function() {
       "ns:style:": style || ""
     });
   }
-
+  
+  jSh.docFrag = document.createDocumentFragment.bind(document);
+  
   // DOM Manipulation Functions
 
   jSh.getChild = function(off, length) {
@@ -526,6 +528,13 @@ lces.rc[0] = function() {
 };
 
 if (lces.onlyjSh) lces.rc[0]();
+lces.rc[1] = function() {
+  window.qsmoothp = function(f){var d=this;d.qsmoth={pro:0};d.qsmooth=function(a){if(void 0==a.pro){var c=a.n,b=a.n1,g=(b-c)*(void 0!=a.speed&&"number"==typeof a.speed?a.speed:.1),h=g+c;a.func(h);d.qsmoth.pro+=1;var k=d.qsmoth.pro;d.timeOut=setTimeout(function(){d.qsmooth({func:a.func,n:c,n1:b,pro:k,cur:h,off:g,end:a.end,endarg:a.endarg,noRound:a.noRound,checkIncr:a.checkIncr})},33)}else{if(a.pro!=d.qsmoth.pro)return!1;if (a.n!=a.n1) {var stop=false;var c=a.n,b=a.n1,f=a.off,l=-1*a.checkIncr,l=b<c?l:a.checkIncr,m=!1,n=!1,e=f*(1-(a.cur- c)/(b-c))+a.cur;b<c?l+e<=a.n1&&(m=!0):l+e>=a.n1&&(m=!0);b<c?e<=a.n1&&(n=!0):e>=a.n1&&(n=!0);} else var stop=true;if(stop||!a.noRound&&Math.round(e)==b||e==b||n||void 0!=a.checkIncr&&"number"==typeof a.checkIncr&&m)a.func((stop?a.n1:b)),"function"==typeof a.end&&(arguments=void 0!=a.endarg?a.endarg:void 0,a.end(arguments));else{if(isNaN(a.cur))return!1;a.func(e);d.timeOut=setTimeout(function(){d.qsmooth({func:a.func,pro:a.pro,cur:e,off:f,n:c,n1:b,end:a.end,endarg:a.endarg,noRound:a.noRound,checkIncr:a.checkIncr})},38)}}};this.timeOut=null; this.qsmooth(f)};window.qsFadein=function(f,d,a,c,b,g,h,k){return new qsmoothp({func:f,n:d,n1:a,off:g?g:.2,speed:c?c:.032,noRound:void 0!=h?h:!0,checkIncr:void 0!=k?k:.001,end:void 0!=b?b:void 0})};
+  window.clearQS = function(qs) {
+    if (qs&&qs.qsmoth)
+      qs.qsmoth.pro = 0;
+  }
+}
 lces.rc[9] = function() {
   // lces colorize global variable
   lces.css = {};
@@ -1425,19 +1434,19 @@ lces.rc[2] = function() {
       xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
     
     this.send = function() {
-      var oldCookies = document.cookie.split(/\s*;\s*/).map(c => [c.split("=")[0], c.split("=")[1]]);
+      var oldCookies = document.cookie.split(/\s*;\s*/).map(function(c) {return [c.split("=")[0], c.split("=")[1]]});
       
       if (args.cookies === false) { // Remove all cookies
         var time = (new Date());
         time.setTime(0);
         
-        oldCookies.forEach(c => document.cookie = `${c[0]}=; expires=${time}; path=/`);
+        oldCookies.forEach(function(c) {document.cookie = c[0] + "=; expires=" + time + "; path=/"});
       }
       
       xhr.send(method == "POST" ? queryString : undf);
       
       if (args.cookies === false) { // Readd the cookies
-        setTimeout(function(){ oldCookies.forEach(c => document.cookie = `${c[0]}=${c[1]}; expires=; path=/`) }, 50);
+        setTimeout(function(){ oldCookies.forEach(function(c) {document.cookie = c[0] + "=" + c[1] + "; expires=; path=/"}) }, 50);
       }
     }
   }
@@ -2539,6 +2548,10 @@ lces.rc[5] = function() {
       e.preventDefault();
       var target = e.target || e.srcElement;
       
+      // Update height in case of unforeseen changes
+      scrubbarWidth = scrubbar.offsetWidth;
+      scrubberWidth = scrubber.offsetWidth;
+      
       var onScrub = function(e, scrubberTrig) {
         var sbRect = scrubbar.getBoundingClientRect();
         
@@ -2622,8 +2635,9 @@ lces.rc[5] = function() {
       var attrMax   = refElm.getAttribute("max");
       var prefix    = refElm.getAttribute("prefix");
       var suffix    = refElm.getAttribute("suffix");
-      var hideValue = refElm.getAttribute("hide-value")
+      var hideValue = refElm.getAttribute("hide-value");
       var decimals  = refElm.getAttribute("decimals");
+      var steps     = refElm.getAttribute("steps");
       
       if (!isNaN(parseFloat(attrMin))) {
         this.min = parseFloat(attrMin);
@@ -3833,7 +3847,7 @@ lces.rc[7] = function() {
     
     // Check for the main window container grouping element
     if (!jSh("#windowcontainer"))
-      document.body.appendChild(jSh.d("#windowcontainer.lces-themify"));
+      document.body.appendChild(jSh.d({sel: "#windowcontainer.lces-themify", attr: {style: "text-align: left;"}}));
     
     // Get or create the window element
     if (!e) {
@@ -6974,7 +6988,13 @@ lces.rc[3] = function() {
 
     // Methods
     lces.url.process = function() {
-      var url        = location.pathname.substr(1).split("/");
+      var loc        = location.pathname.substr(1);
+      
+      // Remove trailing slash if any
+      if (/^([^\/]+\/)+$/i.test(loc))
+        loc = loc.substr(0, loc.length - 1);
+      
+      var url        = loc.split("/");
       var startIndex = null;
       
       url.every(function(i, index) {
@@ -6999,7 +7019,7 @@ lces.rc[3] = function() {
         return typeof o === "function";
       }
       
-      url.every(function(i, index) {
+      url.every(function(i, index, arr) {
         if (index >= startIndex) {
           var curr = curObject ? curObject[url[index]] : lces.url.triggers[url[index]];
           
@@ -7007,7 +7027,12 @@ lces.rc[3] = function() {
             return false;
           }
           
-          if (isFunction(curr)) {
+          if (index === arr.length - 1 && jSh.type(curr) === "object" && isFunction(curr["."])) {
+            func = curr["."];
+            args = url.slice(index + 1);
+            
+            return false;
+          } else if (isFunction(curr)) {
             func = curr;
             args = url.slice(index + 1);
             

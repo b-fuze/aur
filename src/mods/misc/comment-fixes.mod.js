@@ -7,8 +7,8 @@
 // add the clean function
 
 var reg   = AUR.register("comment-fixes");
-if(!reg)
-  return;
+// if(!reg) // Functions won't be called if a module is disabled, as in it won't ever see the light of day.
+//   return;
 
 var page  = AUR.import("aur-page");
 var aurdb = AUR.import("aur-db");
@@ -114,7 +114,7 @@ reg.interface = function(){
     var target = e.target;
 
     while (target !== this && (target.className.indexOf("like-comment") === -1 && target.className.indexOf("spam-show") === -1)) {
-      target = target.parentNode;  
+      target = target.parentNode;
     }
 
     if (target !== this){
@@ -208,3 +208,7 @@ reg.interface = function(){
   }
 
 }
+
+// Just to self-initilize
+if (page.isEpisode && details.user.name)
+  (new reg.interface()).mend(jSh("#comment-container"));

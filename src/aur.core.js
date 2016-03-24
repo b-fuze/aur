@@ -5,10 +5,17 @@
 var AURGlobal = this;
 
 // Add constant AUR to window
-jSh.constProp(window, "AUR", new lcComponent());
+jSh.constProp(this, "AUR", new lcComponent());
 
 AUR.addEvent("load");
 
 AUR.jSh  = jSh;
 AUR.lces = lces;
+
+AUR.error = function(e) {
+  var errorString = "AUR ERROR: " + e;
+  
+  console.error(errorString);
+  alert(errorString);
+};
 // aur.mod.js here

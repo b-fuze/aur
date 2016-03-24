@@ -73,6 +73,15 @@ var AUROUT  = out || `${AURPATH}build/bleeding/aur.build.${time}.js`;
 var AURSRC = "";
 
 // Source fetching functions
+function srcEscape(src) {
+  src = src.replace(/\\/g, "\\\\");
+  src = src.replace(/\//g, "\\/");
+  src = src.replace(/\n/g, "\\n");
+  src = src.replace(/"/g, "\\\"");
+  
+  return src;
+}
+
 function mn(str) { // Module name
   return str.split(".")[0];
 }
@@ -96,10 +105,12 @@ function getFolder(fpath, dumpModName) {
   if (dumpModName)
     dumpModName.push.apply(dumpModName, files.map(f => mn(f)));
   
-  files[0] = getFile(`${fpath}/${files[0]}`, true);
+  files[0] = `\ntry {\n  (function() {eval("${srcEscape(getFile(`${fpath}/${files[0]}`, true))}");})();` + (
+    `\n  AUR.__triggerLoaded("${mn(files[0])}");\n} catch (e) {\n  AUR.error("Module ${mn(files[0])} failed to load - " + e + "\\n\\n" + e.stack);\n}`
+  );
   
-  AURSRC += files.reduce((src, file) => `${src} \n ${getFile(`${fpath}/${file}`, true)}` + (
-    `\nAUR.__triggerLoaded("${mn(file)}");`
+  AURSRC += files.reduce((src, file) => `${src} \ntry {\n  (function() {eval("${srcEscape(getFile(`${fpath}/${file}`, true))}");})();` + (
+    `\n  AUR.__triggerLoaded("${mn(file)}");\n} catch (e) {\n  AUR.error("Module ${mn(file)} failed to load - " + e + "\\n\\n" + e.stack);\n}`
   ));
 }
 
