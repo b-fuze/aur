@@ -51,7 +51,10 @@ AUR.onLoaded("aur-ui", function() {
   // Add to nav
   if (jSh("#left-nav")) {
     var AUREntry = jSh.c("li", {
-      child: jSh.c("span", ".ddtitle", "AUR")
+      child: jSh.c("span", ".ddtitle", "AUR"),
+      attr: {
+        style: "cursor: pointer;"
+      }
     });
     
     AUREntry.addEventListener("click", function() {

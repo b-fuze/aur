@@ -19,7 +19,7 @@ function renderStyles() {
     var sb = styleBlocks[i];
     
     if (sb.enabled)
-      stylesCat += sb.src;
+      stylesCat += sb.src.replace(/\n\s*\/\/[^\n]+/gi, "");
   }
   
   // Add and replace styles
