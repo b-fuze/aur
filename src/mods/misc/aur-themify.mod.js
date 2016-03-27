@@ -61,6 +61,41 @@ var styling = `
     color: #0080BF;
   }
   
+  #left-nav li > .ddtitle {
+    position: relative;
+  }
+  
+  #left-nav li > .ddtitle > a {
+    position: absolute;
+    right: 5px;
+    top: 6px;
+    padding: 0px;
+    margin: 0px;
+    width: 0px;
+    height: 0px;
+  }
+  
+  #left-nav li > .ddtitle > a::before {
+    content: "";
+    position: relative;
+    background: url('data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2218%22%20height%3D%2212%22%3E%3Cpath%20d%3D%22M0%200v.987l9%204.79%209-4.79V0zm0%203.025V12h18V3.025L9.197%207.727%209%207.843l-.197-.116z%22%20fill%3D%22%23ac001c%22%2F%3E%3C%2Fsvg%3E') no-repeat;
+    display: inline-block;
+    width: 18px;
+    height: 12px;
+    padding: 2px;
+    transform-origin: 50% 50%;
+    transform:  translate(-50%, -50%) scale(0.75, 0.75);
+    transition: transform 200ms cubic-bezier(.31,.26,.1,.92);
+  }
+  
+  #left-nav li > .ddtitle:hover > a::before {
+    transform:  translate(-50%, -50%) scale(1.15, 1.15);
+  }
+  
+  #left-nav li > .ddtitle > a img {
+    display: none;
+  }
+  
   ul#left-nav li ul {
     background: #1E2024;
     border-radius: 2.5px;
