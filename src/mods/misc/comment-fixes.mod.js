@@ -5,6 +5,7 @@
 // more readable code
 // expect bugs
 // add the clean function
+// check for possible missing elements
 
 var reg   = AUR.register("comment-fixes");
 // if(!reg) // Functions won't be called if a module is disabled, as in it won't ever see the light of day.
@@ -122,7 +123,7 @@ reg.interface = function(){
       }
 
     } else {
-      console.log("nope");
+      // console.log("nope");
       return;
     }
   }
@@ -131,7 +132,7 @@ reg.interface = function(){
   this.showSpam = function(target){
     //test
 
-    console.log("Spam", target);
+    // console.log("Spam", target);
 
     target.getParent(2).style.display = "none";
     jSh("." + target.rel)[0].removeAttribute("style");
