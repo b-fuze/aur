@@ -8,6 +8,11 @@
   var miscList = [EMPTYMISC]; // Ditto
   var mixList  = coreList.concat(miscList);
   
+  var sett     = lces.user.settings;
+  var settDump = {};
+  
+  sett.default = settDump;
+  
   // Imported module instance methods
   var instMethods = {
     on: function(evt, callback) {
@@ -46,14 +51,29 @@
     
     // Module interface default
     this.interface = null;
+    var settings   = null;
     
     // Module name and version
     jSh.constProp(this, "modName", modName);
+    
     this.modVersion = 1;
+    this.author     = null;
+    Object.defineProperty(this, "settings", {
+      get: () => settings,
+      configurable: false
+    });
     
     // Events
-    this.addEvent("modKill");
+    this.addEvent("moddisable");
+    this.addEvent("modenable");
     this.addEvent("loaded");
+    
+    this.defSettings = function(name, settingBody) {
+      settDump[name] = settingBody;
+      settings = settingBody;
+      
+      sett.manifest();
+    }
   }
   
   jSh.inherit(ModRegister, lcComponent);

@@ -16,11 +16,42 @@ process.chdir(path.dirname(process.argv[1]));
 // Current time
 var time = (new Date()).toGMTString().replace(/ GMT|,/ig,"").replace(/:/g,".").replace(/\s/g,"-").toLowerCase();
 
+function multipleArg(i, arr, dump, comma) {
+  i++;
+  var arg     = arr[i];
+  var nextArg = arr[i + 1];
+  
+  var following = true;
+  var follow    = /^(?!\-)(?:[a-z\d\-]+,)+$/i;
+  var followcap = /^(?:[a-z\d\-]+,)*[a-z\d\-]+$/i;
+  var stoploop;
+  
+  while (!stoploop && (!comma || (nextArg && (follow.test(arg) || following && followcap.test(arg))))) {
+    if (comma)
+      dump.push.apply(dump, arg.trim().toLowerCase().split(/\s*,\s*/).filter(s => !!s.trim()));
+    else
+      dump.push(arg);
+    
+    // Set follow flag to continue to next argument
+    following = follow.test(arg);
+    
+    i++;
+    arg       = nextArg;
+    nextArg   = arr[i];
+    
+    if (!comma && (!nextArg || nextArg.trim()[0] === "-"))
+      stoploop = true;
+  }
+  
+  return i;
+}
+
 // Arguments
 var out   = null;
 var cat   = null;
 var debug = null;
 var excl  = [];
+var incl  = [];
 
 // Loop arguments
 var args = process.argv.slice(2);
@@ -39,24 +70,11 @@ for (var i=0,l=args.length; i<l; i++) {
       break;
       
       case "-excl":
-        i++;
-        var arg     = args[i];
-        var nextArg = args[i + 1];
-        
-        var following = true;
-        var follow    = /^(?:[a-z\d\-]+,)+$/i;
-        var followcap = /^(?:[a-z\d\-]+,)*[a-z\d\-]+$/i;
-        
-        while (nextArg && (follow.test(arg) || following && followcap.test(arg))) {
-          excl.push.apply(excl, arg.trim().toLowerCase().split(/\s*,\s*/).filter(s => !!s.trim()));
-          
-          // Set follow flag to continue to next argument
-          following = follow.test(arg);
-          
-          i++;
-          arg       = nextArg;
-          nextArg   = args[i];
-        }
+        i = multipleArg(i, args, excl, true);
+      break;
+      
+      case "-add":
+        i = multipleArg(i, args, incl);
       break;
     }
   } else {
@@ -98,19 +116,28 @@ function getFile(fpath, ret) {
   AURSRC += "\n\n" + src;
 }
 
+function encapsulate(fpath, file) {
+  var npath = !file ? fpath : `${fpath}/${file}`;
+  var name = mn(file || path.basename(fpath));
+  
+  return `\n\ntry {\n  (function() {eval(\`${srcEscape(getFile(npath, true))}\`)})();` + (
+    `\n  AUR.__triggerLoaded("${name}");\n} catch (e) {\n  AUR.error("Module ${name} failed to load - " + e + "\\n\\n" + e.stack);\n};`
+  );
+}
+
 function getFolder(fpath, dumpModName) {
   var files = fs.readdirSync(fpath).filter(f => !excld(f));
   
   if (dumpModName)
     dumpModName.push.apply(dumpModName, files.map(f => mn(f)));
   
-  files[0] = `\ntry {\n  (function() {eval(\`${srcEscape(getFile(`${fpath}/${files[0]}`, true))}\`)})();` + (
-    `\n  AUR.__triggerLoaded("${mn(files[0])}");\n} catch (e) {\n  AUR.error("Module ${mn(files[0])} failed to load - " + e + "\\n\\n" + e.stack);\n};`
-  );
+  files[0] = encapsulate(fpath, files[0]); // `\ntry {\n  (function() {eval(\`${srcEscape(getFile(`${fpath}/${files[0]}`, true))}\`)})();` + (
+  //   `\n  AUR.__triggerLoaded("${mn(files[0])}");\n} catch (e) {\n  AUR.error("Module ${mn(files[0])} failed to load - " + e + "\\n\\n" + e.stack);\n};`
+  // );
   
-  AURSRC += files.reduce((src, file) => `${src} \ntry {\n  (function() {eval(\`${srcEscape(getFile(`${fpath}/${file}`, true))}\`)})();` + (
+  AURSRC += files.reduce((src, file) => src + encapsulate(fpath, file) /* `${src} \ntry {\n  (function() {eval(\`${srcEscape(getFile(`${fpath}/${file}`, true))}\`)})();` + (
     `\n  AUR.__triggerLoaded("${mn(file)}");\n} catch (e) {\n  AUR.error("Module ${mn(file)} failed to load - " + e + "\\n\\n" + e.stack);\n};`
-  ));
+  ) */ );
 }
 
 function uglify(src) {
@@ -154,6 +181,9 @@ getFolder(AURPATH + "src/mods/core", coreModules);
 
 // Get misc modules
 getFolder(AURPATH + "src/mods/misc", miscModules);
+
+// Get extra modules if any
+incl.forEach(file => (AURSRC += encapsulate(file), miscModules.push(mn(path.basename(file)))));
 
 // Add module names
 AURSRC = AURSRC.replace(/EMPTYCORE/, '"' + coreModules.join('", "') + '"');

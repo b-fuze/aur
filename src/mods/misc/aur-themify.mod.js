@@ -61,6 +61,41 @@ var styling = `
     color: #0080BF;
   }
   
+  #left-nav li > .ddtitle {
+    position: relative;
+  }
+  
+  #left-nav li > .ddtitle > a {
+    position: absolute;
+    right: 5px;
+    top: 6px;
+    padding: 0px;
+    margin: 0px;
+    width: 0px;
+    height: 0px;
+  }
+  
+  #left-nav li > .ddtitle > a::before {
+    content: "";
+    position: relative;
+    background: url('data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2218%22%20height%3D%2212%22%3E%3Cpath%20d%3D%22M0%200v.987l9%204.79%209-4.79V0zm0%203.025V12h18V3.025L9.197%207.727%209%207.843l-.197-.116z%22%20fill%3D%22%23ac001c%22%2F%3E%3C%2Fsvg%3E') no-repeat;
+    display: inline-block;
+    width: 18px;
+    height: 12px;
+    padding: 2px;
+    transform-origin: 50% 50%;
+    transform:  translate(-50%, -50%) scale(0.75, 0.75);
+    transition: transform 200ms cubic-bezier(.31,.26,.1,.92);
+  }
+  
+  #left-nav li > .ddtitle:hover > a::before {
+    transform:  translate(-50%, -50%) scale(1.15, 1.15);
+  }
+  
+  #left-nav li > .ddtitle > a img {
+    display: none;
+  }
+  
   ul#left-nav li ul {
     background: #1E2024;
     border-radius: 2.5px;
@@ -254,6 +289,84 @@ var styling = `
   
   #new-anime > li::before {
     content: none;
+  }
+  
+  /* ---------- Calendar ---------- */
+  
+  #fp_calendarview {
+    border-spacing: 0px;
+  }
+  
+  #fp_calendarview td.monthname {
+    background: #17425a;
+    color: inherit;
+  }
+  
+  #fp_calendarview td.day {
+    background: #282B30;
+    color: #515357;
+  }
+  
+  #fp_calendarview td {
+    border-color: #1E2024;
+    background: rgba(255, 255, 255, 0.02);
+  }
+  
+  #fp_calendarview td.item {
+    padding: 0px;
+    background: rgba(255, 255, 255, 0.05);
+    transition: border-color 250ms ease-out, background 250ms ease-out;
+  }
+  
+  #fp_calendarview td.item:hover {
+    border-color: #7D8796;
+    background: rgba(255, 255, 255, 0.065);
+  }
+  
+  #fp_calendarview td.item > em {
+    display: inline-block;
+  }
+  
+  #fp_calendarview td.itemtoday {
+    border: 1px solid #86ba2c;
+  }
+  
+  #fp_calendarview td div.dnum {
+    background: #384626;
+    color: #A6A6A6;
+    transition: background 250ms ease-out;
+  }
+  
+  #fp_calendarview td:hover div.dnum {
+    background: #526d28;
+  }
+  
+  .calt1 {
+    border: 1px solid #3e4d59;
+    background: #3e4d59;
+  }
+  
+  .calt2 {
+    background: #554b42;
+    border: 1px solid #554b42;
+  }
+  
+  .calt1:hover {
+    border: 1px solid #475866;
+    background: #475866;
+  }
+  
+  .calt2:hover {
+    background: #61564B;
+    border: 1px solid #61564B;
+  }
+  
+  .calt1, .calt2 {
+    color: #C3CED9 !important;
+  }
+  
+  .calt1:hover, .calt2:hover {
+    color: #E6ECF2 !important;
   }
   
   /* ---------- Newly Added Series ---------- */
@@ -943,4 +1056,4 @@ var styling = `
 // Add important clause
 styling = styling.replace(/([a-z\-\d]+\s*:\s*)([#\d\.\s,a-z()\-]+);/ig, function(m, p1, p2) {
   return p1 + p2 + " !important;";
-}).replace(/\n\s*\/\/[^\n]+/gi, "");
+});

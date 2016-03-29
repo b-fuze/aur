@@ -528,13 +528,6 @@ lces.rc[0] = function() {
 };
 
 if (lces.onlyjSh) lces.rc[0]();
-lces.rc[1] = function() {
-  window.qsmoothp = function(f){var d=this;d.qsmoth={pro:0};d.qsmooth=function(a){if(void 0==a.pro){var c=a.n,b=a.n1,g=(b-c)*(void 0!=a.speed&&"number"==typeof a.speed?a.speed:.1),h=g+c;a.func(h);d.qsmoth.pro+=1;var k=d.qsmoth.pro;d.timeOut=setTimeout(function(){d.qsmooth({func:a.func,n:c,n1:b,pro:k,cur:h,off:g,end:a.end,endarg:a.endarg,noRound:a.noRound,checkIncr:a.checkIncr})},33)}else{if(a.pro!=d.qsmoth.pro)return!1;if (a.n!=a.n1) {var stop=false;var c=a.n,b=a.n1,f=a.off,l=-1*a.checkIncr,l=b<c?l:a.checkIncr,m=!1,n=!1,e=f*(1-(a.cur- c)/(b-c))+a.cur;b<c?l+e<=a.n1&&(m=!0):l+e>=a.n1&&(m=!0);b<c?e<=a.n1&&(n=!0):e>=a.n1&&(n=!0);} else var stop=true;if(stop||!a.noRound&&Math.round(e)==b||e==b||n||void 0!=a.checkIncr&&"number"==typeof a.checkIncr&&m)a.func((stop?a.n1:b)),"function"==typeof a.end&&(arguments=void 0!=a.endarg?a.endarg:void 0,a.end(arguments));else{if(isNaN(a.cur))return!1;a.func(e);d.timeOut=setTimeout(function(){d.qsmooth({func:a.func,pro:a.pro,cur:e,off:f,n:c,n1:b,end:a.end,endarg:a.endarg,noRound:a.noRound,checkIncr:a.checkIncr})},38)}}};this.timeOut=null; this.qsmooth(f)};window.qsFadein=function(f,d,a,c,b,g,h,k){return new qsmoothp({func:f,n:d,n1:a,off:g?g:.2,speed:c?c:.032,noRound:void 0!=h?h:!0,checkIncr:void 0!=k?k:.001,end:void 0!=b?b:void 0})};
-  window.clearQS = function(qs) {
-    if (qs&&qs.qsmoth)
-      qs.qsmoth.pro = 0;
-  }
-}
 lces.rc[9] = function() {
   // lces colorize global variable
   lces.css = {};
@@ -694,6 +687,9 @@ lces.rc[2] = function() {
       var stateCond   = stateObject.conditions;
       var canContinue = true;
       
+      // Propose value during condition check
+      stateObject.proposedValue = stateStatus;
+      
       for (var i=0,l=stateCond.length; i<l; i++) {
         var condFunc = stateCond[i];
         
@@ -703,6 +699,9 @@ lces.rc[2] = function() {
         if (!canContinue)
           return false;
       }
+      
+      // Set from proposedValue
+      stateStatus = stateObject.proposedValue;
       
       if (stateObject.stateStatus === stateStatus && !recurring)
         return false;
@@ -1715,6 +1714,52 @@ lces.rc[10] = function() {
   
   var lcComponent = lces.global.lcComponent;
   
+  // Check if valid number.
+  function numOp(src, def) {
+    return !isNaN(src) && jSh.type(src) === "number" && src > -Infinity && src < Infinity ? parseFloat(src) : def;
+  }
+  
+  function multipleIndex(multiple, setting) {
+    if (jSh.type(multiple) === "array") {
+      var newDump = [];
+      
+      for (var i=0,l=multiple.length; i<l; i++) {
+        var item   = multiple[i];
+        var type   = jSh.type(item);
+        var formal = "item" + (i + 1);
+        var key;
+        var index;
+        
+        if (type === "array" && item.length === 2) {
+          type   = jSh.type(item[0]);
+          formal = item[1] || formal;
+          
+          item = item[0];
+        }
+        
+        switch (type) {
+          case "date":
+            key = item.toJSON();
+          break;
+          default:
+            key = item + "";
+          break;
+        }
+        
+        key  = "key" + key;
+        index = newDump.length;
+        newDump.push([item, formal]);
+        
+        if (typeof newDump[key] !== "number")
+          newDump[key] = index;
+      }
+      
+      return newDump;
+    } else {
+      return null;
+    }
+  }
+  
   // Create user module
   lces.user = new lcComponent();
   
@@ -1723,30 +1768,51 @@ lces.rc[10] = function() {
   var settings = lces.user.settings;
   
   // Setting entry constructor
-  settings.Setting = function Setting(name, types, defValue, multiple) {
+  //
+  // multiple: Array. Optional.
+  settings.Setting = function Setting(name, types, defValue, multiple, options) {
     // Check if not initialized
-    if (this === lces.global || this === settings)
-      return new Setting(name, types, defValue, multiple);
+    if (!(this instanceof Setting))
+      return new Setting(name, types, defValue, multiple, options);
     
+    var that  = this;
     this.type = "LCES User Setting Entry";
     
-    this.name     = null; // Will be set during the manifest scan
-    this.settName = name;
+    this.name       = null; // Will be set during the manifest scan
+    this.settName   = name;
+    this.formalName = jSh.type(options) === "object" && typeof options.formalName === "string" ? options.formalName : null;
     
-    this.defValue     = defValue;
-    this.settType     = null;
-    this.settMultiple = jSh.type(multiple) === "array" && multiple.length > 1 && multiple.indexOf(defValue) !== -1;
+    this.settMultiple   = jSh.type(multiple) === "array" && multiple.length > 1;
+    this.multipleValues = this.settMultiple ? multipleIndex(multiple) : null;
+    this.currentIndex   = this.settMultiple ? numOp(defValue, 0) : null;
+    this.formalMultiple = this.settMultiple ? multiple.map(a => a[1]) : null;
+    
+    this.defValue   = this.settMultiple ? this.multipleValues[numOp(defValue, 0)] : defValue;
+    this.settType   = null;
+    
+    // If multiple check the default value
+    if (this.settMultiple && jSh.type(this.defValue) === "array")
+      this.defValue = this.defValue[0];
     
     // Check the types for the setting type
-    types = typeof types === "string" ? types.toLowerCase() : "";
+    types   = typeof types === "string" ? types.toLowerCase() : "";
+    options = jSh.type(options) === "object" ? options : {};
     
     var numType  = types.indexOf("number") !== -1;
+    var integer  = types.indexOf("integer") !== -1;
+    var min      = numOp(options.min, null);
+    var max      = numOp(options.max, null);
+    
     var boolType = types.indexOf("boolean") !== -1;
     var dateType = types.indexOf("date") !== -1;
-    var strType  = (!numType || !boolType || !dateType) || types.indexOf("string") !== -1;
+    var strType  = (!numType && !boolType && !dateType) || types.indexOf("string") !== -1;
     
-    // Extra modifiers
-    // var range = // Extra fun stuff here, etc.
+    var multiple = this.settMultiple;
+    var mixed    = types.indexOf("mixed") !== -1;
+    
+    // Setting object properties
+    this.min = min;
+    this.max = max;
     
     if (!types) {
       this.settType = "string";
@@ -1757,15 +1823,61 @@ lces.rc[10] = function() {
         this.settType = "boolean";
       else if (dateType)
         this.settType = "date";
-      else
+      else {
+        if (multiple)
+          mixed = true;
+        
         this.settType = "string";
+      }
     }
     
     // Decided to repeat to relieve engine of redundant if condition checking and smaller functions
-    if (numType) {
+    if (multiple) {
+      if (mixed || strType) {
+        this.condition = function(value) {
+          var index = jSh.type(value) === "number" ? value : that.multipleValues["key" + value];
+          
+          if (typeof index !== "number")
+            return false;
+          
+          that.currentIndex  = index;
+          this.proposedValue = that.multipleValues[index][0];
+          return true;
+        }
+      } else if (dateType) {
+        this.condition = function(value) {
+          value = jSh.type(value) === "date" ? value.toJSON() : (typeof value === "number" ? new Date(value) : value);
+          var index = that.multipleValues["key" + value];
+          
+          if (typeof index !== "number")
+            return false;
+          
+          that.currentIndex  = index;
+          this.proposedValue = that.multipleValues[index][0];
+          return true;
+        }
+      } else if (numType) {
+        this.condition = function(value) {
+          var index = that.multipleValues["key" + value];
+          
+          if (typeof index !== "number")
+            return false;
+          
+          that.currentIndex  = index;
+          this.proposedValue = that.multipleValues[index][0];
+          return true;
+        }
+      }
+    } else if (numType) {
       this.condition = function(value) {
         if (jSh.type(value) !== "number") {
           var pi = parseFloat(value);
+          
+          if (integer)
+            pi = Math.round(pi);
+          
+          if ((min !== null && pi < min) || (max !== null && pi > max))
+            value = Math.max(Math.min(min, value), max);
           
           if (!isNaN(pi))
             this.component.setState(this.name, pi);
@@ -1781,7 +1893,6 @@ lces.rc[10] = function() {
           var bool = Boolean(value);
           
           this.component.setState(this.name, bool);
-          
           return false;
         }
         
@@ -1793,18 +1904,14 @@ lces.rc[10] = function() {
         
         if (jSh.type(value) !== "date") {
           date = new Date(value);
-          
-          if (isNaN(date.getTime()))
-            return false;
-          
-          this.component.setState(this.name, date);
         } else {
           date = value;
-          
-          if (isNaN(date.getTime()))
-            return false;
         }
         
+        if (isNaN(date.getTime()))
+          return false;
+        
+        this.component.setState(this.name, date);
         return true;
       }
     } else { // Default string type
@@ -1845,30 +1952,38 @@ lces.rc[10] = function() {
             userGroup.events[name].listeners = sett.functions;
             
             userGroup.setState(name, sett.defValue);
-            userGroup.addStateListener(name, onSettChange.bind(userGroup.states[name]));
+            var settObj = userGroup.states[name];
+            
+            userGroup.addStateListener(name, onSettChange.bind(settObj));
             userGroup.addStateCondition(name, sett.condition);
             
             userGroup._settings.push(name);
           } else {
-            var newGroup = new lcComponent();
+            group = userGroup[name];
             
-            userGroup[name] = newGroup;
-            userGroup._groups.push(name);
+            if (!group) {
+              group = new lcComponent();
+              
+              userGroup[name] = group;
+              userGroup._groups.push(name);
+              
+              group._settings = [];
+              group._groups   = [];
+            }
             
-            newGroup._settings = [];
-            newGroup._groups   = [];
-            
-            scan(sett, newGroup);
+            scan(sett, group);
           }
         }
       });
     }
     
     // Remove current settings
-    settings.user = new lcComponent();
+    // TODO: Removing the settings shouldn't be necessary
+    if (defSettings && !settings.default)
+      settings.user = new lcComponent();
     
     // Scan and check all settings
-    scan(defSettings, userSettings);
+    scan(defSettings || settings.default || {}, userSettings);
   }
   
   settings.settObtain = function(path, user) {
@@ -1960,8 +2075,26 @@ lces.rc[10] = function() {
     return settings.settObtain(path, true);
   }
   
+  settings.getDetails = function(path) {
+    var setting = settings.settObtain(path);
+    
+    return setting ? {
+      type: setting.settType,
+      name: setting.name,
+      value: settings.settObtain(path, true),
+      formalName: setting.formalName,
+      formalMultiple: setting.formalMultiple,
+      multipleValues: setting.multipleValues.map(a => a[0]),
+      currentIndex: setting.currentIndex,
+      defValue: setting.defValue,
+      min: setting.min,
+      max: setting.max
+    } : null;
+  }
+  
   // LCES on event method
   settings._on = settings.on;
+  var preloadEvents = [];
   
   settings.on = function() {
     var path;
@@ -2047,6 +2180,8 @@ lces.rc[10] = function() {
     
     jSh.mergeObj(userSettings, sett, true);
   });
+  
+  window.sett = settings;
 }
 lces.rc[6] = function() {
   // Conversion functions
@@ -4256,7 +4391,7 @@ lces.rc[7] = function() {
     onTransitionEnd(this.container, function(e) {
       if (e.propertyName === "opacity" && getComputedStyle(this)["opacity"] == 0)
         this.parentNode.removeChild(this);
-    })
+    });
     
     // Remove window visible state
     clearTimeout(this._closingTimeout);

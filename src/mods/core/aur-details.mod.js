@@ -88,7 +88,7 @@ var animeProps = [
   }],
   ["mirror", function() {
     if (page.isEpisode && jSh("#pembed"))
-      return jSh(".uploader-info")[0].textContent.match(/video\s+site:\s*([a-z\d]+)\s*language:/i)[1];
+      return jSh(".uploader-info")[0].textContent.match(/video\s+site:\s*([a-z\.\-_\d]+)\s*language:/i)[1];
     else
       return null;
   }],
