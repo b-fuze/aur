@@ -515,8 +515,14 @@ function InputTextProp(name, width, options) {
   EmptyProp.call(this, name, width, options);
   this.main.classList.add("aur-ui-prop-padd");
   
+  options    = jSh.type(options) === "object" ? options : {};
   var input  = new lcTextField();
   this.input = input;
+  
+  // LCES Settings link
+  if (typeof options.link === "string") {
+    
+  }
   
   this.main.appendChild(input);
 }
