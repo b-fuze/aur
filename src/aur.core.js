@@ -19,4 +19,19 @@ AUR.error = function(e) {
   console.error(errorString);
   alert(errorString);
 };
+
+AUR.sandbox = function(func, silent) {
+  if (typeof func !== "function")
+    return;
+  
+  try {
+    func();
+  } catch(e) {
+    var err = "AUR Sandbox ERROR: " + e + "\n\n" + e.stack;
+    
+    console.error(err);
+    if (!silent)
+      alert(err);
+  }
+};
 // aur.mod.js here
