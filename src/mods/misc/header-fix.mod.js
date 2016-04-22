@@ -3,7 +3,7 @@
 var regs = AUR.register("header-fix");
 var page = AUR.import("aur-page");
 
-window.addEventListener("DOMContentLoaded", function() {
+AUR.on("load", function() {
   // Fix search bar
   var sbar = jSh("#search").getChild(0);
 
