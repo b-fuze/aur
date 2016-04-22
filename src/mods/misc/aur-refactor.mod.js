@@ -27,6 +27,13 @@ if (page.isHome) {
     remove(jSh("#new-anime-season"));
   }
   
+  // Fix broken episode zero links on mainpage
+  jSh("#new-episodes").jSh(".generic-video-item").forEach(function(thumb) {
+    var a = thumb.jSh("a")[0];
+    
+    a.href = (a.href + "").trim().replace(/-episode-0-english-(subbed|dubbed|raw)\/$/, "-episode-00-english-$1/");
+  });
+  
   // Add calender fix
   var calReq = new lcRequest({
     method: "GET",

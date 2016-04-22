@@ -70,7 +70,7 @@ for (var i=0,l=args.length; i<l; i++) {
       break;
       
       case "-excl":
-        i = multipleArg(i, args, excl, true);
+        i = multipleArg(i, args, excl);
       break;
       
       case "-add":
@@ -192,7 +192,7 @@ result = cat ? result : uglify(result);
 
 // Concat it to lces
 result = `${getFile(AURPATH + "src/userscript.head.js", true)}
-${debug ? `try {` : ""} // DEBUG FLAG -TRY
+${debug ? `try { // DEBUG FLAG -TRY` : ""}
 
   ${lces + result}
   AUR.triggerEvent("load",{});

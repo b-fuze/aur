@@ -5,6 +5,9 @@ var page;
 
 var bank;
 var Bank = function() {
+  if (!page.isAU)
+    return;
+  
   this.user  = {};
   this.anime = {};
   

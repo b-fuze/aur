@@ -8,6 +8,38 @@
   var miscList = [EMPTYMISC]; // Ditto
   var mixList  = coreList.concat(miscList);
   
+  // Make globally accessible
+  Object.defineProperty(AUR, "modules", {
+    configurable: false,
+    writable: false,
+    value: (function() {
+      var mods = {};
+      
+      Object.defineProperty(mods, "core", {
+        configurable: false,
+        get: function() {
+          return coreList.slice();
+        }
+      });
+      
+      Object.defineProperty(mods, "misc", {
+        configurable: false,
+        get: function() {
+          return miscList.slice();
+        }
+      });
+      
+      Object.defineProperty(mods, "mix", {
+        configurable: false,
+        get: function() {
+          return mixList.slice();
+        }
+      });
+      
+      return mods;
+    })()
+  });
+  
   var sett     = lces.user.settings;
   var settDump = {};
   
@@ -56,8 +88,9 @@
     // Module name and version
     jSh.constProp(this, "modName", modName);
     
+    this.modDesc    = "";
     this.modVersion = 1;
-    this.author     = null;
+    this.authors    = [];
     Object.defineProperty(this, "settings", {
       get: () => settings,
       configurable: false
@@ -126,7 +159,7 @@
     }
     
     // Event Handling
-    aurInstance.on = instMethods.on.bind(aurMod);
+    aurInstance.on = (typeof aurInstance.on === "function" ? aurInstance.on : instMethods.on.bind(aurMod));
     aurInstance.removeListener = instMethods.removeListener.bind(aurMod);
     
     // Module-specific properties
