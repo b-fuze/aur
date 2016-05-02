@@ -1,10 +1,22 @@
 // AUR Basic Ad Remover
-
+AUR_NAME = "Ads Remover";
+AUR_DESC = "Basic Ad Remover/Replacer";
+AUR_VERSION = [0, 1];
+AUR_AUTHORS = ["Mike32 (b-fuze)"];
+AUR_RESTART = false;
 
 var regs  = AUR.register("ads-remove");
 var style = AUR.import("aur-styles");
 
-style.styleBlock(`
+regs.on("moddisable", function() {
+  block.enabled = false;
+});
+
+regs.on("modenable", function() {
+  block.enabled = true;
+});
+
+var block = style.styleBlock(`
   #ad-top {
     display: none;
   }

@@ -372,7 +372,9 @@ lces.rc[0] = function() {
     });
   }
   
-  jSh.docFrag = document.createDocumentFragment.bind(document);
+  // Check if in browser environment
+  if (lces.global.document)
+    jSh.docFrag = document.createDocumentFragment.bind(document);
   
   // DOM Manipulation Functions
 
@@ -529,10 +531,14 @@ lces.rc[0] = function() {
 
   // A quick typo-fill :D
   var jSH = jSh;
-
 };
 
-if (lces.onlyjSh) lces.rc[0]();
+if (lces.onlyjSh)
+  lces.rc[0]();
+
+// Check if NPM module
+if (lces.global.global && !lces.global.window)
+  module.exports = jSh;
 
 
 lces.rc[9] = function() {
@@ -1974,20 +1980,20 @@ lces.rc[10] = function() {
             userGroup.addStateCondition(name, sett.condition);
             
             userGroup._settings.push(name);
-          } else {
-            group = userGroup[name];
+          } else if (!(sett instanceof settings.Setting)) {
+            var subGroup = userGroup[name];
             
-            if (!group) {
-              group = new lcComponent();
+            if (!subGroup) {
+              subGroup = new lcComponent();
               
-              userGroup[name] = group;
+              userGroup[name] = subGroup;
               userGroup._groups.push(name);
               
-              group._settings = [];
-              group._groups   = [];
+              subGroup._settings = [];
+              subGroup._groups   = [];
             }
             
-            scan(sett, group);
+            scan(sett, subGroup);
           }
         }
       });
@@ -2097,7 +2103,7 @@ lces.rc[10] = function() {
     return setting ? {
       path: path,
       type: setting.settType,
-      name: setting.name,
+      name: setting.settName,
       value: settings.settObtain(path, true),
       formalName: setting.settName,
       formalMultiple: setting.formalMultiple,

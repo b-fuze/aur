@@ -1,6 +1,11 @@
 // AUR Settings API
 //
 // Initial Author: b-fuze
+AUR_NAME = "AUR Settings";
+AUR_DESC = "AUR Settings API";
+AUR_VERSION = [0, 1];
+AUR_AUTHORS = ["Mike32 (b-fuze)"];
+AUR_RESTART = true;
 
 var regs = AUR.register("aur-settings");
 var sett = lces.user.settings;

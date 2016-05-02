@@ -1,7 +1,17 @@
 // Fix AU header issues
+AUR_NAME = "Header Fixes";
+AUR_DESC = "Fixes search bar, logo, and adjustments the tagline";
+AUR_VERSION = [0, 1];
+AUR_AUTHORS = ["Mike32 (b-fuze)"];
+AUR_RESTART = false;
 
 var regs = AUR.register("header-fix");
 var page = AUR.import("aur-page");
+var sett = AUR.import("aur-settings");
+
+// sett.setDefault("headerFix", {
+//
+// });
 
 AUR.on("load", function() {
   // Fix search bar
@@ -23,7 +33,7 @@ AUR.on("load", function() {
     jSh("#header-left").jSh("svg")[0].style.setProperty("bottom", "-10px", "important");
   
   // Fix tagline if it's too long
-  if (AUR.import("aur-page").isEpisode) {
+  if (page.isEpisode) {
     var tagline  = jSh("#header-left").jSh(".tagline")[0].getChild(0);
     var tagTitle = tagline.textContent;
     
@@ -33,5 +43,12 @@ AUR.on("load", function() {
     }
   }
   
-  regs.triggerEvent("loaded", {});
+  regs.triggerEvent("loaded", {}); // TODO: Most likely useless, check for removal
+  regs.on("moddisable", function(disabled) {
+    if (disabled) {
+      
+    } else {
+      
+    }
+  });
 });

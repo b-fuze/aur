@@ -1,17 +1,55 @@
 // AUR Themify Module
-
+AUR_NAME = "Themify";
+AUR_DESC = "Provides a dark color scheme and a more modern look to AU";
+AUR_VERSION = [0, 1];
+AUR_AUTHORS = ["Mike32 (b-fuze)"];
+AUR_RESTART = false;
 
 var regs = AUR.register("aur-themify");
+var sett  = AUR.import("aur-settings");
+
+// User Preferences
+sett.setDefault("themify", {
+  hideChatango: sett.Setting("Hide Chatango", "boolean", true)
+});
 
 AUR.on("load", function() {
   var style = AUR.import("aur-styles");
   
-  var darkThemeBlk = style.styleBlock(styling);
+  var darkThemeBlk = style.styleBlock(important(styling));
+  var chatango     = style.styleBlock(important(hideChatango));
+  
+  regs.on("moddisable", function() {
+    darkThemeBlk.enabled = false;
+    chatango.enabled = false;
+  });
+  
+  regs.on("modenable", function() {
+    darkThemeBlk.enabled = true;
+    
+    if (sett.get("themify.hideChatango"))
+      chatango.enabled = true;
+  });
+  
+  regs.ui.prop({
+    link: "themify.hideChatango"
+  });
+  
+  sett.on("themify.hideChatango", function(e) {
+    if (regs.enabled)
+      chatango.enabled = e.value;
+  });
 });
 
 regs.interface = function() {
   // Do something here...
 }
+
+var hideChatango = `
+  #right-content-hp > div.centered > div.side-box {
+    display: none;
+  }
+`;
 
 var styling = `
   body {
@@ -416,10 +454,6 @@ var styling = `
   }
   
   /* ---------- Sidebar ---------- */
-  
-  #right-content-hp > div.centered > div.side-box {
-    display: none;
-  }
   
   .text-subbed {
     color: #456B80;
@@ -1054,6 +1088,8 @@ var styling = `
 `;
 
 // Add important clause
-styling = styling.replace(/([a-z\-\d]+\s*:\s*)([#\d\.\s,a-z()\-]+);/ig, function(m, p1, p2) {
-  return p1 + p2 + " !important;";
-});
+function important(src) {
+  return src.replace(/([a-z\-\d]+\s*:\s*)([#\d\.\s,a-z()\-]+);/ig, function(m, p1, p2) {
+    return p1 + p2 + " !important;";
+  });
+};

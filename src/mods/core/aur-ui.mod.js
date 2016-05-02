@@ -8,6 +8,11 @@
 // Changelog:
 //    - Initial Build
 //
+AUR_NAME = "AUR UI";
+AUR_DESC = "AUR UI API";
+AUR_VERSION = [0, 1];
+AUR_AUTHORS = ["Mike32 (b-fuze)"];
+AUR_RESTART = true;
 
 var regs = AUR.register("aur-ui");
 var sett;
@@ -61,6 +66,7 @@ function RegisterWin(name, title, options) {
   aurwin.width  = numOp(options.width, aurwin.width);
   aurwin.height = numOp(options.height, aurwin.height);
   aurwin.draggable = boolOp(options.draggable, false);
+  aurwin.centered  = boolOp(options.centered, false);
   
   this.setState("selected", true);
   this.setExclusiveState("selected", true, 1);
@@ -101,7 +107,6 @@ function RegisterWin(name, title, options) {
   // Make title container for close button
   var titlesp   = jSh.c("span");
   var mainTitle = aurwin._title;
-  
   
   titlesp.innerHTML = mainTitle.innerHTML;
   mainTitle.innerHTML = "";
@@ -183,7 +188,7 @@ function RegisterWin(name, title, options) {
   }
   
   this.insertBefore = function(old, tab) {
-    if ((tab instanceof RegisterTab || tab instanceof RegisterGroup)  && tabs.indexOf(old) !== -1 && tab !== old) {
+    if ((tab instanceof RegisterTab || tab instanceof RegisterGroup) && tabs.indexOf(old) !== -1 && tab !== old) {
       if (tabs.indexOf(tab) !== -1)
         tabs.splice(tabs.indexOf(tab), 1);
       tabs.splice(tabs.indexOf(old), 0, tab);
@@ -347,7 +352,15 @@ function RegisterTab(name, title, options) {
       
       that[propName] = function(name, width, options) {
         var newProp = propConstruct(name, width, options);
-        that.add(newProp);
+        
+        // `Prop` could fail because of the LCES setting involved
+        if (newProp) {
+          if (propName === "prop") {
+            that.add(newProp.label);
+            that.add(newProp);
+          } else
+            that.add(newProp);
+        }
         
         return newProp;
       }
@@ -540,6 +553,20 @@ function GroupProp(name, width, options) {
     this.main.appendChild(prop.main);
   }
   
+  this.setState("title", null);
+  this.addStateListener("title", function(title) {
+    if (title) {
+      that.main.setAttribute("data-aurui-group-title", title);
+      that.main.classList.add("group-title-visible");
+    } else {
+      that.main.setAttribute("data-aurui-group-title", "");
+      that.main.classList.remove("group-title-visible");
+    }
+  });
+  
+  if (options.title && typeof options.type === "string")
+    this.title = options.title;
+  
   var propNames = Object.getOwnPropertyNames(propMap);
   
   for (var i=0,l=propNames.length; i<l; i++) {
@@ -548,7 +575,15 @@ function GroupProp(name, width, options) {
       
       that[propName] = function(name, width, options) {
         var newProp = propConstruct(name, width, options);
-        that.add(newProp);
+        
+        // `Prop` could fail because of the LCES setting involved
+        if (newProp) {
+          if (propName === "prop") {
+            that.add(newProp.label);
+            that.add(newProp);
+          } else
+            that.add(newProp);
+        }
         
         return newProp;
       }
@@ -976,6 +1011,62 @@ function DropDownProp(name, width, options) {
 
 jSh.inherit(DropDownProp, EmptyProp);
 
+function Prop(options) {
+  if (!options || options.constructor !== Object || jSh.type(options.link) !== "string" || !options.link)
+    return null;
+  
+  var setting  = sett.getDetails(options.link);
+  
+  if (!setting)
+    return null;
+  
+  var lblWidth = Math.min(Math.max(numOp(options.width, 5), 1), 12);
+  var inpWidth = 12 - lblWidth;
+  
+  var input;
+  var label = TextProp(null, lblWidth, {
+    data: setting.name,
+    dynText: options.dynText
+  });
+  
+  if (!setting.multipleValues) {
+    if (setting.type === "string") {
+      if (options.color) {
+        input = InputColorProp(null, inpWidth, {
+          link: "uiTest.lol",
+          align: "left"
+        });
+      } else {
+        input = InputTextProp(null, inpWidth, jSh.extendObj(options, {
+          align: "left"
+        }));
+      }
+    } else if (setting.type === "number") {
+      if (options.slider) {
+        input = SliderProp(null, inpWidth, jSh.extendObj(options, {
+          align: "left"
+        }));
+      } else {
+        input = InputNumProp(null, inpWidth, jSh.extendObj(options, {
+          align: "left"
+        }));
+      }
+    } else if (setting.type === "boolean") {
+      input = ToggleProp(null, inpWidth, jSh.extendObj(options, {
+        align: "left"
+      }));
+    }
+  } else {
+    input = DropDownProp(null, inpWidth, {
+      link: options.link,
+      align: "left"
+    });
+  }
+  
+  input.label = label;
+  return input;
+}
+
 var propMap = {
   emptyProp:      EmptyProp,
   groupProp:      GroupProp,
@@ -986,7 +1077,8 @@ var propMap = {
   inputColorProp: InputColorProp,
   toggleProp:     ToggleProp,
   sliderProp:     SliderProp,
-  dropDownProp:   DropDownProp
+  dropDownProp:   DropDownProp,
+  prop:           Prop
 };
 
 // Construct interface
@@ -999,10 +1091,7 @@ regs.interface = {
   },
   
   registerWin: RegisterWin,
-  
-  window: {
-    
-  },
+  prop: jSh.extendObj({}, propMap),
   
   notifi: {
     notifi: function(type, msg, delay, placement, visible) {
@@ -1047,6 +1136,8 @@ AUR.onLoaded("aur-styles", "aur-settings", function() {
     .aur-ui-win.lces-window > div > div {
       background: transparent;
       box-shadow: 0px 10px 23px rgba(0,0,0,0.6);
+      border: 1px solid #3F454A;
+      border-radius: 6px;
     }
     
     .aur-ui-win .lces-window-title {
@@ -1174,6 +1265,23 @@ AUR.onLoaded("aur-styles", "aur-settings", function() {
     .aur-ui-prop-group {
       display: block;
       margin: 30px 0px;
+    }
+    
+    .aur-ui-prop-group::before {
+      content: attr(data-aurui-group-title);
+      display: none;
+      margin-left: 5px;
+      margin-bottom: 13px;
+      text-transform: uppercase;
+      font-weight: 500;
+      font-size: 13px;
+      font-family: Arial;
+      letter-spacing: 0.05em;
+      opacity: 0.75;
+    }
+    
+    .aur-ui-prop-group.group-title-visible::before {
+      display: block;
     }
     
     .aur-ui-prop-text {
