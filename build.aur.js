@@ -5,6 +5,7 @@ var fs       = require("fs");
 var path     = require("path");
 var uglifyjs = require("uglify-js");
 var babel    = require("babel-core");
+var metaUtil = require("./build_libs/parse-meta.aur");
 
 // Buildtime vars
 var coreModules = [];
@@ -118,10 +119,13 @@ function getFile(fpath, ret) {
 
 function encapsulate(fpath, file) {
   var npath = !file ? fpath : `${fpath}/${file}`;
-  var name = mn(file || path.basename(fpath));
+  var name  = mn(file || path.basename(fpath));
+  var src   = getFile(npath, true);
   
-  return `\n\ntry {\n  (function() {eval(\`${srcEscape(getFile(npath, true))}\`)})();` + (
-    `\n  AUR.__triggerLoaded("${name}");\n} catch (e) {\n  AUR.error("Module ${name} failed to load - " + e + "\\n\\n" + e.stack);\n};`
+  var srcParse = metaUtil.processMeta(src, name);
+  
+  return `\n\ntry {\n  __aurModCode = (function() {eval(\`${srcEscape(src.substr(srcParse.metaEnd))}\`);\n  AUR.__triggerLoaded("${name}");});` + (
+    `\n} catch (e) {\n  AUR.__triggerFailed("${name}", e);\n  __aurModeCode = null; \n};\n\n${srcParse.meta}\n__aurModCode = null;\n`
   );
 }
 

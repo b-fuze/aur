@@ -1,4 +1,9 @@
 // AUR Styles Module
+AUR_NAME = "AUR Styles";
+AUR_DESC = "AUR Styles API";
+AUR_VERSION = [0, 1];
+AUR_AUTHORS = ["Mike32 (b-fuze)"];
+AUR_RESTART = true;
 
 // AUR Register
 var regs = AUR.register("aur-styles");
@@ -36,12 +41,20 @@ function AURStyleBlock(style) {
   styleBlocks.push(this);
   
   this.setState("enabled", true);
-  this.setState("src", style);
+  this.setState("src", "");
+  
+  this.addStateCondition("src", function(src) {
+    if (typeof src !== "string")
+      return false;
+    
+    return true;
+  });
   
   this.addStateListener("enabled", onChange);
   this.addStateListener("src", onChange);
   
   // Render the styles
+  this.src = style;
   renderStyles();
 }
 

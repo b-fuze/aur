@@ -1,4 +1,9 @@
 // AUR-Database Source
+AUR_NAME = "AUR DB";
+AUR_DESC = "AUR Database API";
+AUR_VERSION = [0, 1];
+AUR_AUTHORS = ["Mike32 (b-fuze)"];
+AUR_RESTART = true;
 
 var regs     = AUR.register("aur-db");
 var dbname   = "aur-db-global";

@@ -10,8 +10,27 @@ var AUR = this.AUR;
 
 AUR.addEvent("load");
 
+AUR._on = AUR.on;
+AUR.on = function(ev, func) {
+  if (ev === "load" && AUR.loadedAllModules)
+    setTimeout(func, 0);
+  else
+    AUR._on.apply(AUR, jSh.toArr(arguments));
+}
+
 AUR.jSh  = jSh;
 AUR.lces = lces;
+
+// Initial check for AUR settings
+var AURUserModSett = jSh.parseJSON(GM_getValue("aur-db-global"));
+
+if (AURUserModSett && AURUserModSett["aur-sett-db"]) {
+  AURUserModSett = jSh.parseJSON(AURUserModSett["aur-sett-db"]["user"])["AURModsEnabled"];
+}
+
+if (!AURUserModSett) {
+  AURUserModSett = {};
+}
 
 AUR.error = function(e) {
   var errorString = "AUR ERROR: " + e;
@@ -40,4 +59,6 @@ AUR.sandbox = function(func, silent, success, fail) {
       fail();
   }
 };
+
+var __aurModCode = null;
 // aur.mod.js here

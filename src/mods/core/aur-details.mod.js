@@ -1,4 +1,9 @@
 //
+AUR_NAME = "AUR Details";
+AUR_DESC = "Anime Ultima Details Module";
+AUR_VERSION = [0, 1];
+AUR_AUTHORS = ["Mike32 (b-fuze)"];
+AUR_RESTART = true;
 
 var regs = AUR.register("aur-details");
 var page;

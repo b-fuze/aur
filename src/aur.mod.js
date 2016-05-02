@@ -3,12 +3,52 @@
 (function() {
   var modArray = []; // Array containing all the registered modules
   var nameMap  = {}; // Module name map
+  var modOpt   = false;
   
   var coreList = [EMPTYCORE]; // Replaced by build.aur.js
   var miscList = [EMPTYMISC]; // Ditto
   var mixList  = coreList.concat(miscList);
   
   // Make globally accessible
+  function getList(arr) {
+    var list = {};
+    
+    arr.forEach(function(mod) {
+      var modObj = nameMap[mod];
+      
+      if (modObj) {
+        list[mod] = {
+          modName: modObj.modName,
+          modAuthors: modObj.modAuthors,
+          modDesc: modObj.modDesc,
+          modVersion: modObj.modVersion,
+          modRestart: modObj.modRestart,
+          
+          get enabled() {
+            return modObj.enabled;
+          },
+          
+          set enabled(enabled) {
+            if (typeof enabled === "boolean")
+              modObj.enabled = enabled;
+          }
+        }
+        
+        // For aur-ui-prefs to do it's thing
+        if (!modOpt)
+          list[mod].setOpt = function(opt) {
+            modObj.ui = opt;
+            modOpt = true;
+          }
+      } else
+        list[mod] = {
+          error: true
+        }
+    });
+    
+    return list;
+  }
+  
   Object.defineProperty(AUR, "modules", {
     configurable: false,
     writable: false,
@@ -18,21 +58,21 @@
       Object.defineProperty(mods, "core", {
         configurable: false,
         get: function() {
-          return coreList.slice();
+          return getList(coreList);
         }
       });
       
       Object.defineProperty(mods, "misc", {
         configurable: false,
         get: function() {
-          return miscList.slice();
+          return getList(miscList);
         }
       });
       
       Object.defineProperty(mods, "mix", {
         configurable: false,
         get: function() {
-          return mixList.slice();
+          return getList(mixList);
         }
       });
       
@@ -90,7 +130,7 @@
     
     this.modDesc    = "";
     this.modVersion = 1;
-    this.authors    = [];
+    this.modAuthors = [];
     Object.defineProperty(this, "settings", {
       get: () => settings,
       configurable: false
@@ -100,13 +140,6 @@
     this.addEvent("moddisable");
     this.addEvent("modenable");
     this.addEvent("loaded");
-    
-    this.defSettings = function(name, settingBody) {
-      settDump[name] = settingBody;
-      settings = settingBody;
-      
-      sett.manifest();
-    }
   }
   
   jSh.inherit(ModRegister, lcComponent);
@@ -123,10 +156,16 @@
     
     // Construct new AUR module interface register
     var modRegs = new ModRegister(modName);
+    modRegs.ui = nameMap[modName].ui;
+    modRegs.enabled = true;
     
     // Add to collection
     modArray.push(modRegs);
-    nameMap[modName] = modRegs;
+    
+    // Append register to module Object
+    jSh.extendObj(nameMap[modName], {
+      register: modRegs
+    });
     
     return modRegs;
   }
@@ -136,7 +175,7 @@
     var aurInstance = {};
     
     // Check for loaded module
-    if (!aurMod || modArray.indexOf(aurMod) === -1) {
+    if (!aurMod || modArray.indexOf(aurMod.register) === -1) {
       // Check if module will load at all
       if (mixList.indexOf(modName) !== -1) {
         
@@ -146,6 +185,9 @@
       
       return null;
     }
+    
+    // Module exists and is loaded, reference register
+    aurMod = aurMod.register;
     
     // Constructor interface
     if (typeof aurMod.interface === "function") {
@@ -207,6 +249,157 @@
       callback(); // Modules are loaded already, invoke callback
   }
   
+  var MOD_META_ARR  = 0;
+  var MOD_META_NUM  = 1;
+  var MOD_META_STR  = 2;
+  var MOD_META_BOOL = 3;
+  
+  var modMetaTypeMap = {
+    "array": MOD_META_ARR,
+    "number": MOD_META_NUM,
+    "string": MOD_META_STR,
+    "boolean": MOD_META_BOOL
+  };
+  
+  var metaTypeCheckers = {};
+  
+  metaTypeCheckers[MOD_META_ARR] = v => jSh.type(v) === "array";
+  metaTypeCheckers[MOD_META_NUM] = v => typeof v === "number";
+  metaTypeCheckers[MOD_META_STR] = v => typeof v === "string";
+  metaTypeCheckers[MOD_META_BOOL] = v => typeof v === "boolean";
+  
+  var modMetaTypes = {
+    "NAME": MOD_META_STR,
+    "DESC": MOD_META_STR,
+    "VERSION": [[MOD_META_ARR, MOD_META_NUM], [MOD_META_NUM]],
+    "AUTHORS": [MOD_META_ARR, MOD_META_STR],
+    "RESTART": MOD_META_BOOL
+  };
+  
+  var modMetaList = Object.getOwnPropertyNames(modMetaTypes);
+  
+  function metaTypeValidate(metaType, val) {
+    var valid     = true;
+    var valType   = jSh.type(val);
+    var metaType2 = jSh.type(metaType) === "array" ? MOD_META_ARR : metaType;
+    var endVal;
+    
+    switch (metaType2) {
+      case MOD_META_ARR:
+        // Check if allows multiple types
+        if (jSh.type(metaType[0]) === "array") {
+          var validItem = null;
+          
+          for (var i=0,l=metaType.length; i<l; i++) {
+            var typeItem = metaType[i];
+            
+            // Check if end value can be array
+            if (typeItem[0] === MOD_META_ARR) {
+              if (valType === "array") {
+                validItem = val.filter(metaTypeCheckers[typeItem[1]]);
+                
+                if (!validItem.length)
+                  validItem = null;
+                else
+                  break;
+              } else
+                valid = false;
+            }
+            // It's one value
+            else {
+              validItem = metaTypeCheckers[typeItem[0]](val) ? val : null;
+            }
+          }
+          
+          if (validItem === null)
+            valid = false;
+          else
+            endVal = validItem;
+        }
+        // Just check each
+        else {
+          var validItem = val.filter(metaTypeCheckers[metaType[1]]);
+          
+          if (!validItem.length)
+            valid = false;
+          else
+            endVal = validItem;
+        }
+      break;
+      case MOD_META_NUM:
+        endVal = metaTypeCheckers[MOD_META_NUM](val) ? val : null;
+      break;
+      case MOD_META_STR:
+        endVal = metaTypeCheckers[MOD_META_STR](val) ? val : null;
+      break;
+      case MOD_META_BOOL:
+        endVal = metaTypeCheckers[MOD_META_BOOL](val) ? val : null;
+      break;
+    }
+    
+    return valid ? endVal : null;
+  }
+  
+  AUR.__registerModule = function(modName, details, code) {
+    var modSettName = modName.replace(/-/g, "") + "mod";
+    
+    if (AURUserModSett[modSettName])
+      var enabled = AURUserModSett[modSettName].enabled;
+    else
+      var enabled = true;
+    
+    var validMeta = {
+      ui: null
+    };
+    
+    // Loop and validate metadata provided
+    for (var i=0,l=modMetaList.length; i<l; i++) {
+      var meta = modMetaList[i];
+      var metaType = modMetaTypes[meta];
+      var metaName = "AUR_" + meta;
+      var metaRegName = "mod" + meta[0] + meta.substr(1).toLowerCase();
+      
+      if (details[metaName] !== undf) {
+        validMeta[metaRegName] = metaTypeValidate(modMetaTypes[meta], details[metaName]);
+      } else {
+        validMeta[metaRegName] = null;
+      }
+    }
+    
+    var modObj = lces.new();
+    modObj.initEnabled = enabled;
+    modObj.setState("enabled", enabled);
+    
+    // Enabled state handler
+    modObj.addStateListener("enabled", function(enabled) {
+      // Check if the register exists
+      if (enabled) {
+        if (modObj.register) {
+          modObj.register.enabled = true;
+          modObj.register.triggerEvent("modenable", {});
+        }
+        // Was this thing enabled to begin with?
+        else if (!modObj.initEnabled) {
+          modObj.initEnabled = true;
+          code();
+        }
+      // Not enabled, or register doesn't exist
+      } else {
+        if (modObj.register) {
+          modObj.register.enabled = false;
+          modObj.register.triggerEvent("moddisable", {});
+        }
+      }
+    });
+    
+    jSh.extendObj(modObj, validMeta);
+    nameMap[modName] = modObj;
+    
+    // Check if module's disabled
+    if (enabled)
+      readyMods.push(code);
+  }
+  
   AUR.__triggerLoaded = function(modName) {
     var modObj    = loadedModules[modName]
     var callbacks = modObj.callbacks;
@@ -233,4 +426,26 @@
       }
     }
   }
+  
+  AUR.__triggerFailed = function(modName, err) {
+    AUR.error(`Module ${name} failed to load - ${err}\n\n${err.stack}`);
+  }
+  
+  // Invokable modules
+  var readyMods = [];
+  var loadedAllModules = false;
+  
+  AUR.on("load", function() {
+    if (!loadedAllModules) {
+      loadedAllModules = true;
+      
+      for (var i=0,l=readyMods.length; i<l; i++) {
+        readyMods[i](); // Run module
+      }
+    
+      // Trigger load event for loaded modules now
+      AUR.triggerEvent("load", {});
+      AUR.loadedAllModules = true;
+    }
+  });
 })();

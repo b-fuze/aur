@@ -12,14 +12,10 @@ AUR.onLoaded("aur-ui", "aur-settings", "aur-styles", function() {
   
   var prefs = ui.registerWin("aur-prefs", "AUR", {
     tabsVisible: true,
-    draggable: false,
-    centered: true,
+    draggable: true,
     width: 650,
     height: 400
   });
-  
-  // Set primary AUR prefs window
-  ui.__setPrefs(prefs);
   
   prefs.addStateListener("selectedTab", function(tab) {
     if (tab.tabTitle)
@@ -35,36 +31,161 @@ AUR.onLoaded("aur-ui", "aur-settings", "aur-styles", function() {
   var pModules = prefs.registerGroup("aur-prefs-modules");
   
   // Add actions tab
-  // var actTab = pActions.registerTab(null, null, { // TODO: Come check this uhh... Later...
-  //   element: jSh.d({
-  //     child: [
-  //       jSh.c("span", undf, "Work | "),
-  //       jSh.c("span", undf, "Go | "),
-  //       jSh.c("span", undf, "Play")
-  //     ]
-  //   })
-  // });
-  //
-  // actTab.disabled = true;
+  var actTab = pActions.registerTab(null, null, {
+    element: jSh.d({
+      child: [
+        jSh.c("span", undf, "Work | "),
+        jSh.c("span", undf, "Go | "),
+        jSh.c("span", undf, "Play")
+      ]
+    })
+  });
+  
+  actTab.disabled = true;
   
   // Add general tab
-  var gen = prefs.registerTab("general", "General");
+  var gen = prefs.registerTab(null, "General");
+  var ajaxify = prefs.registerTab(null, "Ajax'ify");
   
   // Add Modules and Settings Tab
-  var modTab  = pModules.registerTab("modules", "Modules");
-  var aurSett = pModules.registerTab("settings", "Settings");
+  var modTab  = pModules.registerTab(null, "Modules");
+  var aurSett = pModules.registerTab(null, "Settings");
   
-  // UI Setting definitions
-  sett.setDefault("aurSett", {
-    modErrorsVerbose: sett.Setting("Verbose module errors", "boolean", false)
+  // TODO: Remove when finished testing aur-ui
+  sett.setDefault("uiTest", {
+    lol: sett.Setting("THE LAUGHTER", "string", "The NERVE OF HIM!"),
+    num: sett.Setting("Numero!", "number", 5),
+    maybe: sett.Setting("IS IT? IS IT TRUE?!?", "boolean", false),
+    count: sett.Setting("Count, plz", "number", 0.5),
+    party: sett.Setting("The Gathering", "string,multiple", 0, [
+      ["HEY", "Name"],
+      ["Calvary...", "Sorcery? :O"],
+      ["Option", "Optionsz"],
+      ["4", "The Word or Phrase"],
+      ["System", "monitor"]
+    ]),
+    many: sett.Setting("Culprits", "string,multiple", 0, [
+      ["awesome", "Value?"],
+      ["phones", "Plz, no more"],
+      ["AUR", "AUR!!!"],
+      ["tongue", "Twister"],
+      ["formal", "Term"]
+    ])
   });
   
-  var settGroup = aurSett.groupProp();
-  settGroup.title = "Modules";
-  
-  settGroup.prop({
-    link: "aurSett.modErrorsVerbose"
+  gen.textProp(null, 5, {
+    data: "The Rite of Passage"
   });
+  
+  gen.inputTextProp(null, 7, {
+    link: "uiTest.lol",
+    align: "left"
+    // fill: true
+  });
+  
+  gen.textProp(null, 5, {
+    data: "Courtesy of... ME!"
+  });
+  
+  gen.inputNumProp(null, 7, {
+    link: "uiTest.count",
+    align: "left"
+  });
+  
+  gen.textProp(null, 5, {
+    data: "Nice n' beautiful. "
+  });
+  
+  gen.toggleProp(null, 7, {
+    link: "uiTest.maybe",
+    align: "left"
+  });
+  
+  gen.textProp(null, 5, {
+    data: "The Sky's the Limit"
+  });
+  
+  gen.sliderProp(null, 7, {
+    link: "uiTest.count",
+    align: "left",
+    min: 30,
+    max: 75,
+    integer: true,
+    suffix: "/s"
+  });
+  
+  var grp1 = gen.groupProp();
+  
+  grp1.textProp(null, 5, {
+    data: "Darkness Level"
+  });
+  
+  grp1.sliderProp(null, 7, {
+    link: "uiTest.count",
+    align: "left",
+    min: 30,
+    max: 75,
+    integer: true,
+    suffix: "/s"
+  });
+  
+  grp1.textProp(null, 5, {
+    data: "Take your pick"
+  });
+  
+  grp1.dropDownProp(null, 7, {
+    link: "uiTest.party",
+    align: "left"
+  });
+  
+  grp1.textProp(null, 5, {
+    data: "To choose is to loose"
+  });
+  
+  grp1.dropDownProp(null, 7, {
+    link: "uiTest.many",
+    align: "left"
+  });
+  
+  var btns = gen.buttonProp(null, 12, {
+    align: "center"
+  });
+  
+  btns.addButton("Toggle state", () => (grp1.disabled = !grp1.disabled));
+  btns.addButton("Call me", () => alert("Thanks!"));
+  
+  grp1.textProp(null, 5, {
+    data: "The Sky's blue"
+  });
+  
+  grp1.inputColorProp(null, 7, {
+    link: "uiTest.lol",
+    align: "left"
+  });
+  
+  gen.textProp(null, 5, {
+    data: "Another testy conclusion"
+  });
+  
+  gen.inputColorProp(null, 7, {
+    link: "uiTest.lol",
+    align: "left"
+  });
+  
+  gen.textProp(null, 12, {
+    data: "My will:"
+  });
+  
+  gen.inputTextProp(null, 12, {
+    link: "uiTest.lol",
+    align: "left",
+    area: true,
+    rows: 6,
+    placeholder: "Your will...",
+    fill: true,
+    linebreak: true
+  });
+  // END TODO;
   
   // -----------------------
   // Add AUR UI module table
@@ -381,7 +502,7 @@ AUR.onLoaded("aur-ui", "aur-settings", "aur-styles", function() {
       margin-top: 25px;
       margin-left: -10px;
       margin-right: -10px;
-      min-height: 50px;
+      min-height: 75px;
       
       // padding-top: 0px;
       font-size: 13px;
@@ -398,7 +519,7 @@ AUR.onLoaded("aur-ui", "aur-settings", "aur-styles", function() {
       position: relative;
       width: auto !important;
       margin-right: -25%;
-      min-height: 50px;
+      min-height: 75px;
       padding: 10px 0px;
       background: #1F1F21;
     }
@@ -520,6 +641,8 @@ AUR.onLoaded("aur-ui", "aur-settings", "aur-styles", function() {
     }
   `);
   
+  ui.__setPrefs(prefs);
+  
   // Add to nav
   if (jSh("#left-nav")) {
     var AUREntry = jSh.c("li", {
@@ -531,8 +654,6 @@ AUR.onLoaded("aur-ui", "aur-settings", "aur-styles", function() {
     
     AUREntry.addEventListener("click", function() {
       prefs.visible = !prefs.visible;
-      prefs.centered = false;
-      prefs.draggable = true;
     });
     
     jSh("#left-nav").insertBefore(AUREntry, jSh("#left-nav").getChild(0));
