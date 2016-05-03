@@ -22,22 +22,33 @@ AUR.jSh  = jSh;
 AUR.lces = lces;
 
 // Initial check for AUR settings
-var AURUserModSett = jSh.parseJSON(GM_getValue("aur-db-global"));
+var AURUserSett = jSh.parseJSON(GM_getValue("aur-db-global"));
+var AURUserModSett;
 
-if (AURUserModSett && AURUserModSett["aur-sett-db"]) {
-  AURUserModSett = jSh.parseJSON(AURUserModSett["aur-sett-db"]["user"])["AURModsEnabled"];
+if (AURUserSett && AURUserSett["aur-sett-db"]) {
+  AURUserSett = jSh.parseJSON(AURUserSett["aur-sett-db"]["user"]);
+  AURUserModSett = AURUserSett["AURModsEnabled"];
+} else {
+  AURUserSett = {error: true};
 }
 
 if (!AURUserModSett) {
   AURUserModSett = {};
 }
 
+// AUR Utils
 AUR.error = function(e) {
   var errorString = "AUR ERROR: " + e;
   
   console.error(new Error(errorString));
   alert(errorString);
 };
+
+// Options determining utils
+// TODO: Fix this
+var boolOp = jSh.boolOp;
+var numOp  = jSh.numOp;
+var strOp  = jSh.strOp;
 
 AUR.sandbox = function(func, silent, success, fail) {
   if (typeof func !== "function")

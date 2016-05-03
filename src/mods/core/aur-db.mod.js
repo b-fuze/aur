@@ -5,7 +5,7 @@ AUR_VERSION = [0, 1];
 AUR_AUTHORS = ["Mike32 (b-fuze)"];
 AUR_RESTART = true;
 
-var regs     = AUR.register("aur-db");
+var regs     = reg;
 var dbname   = "aur-db-global";
 var dbBuffer = {};
 

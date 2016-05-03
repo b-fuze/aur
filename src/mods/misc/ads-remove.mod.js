@@ -5,7 +5,7 @@ AUR_VERSION = [0, 1];
 AUR_AUTHORS = ["Mike32 (b-fuze)"];
 AUR_RESTART = false;
 
-var regs  = AUR.register("ads-remove");
+var regs  = reg;
 var style = AUR.import("aur-styles");
 
 regs.on("moddisable", function() {

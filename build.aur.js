@@ -124,7 +124,7 @@ function encapsulate(fpath, file) {
   
   var srcParse = metaUtil.processMeta(src, name);
   
-  return `\n\ntry {\n  __aurModCode = (function() {eval(\`${srcEscape(src.substr(srcParse.metaEnd))}\`);\n  AUR.__triggerLoaded("${name}");});` + (
+  return `\n\ntry {\n  __aurModCode = (function() {eval(\`var reg = AUR.register("${name}");${srcEscape(src.substr(srcParse.metaEnd))}\`);\n  AUR.__triggerLoaded("${name}");});` + (
     `\n} catch (e) {\n  AUR.__triggerFailed("${name}", e);\n  __aurModeCode = null; \n};\n\n${srcParse.meta}\n__aurModCode = null;\n`
   );
 }

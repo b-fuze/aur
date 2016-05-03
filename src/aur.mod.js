@@ -342,6 +342,7 @@
   
   AUR.__registerModule = function(modName, details, code) {
     var modSettName = modName.replace(/-/g, "") + "mod";
+    var settings = lces.user.settings;
     
     if (AURUserModSett[modSettName])
       var enabled = AURUserModSett[modSettName].enabled;
@@ -381,7 +382,10 @@
         // Was this thing enabled to begin with?
         else if (!modObj.initEnabled) {
           modObj.initEnabled = true;
-          code();
+          AUR.sandbox(code, !settings.get("aurSett.modErrorsVerbose"));
+          
+          // Update any settings
+          lces.user.settings.clearLate();
         }
       // Not enabled, or register doesn't exist
       } else {
@@ -436,11 +440,13 @@
   var loadedAllModules = false;
   
   AUR.on("load", function() {
+    var verbose = AURUserSett.aurSett && AURUserSett.aurSett.modErrorsVerbose;
+    
     if (!loadedAllModules) {
       loadedAllModules = true;
       
       for (var i=0,l=readyMods.length; i<l; i++) {
-        readyMods[i](); // Run module
+        AUR.sandbox(readyMods[i], !verbose); // Run module
       }
     
       // Trigger load event for loaded modules now

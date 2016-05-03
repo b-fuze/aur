@@ -5,9 +5,11 @@ AUR_VERSION = [0, 1];
 AUR_AUTHORS = ["Mike32 (b-fuze)"];
 AUR_RESTART = true;
 
-var regs   = AUR.register("aur-refactor");
+var regs   = reg;
 var page   = AUR.import("aur-page");
 var detail = AUR.import("aur-details");
+var sett   = AUR.import("aur-settings");
+var mtog   = AUR.import("mod-toggle", reg);
 
 function remove(e) {
   e.parentNode.removeChild(e);
@@ -22,6 +24,24 @@ function cleanText(e, regex, repl) {
 // Remove games from nav
 var nav = jSh("#left-nav").jSh(".ddtitle");
 nav.every(e => !(e.textContent.trim().toLowerCase() === "games" && ((e.parentNode.style.display = "none") || true)));
+
+// Add settings
+sett.setDefault("refactor", {
+  rmPopularEps: sett.Setting("Remove Popular Episodes", "boolean", false),
+  rmTracker: sett.Setting("Remove Episode Tracker", "boolean", false)
+});
+
+// Set up toggle tracker
+mtog.setting("refactor.rmPopularEps", false);
+mtog.setting("refactor.rmTracker", false);
+
+reg.ui.prop({
+  link: "refactor.rmPopularEps"
+});
+
+reg.ui.prop({
+  link: "refactor.rmTracker"
+});
 
 // Mainpage
 if (page.isHome) {
@@ -38,6 +58,30 @@ if (page.isHome) {
     
     a.href = (a.href + "").trim().replace(/-episode-0-english-(subbed|dubbed|raw)\/$/, "-episode-00-english-$1/");
   });
+  
+  var popularEps = [jSh("#main-content-hp").jSh("h3")[0], jSh("#main-content-hp").jSh(".section")[0]];
+  var epsTracker = [jSh("#main-content-hp").jSh("h2")[0], jSh("#main-content-hp").jSh(".centered")[0]];
+  
+  // Setting bound fixes
+  sett.on("refactor.rmPopularEps", function(e) {
+    var toggle = !e.value ? "block" : "none";
+    
+    popularEps.forEach(function(e) {
+      if (e)
+        e.style.display = toggle;
+    });
+  });
+  
+  // Check if the user's logged in
+  if (detail.user.name)
+    sett.on("refactor.rmTracker", function(e) {
+      var toggle = !e.value ? "block" : "none";
+      
+      epsTracker.forEach(function(e) {
+        if (e)
+          e.style.display = toggle;
+      });
+    });
   
   // Add calender fix
   var calReq = new lcRequest({

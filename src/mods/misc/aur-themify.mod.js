@@ -5,39 +5,37 @@ AUR_VERSION = [0, 1];
 AUR_AUTHORS = ["Mike32 (b-fuze)"];
 AUR_RESTART = false;
 
-var regs = AUR.register("aur-themify");
+var regs  = reg;
 var sett  = AUR.import("aur-settings");
+var mtog  = AUR.import("mod-toggle", reg);
+var style = AUR.import("aur-styles");
 
 // User Preferences
 sett.setDefault("themify", {
   hideChatango: sett.Setting("Hide Chatango", "boolean", true)
 });
 
+// Set up toggle tracker
+mtog.setting("themify.hideChatango", false);
+
 AUR.on("load", function() {
-  var style = AUR.import("aur-styles");
-  
-  var darkThemeBlk = style.styleBlock(important(styling));
-  var chatango     = style.styleBlock(important(hideChatango));
+  var darkThemeBlk = style.styleBlock(style.important(styling));
+  var chatango     = style.styleBlock(style.important(hideChatango), sett.get("themify.hideChatango"));
   
   regs.on("moddisable", function() {
     darkThemeBlk.enabled = false;
-    chatango.enabled = false;
   });
   
   regs.on("modenable", function() {
     darkThemeBlk.enabled = true;
-    
-    if (sett.get("themify.hideChatango"))
-      chatango.enabled = true;
+  });
+  
+  sett.on("themify.hideChatango", function(e) {
+    chatango.enabled = e.value;
   });
   
   regs.ui.prop({
     link: "themify.hideChatango"
-  });
-  
-  sett.on("themify.hideChatango", function(e) {
-    if (regs.enabled)
-      chatango.enabled = e.value;
   });
 });
 
@@ -74,16 +72,6 @@ var styling = `
     position: absolute;
     left: 0px;
     top: 10px;
-  }
-  
-  #header-left > a > img {
-    opacity: 0;
-  }
-  
-  #header-left > a > svg {
-    position: absolute;
-    left: 0px;
-    bottom: 3px;
   }
   
   #header-left > a {
@@ -1086,10 +1074,3 @@ var styling = `
     cursor: default;
   }
 `;
-
-// Add important clause
-function important(src) {
-  return src.replace(/([a-z\-\d]+\s*:\s*)([#\d\.\s,a-z()\-]+);/ig, function(m, p1, p2) {
-    return p1 + p2 + " !important;";
-  });
-};

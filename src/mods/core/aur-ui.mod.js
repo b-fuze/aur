@@ -14,21 +14,8 @@ AUR_VERSION = [0, 1];
 AUR_AUTHORS = ["Mike32 (b-fuze)"];
 AUR_RESTART = true;
 
-var regs = AUR.register("aur-ui");
+var regs = reg;
 var sett;
-
-// Options determining utils
-function boolOp(src, def) {
-  return src !== undefined ? !!src : def;
-}
-
-function numOp(src, def) {
-  return !isNaN(src) && typeof src === "number" && src > -Infinity && src < Infinity ? parseFloat(src) : def;
-}
-
-function strOp(src, def) {
-  return typeof src === "string" && src ? src : def;
-}
 
 function removeNode(e) {
   if (e.parentNode)

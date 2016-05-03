@@ -6,7 +6,7 @@ AUR_AUTHORS = ["Mike32 (b-fuze)"];
 AUR_RESTART = true;
 
 // AUR Register
-var regs = AUR.register("aur-styles");
+var regs = reg;
 
 // Add main style element
 var mainStyleElement = jSh.c("style", "#aur-global-styles");
@@ -34,13 +34,13 @@ function renderStyles() {
 }
 
 // Style block constructor
-function AURStyleBlock(style) {
+function AURStyleBlock(style, enabled) {
   lcComponent.call(this);
   var that = this;
   
   styleBlocks.push(this);
   
-  this.setState("enabled", true);
+  this.setState("enabled", jSh.boolOp(enabled, true));
   this.setState("src", "");
   
   this.addStateCondition("src", function(src) {
@@ -76,6 +76,13 @@ regs.interface = function() {
   
 }
 
-regs.interface.prototype.styleBlock = function(style) {
-  return new AURStyleBlock(style);
+regs.interface.prototype.styleBlock = function(style, enabled) {
+  return new AURStyleBlock(style, enabled);
 }
+
+// Add important clause
+regs.interface.prototype.important = function(src) {
+  return src.replace(/([a-z\-\d]+\s*:\s*)([#\d\.\s,a-z()\-]+);/ig, function(m, p1, p2) {
+    return p1 + p2 + " !important;";
+  });
+};

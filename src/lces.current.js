@@ -123,7 +123,7 @@ lces.rc[0] = function() {
   }
   
   // Similar to extendObj, but will go into deeper objects if they exist and merging the differences
-  jSh.mergeObj = function(obj, extension, dontReplaceObjects) {
+  jSh.mergeObj = function(obj, extension, dontReplaceObjects, dontReplaceValues) {
     function merge(curObj, curExt) {
       Object.getOwnPropertyNames(curExt).forEach(function(i) {
         var curProp    = curObj[i];
@@ -131,7 +131,9 @@ lces.rc[0] = function() {
         
         if (jSh.type(curProp) === "object" && jSh.type(curExtProp) === "object")
           merge(curProp, curExtProp);
-        else if (!dontReplaceObjects || jSh.type(curProp) !== "object")
+        else if (dontReplaceValues && curProp === undf)
+          curObj[i] = curExtProp;
+        else if (!dontReplaceObjects || jSh.type(curProp) !== "object" && (!dontReplaceValues || curProp === undf))
           curObj[i] = curExtProp;
       });
     }
@@ -173,6 +175,19 @@ lces.rc[0] = function() {
     str = str + "";
     
     return str[0].toUpperCase() + str.slice(1).toLowerCase();
+  }
+  
+  // Options determining utils
+  jSh.boolOp = function(src, def) {
+    return src !== undefined ? !!src : def;
+  }
+
+  jSh.numOp = function(src, def) {
+    return !isNaN(src) && typeof src === "number" && src > -Infinity && src < Infinity ? parseFloat(src) : def;
+  }
+
+  jSh.strOp = function(src, def) {
+    return typeof src === "string" && src ? src : def;
   }
   
   // To silently mitigate any JSON parse error exceptions to prevent the whole from self destructing
@@ -1498,7 +1513,7 @@ lces.rc[2] = function() {
   }
   
   lces.type = function(type) {
-    return lces.types[type];
+    return lces.types[type || "component"];
   }
   
   // lces.deleteComponent
@@ -1959,9 +1974,11 @@ lces.rc[10] = function() {
   settings.addEvent("settingChange");
   
   settings.manifest = function(defSettings) {
-    function scan(group, userGroup) {
+    function scan(group, userGroup, path) {
       Object.getOwnPropertyNames(group).forEach(function(name) {
         var sett = group[name];
+        var userValue;
+        var thisPath = (path ? path.concat([name]) : null) || [name];
         
         if (typeof sett === "object") {
           if (sett instanceof settings.Setting && !sett.name) {
@@ -1973,6 +1990,10 @@ lces.rc[10] = function() {
             userGroup.addEvent(name);
             userGroup.events[name].listeners = sett.functions;
             
+            // Check if the value was set here before
+            if (userGroup[name] !== undf)
+              userValue = userGroup[name];
+            
             userGroup.setState(name, sett.defValue);
             var settObj = userGroup.states[name];
             
@@ -1980,11 +2001,15 @@ lces.rc[10] = function() {
             userGroup.addStateCondition(name, sett.condition);
             
             userGroup._settings.push(name);
+            
+            // Attempt to set it's initial value
+            if (userValue !== undf)
+              lateSettings.push([thisPath.join("."), userValue]);
           } else if (!(sett instanceof settings.Setting)) {
             var subGroup = userGroup[name];
             
-            if (!subGroup) {
-              subGroup = new lcComponent();
+            if (!(subGroup instanceof lces.type())) {
+              subGroup = subGroup ? jSh.extendObj(new lces.new(), subGroup) : lces.new();
               
               userGroup[name] = subGroup;
               userGroup._groups.push(name);
@@ -1993,7 +2018,7 @@ lces.rc[10] = function() {
               subGroup._groups   = [];
             }
             
-            scan(sett, subGroup);
+            scan(sett, subGroup, thisPath);
           }
         }
       });
@@ -2122,12 +2147,15 @@ lces.rc[10] = function() {
   settings.on = function() {
     var path;
     var callback;
+    var first;
     
     jSh.toArr(arguments).forEach(function(arg) {
       if (typeof arg === "string" && !path)
         path = arg;
       else if (typeof arg === "function" && !callback)
         callback = arg;
+      else if (first === undf && typeof arg === "boolean")
+        first = arg;
     });
     
     if (!callback)
@@ -2144,8 +2172,20 @@ lces.rc[10] = function() {
     if (!setting)
       return false;
     
+    if (first && path)
+      callback({value: settings.settObtain(path, true)});
+    
     setting.functions.push(callback);
     return true;
+  }
+  
+  settings.clearLate = function() {
+    var late = lateSettings.slice();
+    lateSettings = [];
+    
+    for (var i=0,l=late.length; i<l; i++) {
+      settings.set(late[i][0], late[i][1]);
+    }
   }
   
   // Default settings, the template/base for any user settings
@@ -2156,6 +2196,9 @@ lces.rc[10] = function() {
     _settings: [],
     _groups: []
   };
+  
+  // Setting values that are initialized late
+  var lateSettings = [];
   
   settings.setState("user", null);
   settings.states["user"].get = function() {

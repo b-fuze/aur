@@ -7,9 +7,9 @@ AUR_VERSION = [0, 1];
 AUR_AUTHORS = ["Mike32 (b-fuze)"];
 AUR_RESTART = true;
 
-var regs = AUR.register("aur-settings");
+var regs = reg;
 var sett = lces.user.settings;
-var db, dbName = "aur-sett-db";
+var oldDB, db, dbName = "aur-sett-db";
 
 var settDefault = {
   // Setting defaults
@@ -22,7 +22,10 @@ AUR.onLoaded("aur-db", function() {
   db = AUR.import("aur-db");
   
   sett.on(function() {
-    db.setDB(dbName, {user: JSON.stringify(sett.user)});
+    // Save settings with old settings if any
+    db.setDB(dbName, {user: JSON.stringify(
+      oldDB ? jSh.mergeObj(sett.user, oldDB, true, true) : sett.user
+    )});
   });
 });
 
@@ -30,8 +33,10 @@ AUR.onLoaded("aur-db", function() {
 AUR.on("load", function() {
   var settDB = db.getDB(dbName);
   
-  if (settDB)
-    sett.user = jSh.parseJSON(settDB.user);
+  if (settDB) {
+    oldDB = jSh.parseJSON(settDB.user);
+    sett.user = oldDB;
+  }
 });
 
 regs.interface = {

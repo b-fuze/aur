@@ -249,11 +249,14 @@ AUR.onLoaded("aur-ui", "aur-settings", "aur-styles", function() {
     });
     
     // Enable the tray on adding something
+    var addedOptions = false;
+    
     optCont._add = optCont.add;
     optCont.add = function() {
+      addedOptions = true;
       modRow.trayVisible = true;
-      optCont.add = optCont._add;
       
+      optCont.add = optCont._add;
       optCont.add.apply(optCont, jSh.toArr(arguments));
       
       if (detailCount === 0) {
@@ -270,6 +273,21 @@ AUR.onLoaded("aur-ui", "aur-settings", "aur-styles", function() {
     };
     
     enabledModsArr.push([modName, toggle, mod]);
+    
+    toggle.addStateListener("checked", function(checked) {
+      if (checked) {
+        if (detailCount !== 0 && addedOptions) {
+          modRow.trayVisible = true;
+        } else if (detailCount === 0 || !addedOptions) {
+          modRow.trayVisible = false;
+        }
+      } else {
+        modRow.trayVisible = false;
+      }
+      
+      if (detailCount !== 0)
+        modRow.optionsVisible = false;
+    });
   });
   
   sett.setDefault("AURModsEnabled", enabledMods);
