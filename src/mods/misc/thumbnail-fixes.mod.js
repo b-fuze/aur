@@ -86,11 +86,7 @@ reg.interface = function(){
         var savedUrl = that.db(title);
 
         if(!savedUrl){
-          var req = new lcRequest({
-            method: "GET",
-            uri: url,
-            success: onSuccess
-          });
+
 
           function onSuccess(){
             var response = this.response;
@@ -113,6 +109,12 @@ reg.interface = function(){
             }
 
           }
+
+          var req = new lcRequest({
+            method: "GET",
+            uri: url,
+            success: onSuccess
+          });
 
           req.send();
 
