@@ -1,4 +1,3 @@
-
 //AUR comment fixes module, first date: 2016-17-2
 //TODO
 // change function/class names to better ones
@@ -7,7 +6,14 @@
 // add the clean function
 // check for possible missing elements
 
-var reg   = AUR.register("comment-fixes");
+
+AUR_NAME = "Comment Fixes";
+AUR_DESC = "Fixes the broken comment function";
+AUR_VERSION = 0.9;
+AUR_AUTHORS = ["Samu"];
+AUR_RESTART = true; // If true AUR will say that it needs to restart for the module to take effect
+
+// var reg   = AUR.register("comment-fixes");
 // if(!reg) // Functions won't be called if a module is disabled, as in it won't ever see the light of day.
 //   return;
 
