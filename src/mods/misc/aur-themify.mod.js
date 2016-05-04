@@ -12,15 +12,14 @@ var style = AUR.import("aur-styles");
 
 // User Preferences
 sett.setDefault("themify", {
-  hideChatango: sett.Setting("Hide Chatango", "boolean", true)
+  
 });
 
 // Set up toggle tracker
-mtog.setting("themify.hideChatango", false);
+// mtog.setting("themify.hideChatango", false);
 
 AUR.on("load", function() {
   var darkThemeBlk = style.styleBlock(style.important(styling));
-  var chatango     = style.styleBlock(style.important(hideChatango), sett.get("themify.hideChatango"));
   
   regs.on("moddisable", function() {
     darkThemeBlk.enabled = false;
@@ -29,25 +28,11 @@ AUR.on("load", function() {
   regs.on("modenable", function() {
     darkThemeBlk.enabled = true;
   });
-  
-  sett.on("themify.hideChatango", function(e) {
-    chatango.enabled = e.value;
-  });
-  
-  regs.ui.prop({
-    link: "themify.hideChatango"
-  });
 });
 
 regs.interface = function() {
   // Do something here...
 }
-
-var hideChatango = `
-  #right-content-hp > div.centered > div.side-box {
-    display: none;
-  }
-`;
 
 var styling = `
   body {

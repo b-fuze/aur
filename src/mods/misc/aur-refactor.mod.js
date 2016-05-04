@@ -8,6 +8,7 @@ AUR_RESTART = true;
 var regs   = reg;
 var page   = AUR.import("aur-page");
 var detail = AUR.import("aur-details");
+var style  = AUR.import("aur-styles");
 var sett   = AUR.import("aur-settings");
 var mtog   = AUR.import("mod-toggle", reg);
 
@@ -28,12 +29,15 @@ nav.every(e => !(e.textContent.trim().toLowerCase() === "games" && ((e.parentNod
 // Add settings
 sett.setDefault("refactor", {
   rmPopularEps: sett.Setting("Remove Popular Episodes", "boolean", false),
-  rmTracker: sett.Setting("Remove Episode Tracker", "boolean", false)
+  rmTracker: sett.Setting("Remove Episode Tracker", "boolean", false),
+  hideChatango: sett.Setting("Hide Chatango", "boolean", true)
 });
 
 // Set up toggle tracker
 mtog.setting("refactor.rmPopularEps", false);
 mtog.setting("refactor.rmTracker", false);
+mtog.setting("refactor.hideChatango", false);
+
 
 reg.ui.prop({
   link: "refactor.rmPopularEps"
@@ -41,6 +45,23 @@ reg.ui.prop({
 
 reg.ui.prop({
   link: "refactor.rmTracker"
+});
+
+reg.ui.prop({
+  link: "refactor.hideChatango"
+});
+
+// Hide chatango chat
+var hideChatango = `
+  #right-content-hp > div.centered > div.side-box {
+    display: none;
+  }
+`;
+
+var chatango = style.styleBlock(style.important(hideChatango), sett.get("refactor.hideChatango"));
+
+sett.on("refactor.hideChatango", function(e) {
+  chatango.enabled = e.value;
 });
 
 // Mainpage

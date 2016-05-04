@@ -22,6 +22,7 @@
           modAuthors: modObj.modAuthors,
           modDesc: modObj.modDesc,
           modVersion: modObj.modVersion,
+          modCodename: modObj.modCodename,
           modRestart: modObj.modRestart,
           
           get enabled() {
@@ -303,11 +304,14 @@
                 else
                   break;
               } else
-                valid = false;
+                validItem = null;
             }
             // It's one value
             else {
               validItem = metaTypeCheckers[typeItem[0]](val) ? val : null;
+              
+              if (validItem !== null)
+                break;
             }
           }
           
@@ -366,6 +370,8 @@
         validMeta[metaRegName] = null;
       }
     }
+    
+    validMeta["modCodename"] = modName;
     
     var modObj = lces.new();
     modObj.initEnabled = enabled;

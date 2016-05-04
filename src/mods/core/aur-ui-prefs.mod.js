@@ -134,13 +134,14 @@ AUR.onLoaded("aur-ui", "aur-settings", "aur-styles", function() {
   var mods = AUR.modules.misc;
   var modNames = Object.getOwnPropertyNames(mods);
   
-  var metaNames = ["modName", "modAuthors", "modDesc", "modVersion", "modRestart"];
+  var metaNames = ["modName", "modAuthors", "modDesc", "modVersion", "modCodename", "modRestart"];
   
   var metaProper = {
     modName: "Name",
     modAuthors: "Author(s)",
     modDesc: "Description",
     modVersion: "Version",
+    modCodename: "Codename",
     modRestart: "Require restart"
   };
   
@@ -149,6 +150,7 @@ AUR.onLoaded("aur-ui", "aur-settings", "aur-styles", function() {
     modAuthors: a => a.join(", "),
     modDesc: d => d,
     modVersion: v => (jSh.type(v) === "array" ? v.join(".") : v),
+    modCodename: n => n,
     modRestart: r => (r ? "Yes" : "No")
   };
   
@@ -175,10 +177,11 @@ AUR.onLoaded("aur-ui", "aur-settings", "aur-styles", function() {
       jSh.d(".aur-ui-prefs-mod-extras", undf, [
         jSh.d(".aur-ui-prefs-mod-extras-info", undf, metaNames.filter(n => (modDetails[n] !== null)).map(function(meta) {
             detailCount++;
+            var extra = meta === "modCodename" ? {style: "font-family: mono;"} : {};
             
             return jSh.d(".aur-ui-prefs-mod-extras-info-prop", undf, [
               jSh.c("span", undf, metaProper[meta]),
-              jSh.c("span", undf, metaRender[meta](modDetails[meta]))
+              jSh.c("span", undf, metaRender[meta](modDetails[meta]), undf, extra)
             ]);
           }
         )),

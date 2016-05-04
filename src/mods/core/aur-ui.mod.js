@@ -91,6 +91,10 @@ function RegisterWin(name, title, options) {
     aurwin.visible = visible;
   });
   
+  aurwin.addStateListener("visible", function(visible) {
+    that.states.visible.stateStatus = visible;
+  });
+  
   // Make title container for close button
   var titlesp   = jSh.c("span");
   var mainTitle = aurwin._title;
