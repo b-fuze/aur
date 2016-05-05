@@ -10,4 +10,5 @@
 // @include      /^https?://([a-z\d]+\.)?animeultima.io(/+(?:index.php|login|register|search.html[^]*|watch-anime(?:-movies)?|watch/+[^]+-english-subbed-dubbed-online(?:/+favorites)?|[^]+-episode-[\d\.]+(?:-(?:english-[sd]ubbed|raw)(?:-video-mirror-\d+-[^]+)?)?)(?:/+)?|/+)?(#[^]+)?$/
 // @grant        GM_getValue
 // @grant        GM_setValue
+// @grant        GM_xmlhttpRequest
 // ==/UserScript==

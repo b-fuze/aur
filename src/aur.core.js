@@ -36,6 +36,100 @@ if (!AURUserModSett) {
   AURUserModSett = {};
 }
 
+// Unconstrained by CORS policy XHR request
+AUR.request = function(args) {
+  // Confirm input
+  if (!(jSh.type(args) === "object" ? args : null) || jSh.type(args.uri || args.url) !== "string" || !(args.uri || args.url))
+    return false;
+  
+  var validMethods = ["GET", "POST", "HEAD"];
+  var headers = {};
+  jSh.extendObj(headers, jSh.type(args.headers) === "object" ? args.headers : {});
+  
+  var uri    = args.uri || args.url;
+  var method = typeof args.method === "string" && validMethods.indexOf(args.method.toUpperCase()) !== -1 ? args.method.toUpperCase() : "GET";
+  
+  // Check for form
+  if (args.form)
+    headers["Content-Type"] = "application/x-www-form-urlencoded";
+  
+  // Get queryString
+  var queryString = "";
+  
+  if (args.query) {
+    function recursion(obj) {
+      if (jSh.type(obj) === "array")
+        return encodeURIComponent(obj.join(","));
+      if (jSh.type(obj) !== "object")
+        return encodeURIComponent(obj.toString());
+
+      var qs = "";
+
+      for (prop in obj) {
+        if (obj.hasOwnProperty(prop)) {
+
+          switch (jSh.type(obj[prop])) {
+            case "string":
+              qs += "&" + prop + "=" + encodeURIComponent(obj[prop]);
+            break;
+            case "number":
+              qs += "&" + prop + "=" + obj[prop];
+            break;
+            case "array":
+              qs += "&" + prop + "=" + encodeURIComponent(obj[prop].join(";"));
+            break;
+            case "object":
+              qs += "";
+            break;
+            case "null":
+              qs += "&" + prop + "=null";
+            break;
+            case "undefined":
+              qs += "";
+            break;
+            default:
+              qs += "";
+
+          }
+        }
+      }
+
+      return qs;
+    }
+
+    queryString = recursion(args.query).substr(1);
+  } else {
+    queryString = args.formData || "";
+  }
+  
+  // Callbacks
+  var onreadystatechange = typeof args.callback === "function" ? function(obj) {
+    args.callback.call(obj)
+  } : undf;
+  
+  var onload = typeof args.success === "function" ? function(obj) {
+    args.success.call(obj);
+  } : undf;
+  
+  var onerror = typeof args.fail === "function" ? function(obj) {
+    args.fail.call(obj);
+  } : undf;
+  
+  var xhr = GM_xmlhttpRequest({
+    method: method,
+    url: uri,
+    data: queryString || undf,
+    headers: headers,
+    onreadystatechange: onreadystatechange,
+    onload: onload,
+    onerror: onerror,
+    synchronous: false
+  });
+  
+  
+  return xhr;
+}
+
 // AUR Utils
 AUR.error = function(e) {
   var errorString = "AUR ERROR: " + e;
