@@ -3,7 +3,8 @@
 //add support for Mp4upload
 //add prefs
 //decide to check if image is broken before getting thumbnail or not
-//Some parts could be removed/reduced 
+//Some parts could be refactored! do it noob
+//add self initiation
 
 AUR_NAME = "Thumbnail Fixer";
 AUR_DESC = "Fixes the broken thumbnails";
@@ -13,131 +14,162 @@ AUR_RESTART = true; // If true AUR will say that it needs to restart for the mod
 
 // var reg = AUR.register("thumbnail-fixes");
 var aurdb = AUR.import("aur-db");
+var page = AUR.import("aur-page");
 
-reg.interface = function(){
-  var that = this;
 
-  this.getTitle = function(url){
-    var title = url.replace(/^https?:\/\/(?:www\.)?animeultima\.io\/+([^]+-episode-[\d\.]+)(?:-english-[sd]ubbed(?:-video-mirror-\d+-[^]+)?)?(?:\/+)?(?:#[^]+)?$/, "$1");
-    return title;
+function getThumb(iframeUrl, pageUrl){
+   //   console.log(iframeUrl, pageUrl);
+  var title = getTitle(pageUrl);
+  var thumbUrl = null;
+
+  if(!db(title)){
+    if(iframeUrl.match("auengine")) {
+      thumbUrl = getAUEThumb(iframeUrl);
+    }else if(iframeUrl.match("mp4upload")){
+
+    }
+
+  }else{
+    thumbUrl = db(title);
   }
 
-//  this.requestsMade = 0;
+  if(thumbUrl){
+    db(title, thumbUrl);
+  }
 
-  this.mend = function(thumbs, videoUrl, episodeUrl){
+  return thumbUrl;
+
+}
+
+function getAUEThumb(videoUrl){
+  if(!videoUrl)
+    return null;
+
+  var matched = videoUrl.match(/file=(.+)&.*w=/);
+  if(matched && matched[1]){
+    var filename = matched[1] + "_b.png";
+    var thumbnailUrl = "http://thumbs.auengine.com/" + filename;
+    return thumbnailUrl;
+  }
+
+  return null;
+}
+
+function getMP4UThumb(videoUrl, test){
+
+}
+
+function getTitle(url){
+  var title = url.replace(/^https?:\/\/(?:www\.)?animeultima\.io\/+([^]+-episode-[\d\.]+)(?:-english-[sd]ubbed(?:-video-mirror-\d+-[^]+)?)?(?:\/+)?(?:#[^]+)?$/, "$1");
+  return title;
+}
+
+function db(title, imgUrl){
+  var dbObj = aurdb.getDB("thumbnail-cache");
+
+  if(!dbObj)
+    dbObj = {};
+
+  if(dbObj[title] !== undefined && imgUrl === undefined){
+    return dbObj[title];
+  }else if(imgUrl !== undefined){
+    dbObj[title] = imgUrl;
+    aurdb.setDB("thumbnail-cache", dbObj);
+  }
+}
+
+function mend(thumbs, videoUrl, episodeUrl){
+   if(!thumbs instanceof Element || thumbs.classList.contains("aurMended"))
+      return;
+    
+    //run once
+    thumbs.classList.add("aurMended");
 
 
-    function getThumb(iframeUrl, pageUrl){
-   //   console.log(iframeUrl, pageUrl);
-      var title = that.getTitle(pageUrl);
-      var thumbUrl = "";
+if(videoUrl){
+      
+  var pageUrl = episodeUrl || window.location.href;
+  var url = getThumb(videoUrl, pageUrl);
 
-      if(!that.db(title)){
-        if(iframeUrl.match("auengine")) {
-          thumbUrl = getAUEThumb(iframeUrl);
-        }else if(iframeUrl.match("mp4upload")){
-          //Will probably need to make a new request to the mp4upload embed link and there get the background image of the #flowplayer element...
+  var mirrors = thumbs.jSh(".thumb img:first-of-type");
+  for(var i = 0; i < mirrors.length; i++){
+    var attrOri = mirrors[i].getAttribute("original");
+    if(!mirrors[i].src.match("dmcdn.net") || (attrOri && attrOri.match("dmcdn.net")))
+      mirrors[i].src = url;
+  }
+
+}else{
+
+  var links = thumbs.jSh("a");
+  for(var i = 0; i < links.length; i++){
+
+    var url = links[i].href;
+    var title = getTitle(url);
+    var savedUrl = db(title);
+    var img = links[i].jSh("img:first-of-type")[0];
+    var attrOri = img.getAttribute("original");
+
+    if(img.src.match("dmcdn.net") || (attrOri && attrOri.match("dmcdn.net"))){
+      console.log("Dailymotion", img.src, img.src.match("dmcdn.net"));
+      continue;
+    }
+
+
+    if(!savedUrl){
+
+      console.log(1, img.src, img.src.match("dmcdn.net"));
+      function onSuccess(){
+        var response = this.response;
+        var iframe = response.match(/<iframe.+src="(http:\/\/(?:auengine|mp4upload)\.com.+?)".*><\/iframe>/);
+        var title =  getTitle(this.responseURL);
+
+        var url = null;
+
+        if(iframe !== null && iframe[1].match("auengine")){
+
+          var url = getAUEThumb(iframe[1]);
+
+        }else if(iframe !== null && iframe[1].match("mp4upload")){
+          //erm...
         }
 
-      }else{
-        thumbUrl = that.db(title);
+        if(url){
+          db(title, url);
+          thumbs.jSh("a[href*='"+ title +"'] img")[0].src = url;
+        }
+
       }
 
-      if(thumbUrl !== ""){
-        that.db(title, thumbUrl);
-      }
+      var req = new lcRequest({
+        method: "GET",
+        uri: url,
+        success: onSuccess
+      });
 
-      return thumbUrl;
-
-    }
-    
-
-    function getAUEThumb(videoUrl){
-      if(!videoUrl)
-        return "";
-
-      var matched = videoUrl.match(/file=(.+)&.*w=/);
-      if(matched && matched[1]){
-        var filename = matched[1] + "_b.png";
-        var thumbnailUrl = "http://thumbs.auengine.com/" + filename;
-        return thumbnailUrl;
-      }
-
-      return "";
-    }
-    
-    if(videoUrl){
-      
-      var pageUrl = episodeUrl || window.location.href;
-      var url = getThumb(videoUrl, pageUrl);
-
-      var mirrors = thumbs.jSh(".thumb img:first-of-type");
-      for(var i = 0; i < mirrors.length; i++){
-        mirrors[i].src = url;
-      }
+      req.send();
 
     }else{
+      console.log(2, img.src, img.src.match("dmcdn.net"));
+      thumbs.jSh("a[href*='"+ title +"'] img")[0].src = savedUrl;
 
-      var links = thumbs.jSh("a");
-      for(var i = 0; i < links.length; i++){
-
-        var url = links[i].href;
-        var title = this.getTitle(url);
-        var savedUrl = that.db(title);
-
-        if(!savedUrl){
-
-
-          function onSuccess(){
-            var response = this.response;
-            var iframe = response.match(/<iframe.+src="(http:\/\/(?:auengine|mp4upload)\.com.+?)".*><\/iframe>/);
-            var title =  that.getTitle(this.responseURL);
-
-            var url = "";
-
-            if(iframe !== null && iframe[1].match("auengine")){
-
-              var url = getAUEThumb(iframe[0]);
-
-            }else if(iframe !== null && iframe[1].match("mp4upload")){
-              //erm...
-            }
-
-            if(url !== ""){
-              that.db(title, url);
-              thumbs.jSh("a[href*='"+ title +"'] img")[0].src = url;
-            }
-
-          }
-
-          var req = new lcRequest({
-            method: "GET",
-            uri: url,
-            success: onSuccess
-          });
-
-          req.send();
-
-        }else{
-          thumbs.jSh("a[href*='"+ title +"'] img")[0].src = savedUrl;
-
-        }
-      }
     }
   }
+}
+}
 
-  this.db = function(title, imgUrl){
-    var dbObj = aurdb.getDB("thumbnail-cache");
 
-    if(!dbObj)
-      dbObj = {};
+//temprorary self initial
+if (page.isEpisode){
+  mend(jSh("#related-videos"), jSh("#pembed iframe")[0].src, window.location.href);
+}else if(page.isHome){
+  mend(jSh("#new-episodes"));
+  mend(jSh("#main-content-hp > div.section")[0]);
+}
 
-    if(dbObj[title] !== undefined && imgUrl === undefined){
-      return dbObj[title];
-    }else if(imgUrl !== undefined){
-      dbObj[title] = imgUrl;
-      aurdb.setDB("thumbnail-cache", dbObj);
-    }
-  }
-
+reg.interface = function(){
+  
+  this.mend = mend;
+  this.getAUEThumb = getAUEThumb;
+  this.getTitle = getTitle;
+  this.getThumb = getThumb;
 }
