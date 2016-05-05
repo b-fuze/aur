@@ -6561,13 +6561,13 @@ lces.rc[3] = function() {
     });
     
     // Update the height of the scrollbar for content changes
-    scrollbar.update = function() {
+    scrollbar.update = function(hard) {
       var scrollContent = scrollbar.scrollContent;
       
       // Get scrollcontent real height
       var scrollCCS = getComputedStyle(scrollContent);
       var scrollCHeight = scrollContent.offsetHeight;
-      scrollCHeight = scrollCHeight - parseInt(scrollCCS["borderTopWidth"]) - parseInt(scrollCCS["borderBottomWidth"]);
+      scrollCHeight = scrollCHeight - jSh.numOp(parseInt(scrollCCS["borderTopWidth"]), 0) - jSh.numOp(parseInt(scrollCCS["borderBottomWidth"]), 0);
       
       // Get scrollparent real height
       var parentCS = getComputedStyle(scrollbar.parent);
@@ -6591,10 +6591,12 @@ lces.rc[3] = function() {
       else
         trough.style.display = "none";
       
-      // Reset scrollbar and content
-      elem.style.top = "0px";
-      sbScrolled = 0;
-      scrollContent.scrollTop = 0;
+      // Reset scrollbar and content TODO: Check and remove this, it's unhelpful
+      var oldRatio = jSh.numOp(sbScrolled, 0) === 0 ? 1 : Math.min(sbScrolled, scrollTopMax) / sbScrolled;
+      
+      elem.style.top = Math.min(sbScrolled, scrollTopMax) + "px";
+      sbScrolled = Math.min(jSh.numOp(sbScrolled, 0), scrollTopMax);
+      scrollContent.scrollTop = Math.min(physicalScrollMax, scrollContent.scrollTop);
     }
     
     if (lces.ui.scrollBarsEnabled) {
