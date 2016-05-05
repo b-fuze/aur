@@ -30,14 +30,15 @@ nav.every(e => !(e.textContent.trim().toLowerCase() === "games" && ((e.parentNod
 sett.setDefault("refactor", {
   rmPopularEps: sett.Setting("Remove Popular Episodes", "boolean", false),
   rmTracker: sett.Setting("Remove Episode Tracker", "boolean", false),
-  hideChatango: sett.Setting("Hide Chatango", "boolean", true)
+  hideChatango: sett.Setting("Hide Chatango", "boolean", true),
+  channelEpisodeTab: sett.Setting("Split episodes and details", "boolean", false)
 });
 
 // Set up toggle tracker
 mtog.setting("refactor.rmPopularEps", false);
 mtog.setting("refactor.rmTracker", false);
 mtog.setting("refactor.hideChatango", false);
-
+mtog.setting("refactor.channelEpisodeTab", false);
 
 reg.ui.prop({
   link: "refactor.rmPopularEps"
@@ -49,6 +50,10 @@ reg.ui.prop({
 
 reg.ui.prop({
   link: "refactor.hideChatango"
+});
+
+reg.ui.prop({
+  link: "refactor.channelEpisodeTab"
 });
 
 // Hide chatango chat
@@ -173,6 +178,85 @@ if (page.isChannel) {
   
   remove(rss.jSh("img")[0]);
   rss.classList.add("aur-rss-fix");
+  
+  // Tabs container
+  var tabCont = jSh("#main-content").jSh(".inline-top")[0];
+  
+  // Remove reviews tab
+  remove(tabCont.getChild(1));
+  
+  // Separate episodes tab
+  var detailSect  = jSh("#main-content > .nr-content > .section")[0];
+  var episodeSect = jSh("#main-content > .nr-content > .section")[1];
+  
+  var detailsTab = tabCont.getChild(0);
+  var episodeTab = jSh.c("a", {
+    sel: ".nr-toggle-view",
+    text: "Episodes",
+    prop: {
+      href: "javascript:void 0;"
+    }
+  });
+  
+  detailsTab.href = "javascript:void 0;";
+  detailsTab.addEventListener("click", function() {
+    toggleEpisodeTab(0);
+  });
+  
+  episodeTab.addEventListener("click", function() {
+    toggleEpisodeTab(1);
+  });
+  
+  // Add episode tab
+  tabCont.insertBefore(episodeTab, tabCont.getChild(0));
+  
+  function toggleEpisodeTab(toggle) {
+    var det, ep, dtab, eptab;
+    
+    // Show details
+    if (toggle === 0) {
+      det   = "block";
+      ep    = "none";
+      dtab  = "add";
+      eptab = "remove";
+    }
+    // Show episodes
+    else if (toggle === 1) {
+      det   = "none";
+      ep    = "block";
+      dtab  = "remove";
+      eptab = "add";
+    }
+    
+    // Disable
+    if (toggle === 2) {
+      det   = "block";
+      ep    = "block";
+      dtab  = "add";
+      eptab = "remove";
+      
+      episodeTab.style.display = "none";
+    } else {
+      episodeTab.style.display = "inline";
+    }
+    
+    // Apply changes
+    detailSect.style.display  = det;
+    episodeSect.style.display = ep;
+    detailsTab.classList[dtab]("nr-toggle-view-active");
+    episodeTab.classList[eptab]("nr-toggle-view-active");
+  }
+  
+  // Disable initially
+  toggleEpisodeTab(2);
+  
+  sett.on("refactor.channelEpisodeTab", function(e) {
+    if (e.value) {
+      toggleEpisodeTab(1);
+    } else {
+      toggleEpisodeTab(2);
+    }
+  });
 }
 
 if (page.isEpisode) {
