@@ -373,7 +373,7 @@ AUR.onLoaded("aur-ui", "aur-settings", "aur-styles", function() {
     var modRealName = arr[2];
   
     sett.on("AURModsEnabled." + modName + ".enabled", function(e) {
-      mods[modRealName].enabled = e.value;
+      miscMods[modRealName].enabled = e.value;
       toggle.checked = e.value;
     });
     
