@@ -5,6 +5,7 @@
 //decide to check if image is broken before getting thumbnail or not
 //Some parts could be refactored! do it noob
 //add self initiation
+//FIX getMP4UThumb FUNCTION
 
 AUR_NAME = "Thumbnail Fixer";
 AUR_DESC = "Fixes the broken thumbnails";
@@ -26,7 +27,7 @@ function getThumb(iframeUrl, pageUrl){
     if(iframeUrl.match("auengine")) {
       thumbUrl = getAUEThumb(iframeUrl);
     }else if(iframeUrl.match("mp4upload")){
-
+      getMP4UThumb(iframeUrl, title, true);
     }
 
   }else{
@@ -55,8 +56,35 @@ function getAUEThumb(videoUrl){
   return null;
 }
 
-function getMP4UThumb(videoUrl, test){
+function getMP4UThumb(videoUrl, title, multi){
 
+//f*ck...
+  function onSuccess(){
+    var match = this.response.match(/backgroundImage="url\((.+)\)";/);
+    if(match && match[1]){
+      thumbUrl = match[1];
+      db(title, thumbUrl);
+
+      if(multi){
+        var mirrors = jSh(".thumb img:first-of-type"); //... don't work with the document directly...
+        for(var i = 0; i < mirrors.length; i++){
+          var attrOri = mirrors[i].getAttribute("original");
+          if(!mirrors[i].src.match("dmcdn.net") || (attrOri && attrOri.match("dmcdn.net")))
+            mirrors[i].src = thumbUrl;
+        }
+      }
+      else{
+        jSh("a[href*='"+ title +"'] img")[0].src = thumbUrl; //... don't work with the document directly...
+      }
+    }
+  }
+
+
+  AUR.request({
+    method: "GET",
+    uri: videoUrl,
+    success: onSuccess
+  })
 }
 
 function getTitle(url){
@@ -91,6 +119,9 @@ if(videoUrl){
   var pageUrl = episodeUrl || window.location.href;
   var url = getThumb(videoUrl, pageUrl);
 
+  if(!url)
+    return;
+
   var mirrors = thumbs.jSh(".thumb img:first-of-type");
   for(var i = 0; i < mirrors.length; i++){
     var attrOri = mirrors[i].getAttribute("original");
@@ -110,14 +141,14 @@ if(videoUrl){
     var attrOri = img.getAttribute("original");
 
     if(img.src.match("dmcdn.net") || (attrOri && attrOri.match("dmcdn.net"))){
-      console.log("Dailymotion", img.src, img.src.match("dmcdn.net"));
+      // console.log("Dailymotion", img.src, img.src.match("dmcdn.net"));
       continue;
     }
 
 
     if(!savedUrl){
 
-      console.log(1, img.src, img.src.match("dmcdn.net"));
+      // console.log(1, img.src, img.src.match("dmcdn.net"));
       function onSuccess(){
         var response = this.response;
         var iframe = response.match(/<iframe.+src="(http:\/\/(?:auengine|mp4upload)\.com.+?)".*><\/iframe>/);
@@ -130,7 +161,8 @@ if(videoUrl){
           var url = getAUEThumb(iframe[1]);
 
         }else if(iframe !== null && iframe[1].match("mp4upload")){
-          //erm...
+
+          getMP4UThumb(iframe[1], title, false);
         }
 
         if(url){
@@ -149,14 +181,13 @@ if(videoUrl){
       req.send();
 
     }else{
-      console.log(2, img.src, img.src.match("dmcdn.net"));
+      // console.log(2, img.src, img.src.match("dmcdn.net"));
       thumbs.jSh("a[href*='"+ title +"'] img")[0].src = savedUrl;
 
     }
   }
 }
 }
-
 
 //temprorary self initial
 if (page.isEpisode){
