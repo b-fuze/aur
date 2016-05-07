@@ -378,6 +378,32 @@ var styling = `
     margin-top: 10px;
   }
   
+  .generic-video-item div.thumb span.play::before {
+    content: "";
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    right: 0px;
+    bottom: 0px;
+    margin: auto auto;
+    width: 53px;
+    height: 40px;
+    background: url('data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2253%22%20height%3D%2240%22%3E%3Cpath%20d%3D%22M3.5%200C1.578%200%200%201.578%200%203.5v33C0%2038.422%201.578%2040%203.5%2040h46c1.922%200%203.5-1.578%203.5-3.5v-33C53%201.578%2051.422%200%2049.5%200h-46zm0%201h46C50.885%201%2052%202.115%2052%203.5v33c0%201.385-1.115%202.5-2.5%202.5h-46C2.115%2039%201%2037.885%201%2036.5v-33C1%202.115%202.115%201%203.5%201z%22%20style%3D%22text-indent%3A0%3Btext-align%3Astart%3Bline-height%3Anormal%3Btext-transform%3Anone%3Bblock-progression%3Atb%3B-inkscape-font-specification%3ASans%22%20opacity%3D%22.75%22%20color%3D%22%23000%22%20fill%3D%22%23fff%22%20overflow%3D%22visible%22%20font-family%3D%22Sans%22%2F%3E%3Crect%20width%3D%2251%22%20height%3D%2238%22%20x%3D%221%22%20y%3D%221%22%20ry%3D%222.5%22%20opacity%3D%22.65%22%2F%3E%3Cpath%20d%3D%22M25.668%2013.333L32.778%2020l-7.11%206.667h3.444L36.222%2020l-7.11-6.667zm-8.89-4.444v22.22L28.333%2020z%22%20fill%3D%22%23fff%22%2F%3E%3C%2Fsvg%3E') no-repeat;
+    transform: scale(1.25);
+    opacity: 0;
+    transition: opacity 250ms cubic-bezier(.31,.26,.1,.92), transform 250ms cubic-bezier(.31,.26,.1,.92);
+  }
+  
+  .generic-video-item div.thumb:hover span.play::before {
+    transform: scale(1);
+    opacity: 1;
+  }
+  
+  .generic-video-item div.thumb span.play {
+    background: transparent;
+    display: block;
+  }
+  
   .generic-video-item div.thumb {
     margin: 5px 0px;
     border-radius: 2px;
@@ -611,9 +637,72 @@ var styling = `
     padding: 0px;
     margin-bottom: 10px;
     margin-top: 15px;
-    height: 20px;
+    height: 30px;
     position: relative;
     float: none;
+  }
+  
+  // Epsiode shape things
+  .nextepisode > a {
+    background: #131417;
+    padding: 0px 10px;
+    height: 25px;
+    line-height: 25px;
+    border-radius: 2px;
+    color: #C2C5CC;
+    text-decoration: none;
+    transition: color 250ms ease;
+  }
+  
+  .nextepisode > a:hover {
+    color: #0072B4;
+  }
+  
+  .nextepisode > a:first-child {
+    position: relative;
+    margin-left: 30px;
+    display: inline-block;
+    border-top-left-radius: 0px;
+    border-bottom-left-radius: 0px;
+  }
+  
+  .nextepisode > a:first-child::after {
+    content: "";
+    position: absolute;
+    width: 25px;
+    height: 25px;
+    top: 0px;
+    right: 100%;
+    background: url('data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2225%22%20height%3D%2225%22%3E%3Cpath%20d%3D%22M25%200L14.51%2012.5%2025%2025z%22%20fill%3D%22%23131417%22%2F%3E%3Cpath%20d%3D%22M10.49%200L0%2012.5%2010.49%2025H0V0z%22%20fill%3D%22%231e2024%22%2F%3E%3C%2Fsvg%3E') no-repeat;
+    background-color: #191B1F;
+    // background-color: #0072B4;
+  }
+  
+  .nextepisode > a:last-child {
+    margin-right: 30px;
+    border-top-right-radius: 0px;
+    border-bottom-right-radius: 0px;
+  }
+  
+  .nextepisode > a:last-child::after {
+    content: "";
+    position: absolute;
+    width: 25px;
+    height: 25px;
+    top: 0px;
+    left: 100%;
+    background: url('data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2225%22%20height%3D%2225%22%3E%3Cpath%20d%3D%22M0%200l10.49%2012.5L0%2025z%22%20fill%3D%22%23131417%22%2F%3E%3Cpath%20d%3D%22M14.51%200L25%2012.5%2014.51%2025H25V0z%22%20fill%3D%22%231e2024%22%2F%3E%3C%2Fsvg%3E') no-repeat;
+    background-color: #191B1F;
+  }
+  
+  .nextepisode > a:last-child:hover::after,
+  .nextepisode > a:first-child:hover::after {
+    transition: background-color 250ms ease;
+  }
+  
+  .nextepisode > a:last-child:hover::after,
+  .nextepisode > a:first-child:hover::after {
+    background-color: #0072B4;
   }
   
   #watchlist img {

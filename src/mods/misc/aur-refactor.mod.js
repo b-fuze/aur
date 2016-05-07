@@ -273,6 +273,13 @@ if (page.isEpisode) {
         jSh(".nextepisode")[0].getChild(0)
       );
     
+    // Remove the stupid arrows from the links if themify loads
+    AUR.onLoaded("aur-themify", function() {
+      jSh.toArr(jSh(".nextepisode")[0].children).forEach(function(e) {
+        e.textContent = e.textContent.replace(/«|»/g, "");
+      });
+    });
+    
     // Fix episode details
     if (jSh(".uploader-info")[0]) {
       var strong = jSh(".uploader-info")[0].jSh("strong").slice(0, 3);
