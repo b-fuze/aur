@@ -1287,6 +1287,7 @@ AUR.onLoaded("aur-styles", "aur-settings", function() {
       color: #B0B6BF;
       margin-left: 5px;
       margin-right: 5px;
+      margin-bottom: 0px;
     }
     
     .aur-ui-prop > button:hover::before {

@@ -18,6 +18,14 @@ AUR.onLoaded("aur-ui", "aur-settings", "aur-styles", function() {
     height: 400
   });
   
+  // Select General tab when initally opened
+  prefs.addStateListener("visible", function setGen(visible) {
+    if (visible) {
+      prefs.removeStateListener("visible", setGen);
+      gen.selected = true;
+    }
+  });
+  
   // Set primary AUR prefs window
   ui.__setPrefs(prefs);
   
