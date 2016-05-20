@@ -5,11 +5,16 @@ var fs       = require("fs");
 var path     = require("path");
 var uglifyjs = require("uglify-js");
 var babel    = require("babel-core");
+var chalk    = require("chalk");
 var metaUtil = require("./build_libs/parse-meta.aur");
+var jSh      = require("./build_libs/jShorts2");
 
 // Buildtime vars
 var coreModules = [];
 var miscModules = [];
+
+coreModules.removalList = [];
+miscModules.removalList = [];
 
 // CD to the current dir
 process.chdir(path.dirname(process.argv[1]));
@@ -17,82 +22,88 @@ process.chdir(path.dirname(process.argv[1]));
 // Current time
 var time = (new Date()).toGMTString().replace(/ GMT|,/ig,"").replace(/:/g,".").replace(/\s/g,"-").toLowerCase();
 
-function multipleArg(i, arr, dump, comma) {
-  i++;
-  var arg     = arr[i];
-  var nextArg = arr[i + 1];
-  
-  var following = true;
-  var follow    = /^(?!\-)(?:[a-z\d\-]+,)+$/i;
-  var followcap = /^(?:[a-z\d\-]+,)*[a-z\d\-]+$/i;
-  var stoploop;
-  
-  while (!stoploop && (!comma || (nextArg && (follow.test(arg) || following && followcap.test(arg))))) {
-    if (comma)
-      dump.push.apply(dump, arg.trim().toLowerCase().split(/\s*,\s*/).filter(s => !!s.trim()));
-    else
-      dump.push(arg);
-    
-    // Set follow flag to continue to next argument
-    following = follow.test(arg);
-    
-    i++;
-    arg       = nextArg;
-    nextArg   = arr[i];
-    
-    if (!comma && (!nextArg || nextArg.trim()[0] === "-"))
-      stoploop = true;
-  }
-  
-  return i;
-}
+// Get paths
+var AURPATH = path.dirname(process.argv[1]) + "/";
 
 // Arguments
-var out   = null;
-var cat   = null;
-var debug = null;
-var excl  = [];
-var incl  = [];
+var argValues = {
+  "out": `${AURPATH}build/bleeding/aur.build.${time}.js`,
+  "cat": false,
+  "debug": false,
+  "eval": false,
+  "ignore-syntax": false,
+  "excl": [],
+  "incl": [],
+  "mods": []
+};
+
+var argShort = {
+  o: "out"
+}
+
+var curArg = null;
 
 // Loop arguments
 var args = process.argv.slice(2);
 
+// Checks each argument and compares against (if exists) it's counterpart in
+// argValues then either sets or appends values accordingly
 for (var i=0,l=args.length; i<l; i++) {
   var arg = args[i];
   
-  if (arg[0] === "-") {
-    switch (arg.toLowerCase()) {
-      case "-cat":
-        cat = true;
-      break;
-      
-      case "-debug":
-        debug = true;
-      break;
-      
-      case "-excl":
-        i = multipleArg(i, args, excl);
-      break;
-      
-      case "-add":
-        i = multipleArg(i, args, incl);
-      break;
+  if (arg.substr(0, 2) === "--" || arg[0] === "-" && arg.length === 2) {
+    if (arg.length === "2") {
+      var longName = argShort[arg[1]];
+      var curVal   = argValues[longName];
+    } else {
+      var longName = arg.substr(2);
+      var curVal   = argValues[longName];
     }
-  } else {
-    out = arg;
+    
+    if (curVal !== undefined) {
+      if (jSh.type(curVal) === "boolean")
+        argValues[longName] = true;
+      else if (jSh.type(curVal) === "string" || jSh.type(curVal) === "array")
+        curArg = longName;
+    }
+  } else if (curArg) {
+    var curVal = argValues[curArg];
+    
+    if (jSh.type(curVal) === "string") {
+      argValues[curArg] = arg;
+    } else if (jSh.type(curVal) === "array") {
+      argValues[curArg].push(arg);
+    }
   }
 }
 
-// Get paths
-var AURPATH = path.dirname(process.argv[1]) + "/";
-var AUROUT  = out || `${AURPATH}build/bleeding/aur.build.${time}.js`;
+Object.getOwnPropertyNames(argValues).forEach(function(n) {
+  var jsName = n.replace(/-[a-z\d]/g, function(a, b, c) {
+    return a[1].toUpperCase();
+  });
+  
+  argValues[jsName] = argValues[n];
+});
 
 // AUR uncompliled source cram
 // var EMPTYCORE, EMPTYMISC;
 var AURSRC = "";
+var AUROUT = argValues.out;
+
+// Logging
+function logStatus(msg, status) {
+  var cols = process.stdout.columns;
+  var msgLength = cols - chalk.stripColor(status).length;
+  var spaceLength = msgLength - chalk.stripColor(msg).length;
+  
+  console.log(msg + jSh.nChars(" ", spaceLength) + status);
+}
 
 // Source fetching functions
 function srcEscape(src) {
+  if (!argValues.eval)
+    return src;
+  
   src = src.replace(/\\/g, "\\\\");
   src = src.replace(/\$/g, "\\$");
   src = src.replace(/`/g, "\\`");
@@ -105,7 +116,7 @@ function mn(str) { // Module name
 }
 
 function excld(name) {
-  return excl.indexOf(mn(name).toLowerCase()) !== -1;
+  return argValues.excl.indexOf(mn(name).toLowerCase()) !== -1;
 }
 
 function getFile(fpath, ret) {
@@ -117,27 +128,97 @@ function getFile(fpath, ret) {
   AURSRC += "\n\n" + src;
 }
 
-function encapsulate(fpath, file) {
-  var npath = !file ? fpath : `${fpath}/${file}`;
-  var name  = mn(file || path.basename(fpath));
+var includedMods = false;
+function encapsulate(fpath, name) {
+  var npath = fpath;
   var src   = getFile(npath, true);
   
   var srcParse = metaUtil.processMeta(src, name);
+  var litSrc   = src.substr(srcParse.metaEnd);
   
-  return `\n\ntry {\n  __aurModCode = (function() {eval(\`var reg = AUR.register("${name}");${srcEscape(src.substr(srcParse.metaEnd))}\`);\n  AUR.__triggerLoaded("${name}");});` + (
-    `\n} catch (e) {\n  AUR.__triggerFailed("${name}", e);\n  __aurModeCode = null; \n};\n\n${srcParse.meta}\n__aurModCode = null;\n`
-  );
+  // Test src
+  try {
+    if (!argValues.ignoreSyntax)
+      babel.transform(litSrc);
+    
+    // Log status
+    logStatus(" " + chalk.bold(name) + (includedMods ? " included" : ""), "[" + chalk.green("SUCCESS") + "] ");
+    
+    var modBody = "";
+    modBody += "\n\ntry {\n  __aurModCode = (function() {";
+    modBody += argValues.eval ? "eval(\`" : "";
+    modBody += `var reg = AUR.register("${name}");`;
+    modBody += srcEscape(litSrc);
+    modBody += argValues.eval ? "\`);" : "";
+    modBody += `\n  AUR.__triggerLoaded("${name}");});\n} catch `;
+    modBody += `(e) {\n  AUR.__triggerFailed("${name}", e);\n  __aurModeCode = null; \n};\n\n${srcParse.meta}\n__aurModCode = null;\n`;
+    
+    return modBody;
+  } catch (e) {
+    logStatus(" " + chalk.bold(name) + (includedMods ? " included" : ""), e + " [" + chalk.red(" ERROR ") + "] ");
+    return null;
+  }
+  
 }
 
+function addModList(list) {
+  list.forEach(function(mod) {
+    var modSrc = encapsulate(list[mod], mod) || "";
+    AURSRC += modSrc;
+    
+    // Check if module failed (syntax error) and add to removal list
+    if (!modSrc)
+      list.removalList.push(mod);
+  });
+}
+
+// Scan a folder
 function getFolder(fpath, dumpModName) {
-  var files = fs.readdirSync(fpath).filter(f => !excld(f));
+  var validModName = /[a-z\-\d]+\.mod\.js/;
+  var files = fs.readdirSync(fpath).filter(f => !excld(f) || !validModName.test(f));
   
-  if (dumpModName)
-    dumpModName.push.apply(dumpModName, files.map(f => mn(f)));
+  dumpModName.push.apply(dumpModName, files.map(f => mn(f)));
+  files.every(function(f) {
+    var name = mn(f);
+    
+    if (!miscModules[name] && !coreModules[name]) {
+      dumpModName[name] = fpath + "/" + f;
+      return true;
+    } else {
+      logStatus("" + chalk.bold.red(name) + " - " + fpath, "[" + chalk.red("ERROR: MOD CONFLICT") + "] ");
+      process.exit();
+    }
+  });
+}
+
+// Check extra module folders for modules
+function checkDirectory(fpath) {
+  var validModName = /[a-z\-\d]+\.mod\.js/;
   
-  files[0] = encapsulate(fpath, files[0]);
-  
-  AURSRC += files.reduce((src, file) => src + encapsulate(fpath, file));
+  if (fs.existsSync(fpath) && fs.statSync(fpath).isDirectory()) {
+    var contents = fs.readdirSync(fpath);
+    
+    contents.forEach(function(file) {
+      var itemPath = fpath + "/" + file;
+      
+      if ((file === "core" || file === "misc") && fs.statSync(itemPath).isDirectory()) {
+        getFolder(itemPath, file === "core" ? coreModules : miscModules);
+      } else if (validModName.test(file) && fs.statSync(itemPath).isFile()) {
+        var name = mn(file);
+        miscModules.push(name);
+        
+        if (!miscModules[name] && !coreModules[name]) {
+          miscModules[name] = itemPath;
+          return true;
+        } else {
+          logStatus("" + chalk.bold.red(name) + " - " + fpath, "[" + chalk.red("ERROR: MOD CONFLICT") + "] ");
+          process.exit();
+        }
+      }
+    });
+  } else {
+    console.log(" " + chalk.bold(fpath) + chalk.red(" doesn't exist or is a file"));
+  }
 }
 
 function uglify(src) {
@@ -169,7 +250,7 @@ function uglify(src) {
 
 // Get LCES/jSh
 var lcesSrc = getFile(AURPATH + "src/lces.current.js", true);
-var lcesSrc = cat ? lcesSrc : uglify(babel.transform(lcesSrc, {presets: ["es2015"]}).code);
+var lcesSrc = argValues.cat ? lcesSrc : uglify(babel.transform(lcesSrc, {presets: ["es2015"]}).code);
 var lces    = `function lces(l){return LCES.components[l]};lces.rc = [];lces.loadedDeps = false;${ lcesSrc }lces.rc.forEach(f => f());lces.init();\n`;
 
 // Get core files
@@ -182,26 +263,46 @@ getFolder(AURPATH + "src/mods/core", coreModules);
 // Get misc modules
 getFolder(AURPATH + "src/mods/misc", miscModules);
 
+// Get other core/misc mod directories
+argValues.mods.forEach(function(modDir) {
+  checkDirectory(modDir);
+});
+
+console.log("\nAdding core modules...");
+addModList(coreModules);
+console.log("\nAdding misc modules...");
+addModList(miscModules);
+
+if (argValues.incl.length !== 0)
+  console.log("\nAdding extra modules...");
+
 // Get extra modules if any
-incl.forEach(file => (AURSRC += encapsulate(file), miscModules.push(mn(path.basename(file)))));
+includedMods = true;
+var curIncl;
+
+argValues.incl.forEach(file => ((curIncl = encapsulate(file)), AURSRC += curIncl || "", curIncl ? miscModules.push(mn(path.basename(file))) : null));
+
+// Remove any modules that failed the test
+coreModules.removalList.forEach((m, i, arr) => coreModules.splice(coreModules.indexOf(m), 1));
+miscModules.removalList.forEach((m, i, arr) => miscModules.splice(miscModules.indexOf(m), 1));
 
 // Add module names
 AURSRC = AURSRC.replace(/EMPTYCORE/, '"' + coreModules.join('", "') + '"');
 AURSRC = AURSRC.replace(/EMPTYMISC/, '"' + miscModules.join('", "') + '"');
 
 // Transform to ES5.1
-var result = cat ? AURSRC : babel.transform(AURSRC, {presets: ["es2015"]}).code;
+var result = argValues.cat ? AURSRC : babel.transform(AURSRC, {presets: ["es2015"]}).code;
 // Uglify this shit
-result = cat ? result : uglify(result);
+result = argValues.cat ? result : uglify(result);
 
 // Concat it to lces
 result = `${getFile(AURPATH + "src/userscript.head.js", true)}
-${debug ? `try { // DEBUG FLAG -TRY` : ""}
+${argValues.debug ? `try { // DEBUG FLAG -TRY` : ""}
 
   ${lces + result}
   AUR.triggerEvent("load",{});
   
-${debug ? `} catch (e) { // DEBUG FLAG -CATCH
+${argValues.debug ? `} catch (e) { // DEBUG FLAG -CATCH
   alert(e + "\\n\\n\\n" + e.stack);
 }` : ""}`;
 
