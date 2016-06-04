@@ -302,21 +302,26 @@ function getMeta(src, modName) {
   
   // Assure last char is *after* the metadata
   if (lastEndSMLine === lastNewline) {
-    i = lastNewline + 1;
-    
-    for (; i<l; i++) {
-      var char = src[i];
-      var next = src[i + 1];
+    // Check if no identifiers found anyway
+    if (identifiers.length === 0) {
+      lastNewline = 0;
+    } else {
+      i = lastNewline + 1;
       
-      if (char === "\n") {
-        lastNewline = i;
+      for (; i<l; i++) {
+        var char = src[i];
+        var next = src[i + 1];
         
-        break;
-      } else if (!next) {
-        src += "\n";
-        lastNewline = i + 1;
-        
-        break;
+        if (char === "\n") {
+          lastNewline = i;
+          
+          break;
+        } else if (!next) {
+          src += "\n";
+          lastNewline = i + 1;
+          
+          break;
+        }
       }
     }
   }

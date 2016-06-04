@@ -6,6 +6,7 @@ AUR_DESC = "AUR Settings API";
 AUR_VERSION = [0, 1];
 AUR_AUTHORS = ["Mike32 (b-fuze)"];
 AUR_RESTART = true;
+AUR_INTERFACE = "auto";
 
 var regs = reg;
 var sett = lces.user.settings;

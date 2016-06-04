@@ -142,7 +142,7 @@ function encapsulate(fpath, name) {
       babel.transform(litSrc);
     
     // Log status
-    logStatus(" " + chalk.bold(name) + (includedMods ? " included" : ""), "[" + chalk.green("SUCCESS") + "] ");
+    logStatus(" " + chalk.bold(name) + (includedMods ? "" : ""), "[" + chalk.green("SUCCESS") + "] ");
     
     var modBody = "";
     modBody += "\n\ntry {\n  __aurModCode = (function() {";
@@ -155,7 +155,7 @@ function encapsulate(fpath, name) {
     
     return modBody;
   } catch (e) {
-    logStatus(" " + chalk.bold(name) + (includedMods ? " included" : ""), e + " [" + chalk.red(" ERROR ") + "] ");
+    logStatus(" " + chalk.bold(name) + (includedMods ? "" : ""), e + " [" + chalk.red(" ERROR ") + "] ");
     return null;
   }
   
@@ -175,7 +175,7 @@ function addModList(list) {
 // Scan a folder
 function getFolder(fpath, dumpModName) {
   var validModName = /[a-z\-\d]+\.mod\.js/;
-  var files = fs.readdirSync(fpath).filter(f => !excld(f) || !validModName.test(f));
+  var files = fs.readdirSync(fpath).filter(f => !excld(f) && validModName.test(f));
   
   dumpModName.push.apply(dumpModName, files.map(f => mn(f)));
   files.every(function(f) {
@@ -198,12 +198,21 @@ function checkDirectory(fpath) {
   if (fs.existsSync(fpath) && fs.statSync(fpath).isDirectory()) {
     var contents = fs.readdirSync(fpath);
     
+    // Scan for main module folders
+    var coreFolder = fpath + "/core";
+    var miscFolder = fpath + "/misc";
+    
+    if (fs.existsSync(coreFolder) && fs.statSync(coreFolder).isDirectory())
+      getFolder(coreFolder, coreModules);
+    
+    if (fs.existsSync(miscFolder) && fs.statSync(miscFolder).isDirectory())
+      getFolder(miscFolder, miscModules);
+    
+    // Check root folder files for extra misc mods
     contents.forEach(function(file) {
       var itemPath = fpath + "/" + file;
       
-      if ((file === "core" || file === "misc") && fs.statSync(itemPath).isDirectory()) {
-        getFolder(itemPath, file === "core" ? coreModules : miscModules);
-      } else if (validModName.test(file) && fs.statSync(itemPath).isFile()) {
+      if (validModName.test(file) && fs.statSync(itemPath).isFile()) {
         var name = mn(file);
         miscModules.push(name);
         
@@ -280,7 +289,15 @@ if (argValues.incl.length !== 0)
 includedMods = true;
 var curIncl;
 
-argValues.incl.forEach(file => ((curIncl = encapsulate(file)), AURSRC += curIncl || "", curIncl ? miscModules.push(mn(path.basename(file))) : null));
+argValues.incl.forEach(file => {
+  var name = mn(path.basename(file));
+  curIncl = encapsulate(file, name);
+  
+  if (curIncl) {
+    AURSRC += curIncl;
+    miscModules.push(name);
+  }
+});
 
 // Remove any modules that failed the test
 coreModules.removalList.forEach((m, i, arr) => coreModules.splice(coreModules.indexOf(m), 1));

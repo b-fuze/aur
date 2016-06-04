@@ -22,7 +22,7 @@ AUR.jSh  = jSh;
 AUR.lces = lces;
 
 // Initial check for AUR settings
-var AURUserSett = jSh.parseJSON(GM_getValue("aur-db-global"));
+var AURUserSett = lces.global.GM_getValue ? jSh.parseJSON(GM_getValue("aur-db-global")) : null;
 var AURUserModSett;
 
 if (AURUserSett && AURUserSett["aur-sett-db"]) {

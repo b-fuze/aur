@@ -13,6 +13,7 @@ AUR_DESC = "AUR UI API";
 AUR_VERSION = [0, 1];
 AUR_AUTHORS = ["Mike32 (b-fuze)"];
 AUR_RESTART = true;
+AUR_INTERFACE = "auto";
 
 var regs = reg;
 var sett;
@@ -41,10 +42,12 @@ function RegisterWin(name, title, options) {
   
   this.tabPanel = tabPanel;
   this.tabPages = tabPages;
+  this.window   = aurwin;
   aurwin.append(tabPanel);
   aurwin.append(tabPages);
   
   aurwin.container.classList.add("aur-ui-win");
+  aurwin.container.classList.add("aur-ui-root");
   aurwin.buttonPanelVisible = false;
   
   if (title !== undefined && title !== null)
@@ -63,7 +66,7 @@ function RegisterWin(name, title, options) {
     
     while (target !== this) {
       if (target.getAttribute("aur-tab-click")) {
-        tab = tabs[target.getAttribute("aur-tab-click")];
+        tab = tabMap[target.getAttribute("aur-tab-click")];
         
         break;
       }
@@ -73,7 +76,6 @@ function RegisterWin(name, title, options) {
     
     if (tab) {
       tab.selected = true;
-      that.selectedTab = tab;
     }
   });
   
@@ -102,6 +104,17 @@ function RegisterWin(name, title, options) {
   titlesp.innerHTML = mainTitle.innerHTML;
   mainTitle.innerHTML = "";
   
+  aurwin.removeState("titleVisible");
+  aurwin.setState("titleVisible", true);
+  aurwin.addStateListener("titleVisible", function(visible) {
+    mainTitle.style.display = visible ? "block" : "none";
+    
+    if (visible)
+      aurwin.container.classList.add("lces-window-titlevisible");
+    else
+      aurwin.container.classList.remove("lces-window-titlevisible");
+  });
+  
   mainTitle.appendChild(titlesp);
   aurwin._title = titlesp;
     
@@ -118,6 +131,16 @@ function RegisterWin(name, title, options) {
   this.setState("height", aurwin.height);
   this.addStateListener("height", function(height) {
     aurwin.height = height;
+  });
+  
+  this.setState("left", aurwin.container.offsetLeft);
+  this.addStateListener("left", function(left) {
+    aurwin.container.style.left = typeof left === "number" ? left + "px" : left;
+  });
+  
+  this.setState("top", aurwin.container.offsetTop);
+  this.addStateListener("top", function(top) {
+    aurwin.container.style.top = typeof top === "number" ? top + "px" : top;
   });
   
   this.setState("draggable", aurwin.draggable);
@@ -144,13 +167,26 @@ function RegisterWin(name, title, options) {
   
   this.tabsVisible = boolOp(options.tabsVisible, false);
   
+  function findTab(name) {
+    var result = null;
+    
+    for (var i=0,l=tabs.length; i<l; i++) {
+      if (tabs[i] instanceof RegisterGroup && tabs[i].getTab(name))
+        result = tabs[i].getTab(name);
+    }
+    
+    return result;
+  }
+  
   this.getTab = function(name) {
-    return tabs[name] instanceof RegisterTab || tabs[name] instanceof RegisterGroup ? tabs[name] : null;
+    return tabs[name] instanceof RegisterTab || tabs[name] instanceof RegisterGroup
+         ? tabs[name]
+         : findTab(name);
   }
   
   this.add = function(tab) {
     if (tab instanceof RegisterTab || tab instanceof RegisterGroup) {
-      tabs[tab.uid] = tab;
+      tabs[tab.name] = tab;
       tabs.push(tab);
       
       if (tab.window !== this)
@@ -166,7 +202,7 @@ function RegisterWin(name, title, options) {
   
   this.remove = function(tab) {
     if (tabs.indexOf(tab) !== -1) {
-      tabs[tab.uid] = undefined;
+      tabs[tab.name] = undefined;
       tabs.splice(tabs.indexOf(tab), 1);
       
       this.removeMember(tab);
@@ -184,7 +220,7 @@ function RegisterWin(name, title, options) {
         tabs.splice(tabs.indexOf(tab), 1);
       tabs.splice(tabs.indexOf(old), 0, tab);
       
-      tabs[tab.uid] = tab;
+      tabs[tab.name] = tab;
       tab.window = this;
     }
   }
@@ -202,7 +238,7 @@ function RegisterWin(name, title, options) {
     
     if (!defaultGroup) {
       tabs.push(tab);
-      tabs[tab.uid] = tab;
+      tabs[tab.name] = tab;
       tab.window = this;
     } else {
       defaultGroup.add(tab);
@@ -256,6 +292,7 @@ function RegisterTab(name, title, options) {
   this.mainPage = mainPage;
   jSh.constProp(this, "type", "AURUITAB");
   jSh.constProp(this, "uid", "tab" + tabCount);
+  jSh.constProp(this, "name", name || this.uid);
   
   // Check if option element provided valid DOM element
   if (options.element instanceof Element) { // Add tab class to custom tab element
@@ -277,6 +314,9 @@ function RegisterTab(name, title, options) {
     
     if (selected) {
       mainFocus.focus();
+      
+      if (that.window)
+        that.window.selectedTab = that;
       
       scrollbar.visible = true;
       setTimeout(() => {
@@ -323,9 +363,12 @@ function RegisterTab(name, title, options) {
   this.addStateListener("height", function(height) {
     if (jSh.type(height) === "number" && height > 0 && height < Infinity)
       mainTab.style.height = height + "px";
-    else if (mainTab.getAttr("style"))
-      mainTab.setAttr("style", mainTab.getAttr("style").replace(/height\s*:[\s\w()\-!\d]+;?/i, ""));
+    else if (mainTab.getAttribute("style"))
+      mainTab.setAttribute("style", mainTab.getAttribute("style").replace(/height\s*:[\s\w()\-!\d]+;?/i, ""));
   });
+  
+  // Prevent window from changing this height
+  this.states["height"].private = true;
   
   // Property logic
   this.add = function(prop) {
@@ -379,6 +422,7 @@ function RegisterGroup(name, title, options) {
     return new RegisterGroup(name, title, options);
   
   lcComponent.call(this);
+  var that = this;
   
   groupCount += 1;
   
@@ -388,6 +432,7 @@ function RegisterGroup(name, title, options) {
   
   jSh.constProp(this, "type", "AURUITABGROUP");
   jSh.constProp(this, "uid", "group" + groupCount);
+  jSh.constProp(this, "name", name || this.uid);
   
   this.setState("window", null);
   this.addStateListener("window", function(win) {
@@ -395,7 +440,7 @@ function RegisterGroup(name, title, options) {
       win.renderTabs();
       
       for (var i=0,l=tabs.length; i<l; i++) {
-        win._addTab(tabs[i].uid);
+        win._addTab(tabs[i].name);
         win.tabPages.appendChild(tabs[i].mainPage);
         tabs[i].scrollbar.parent = win.tabPages;
       }
@@ -404,7 +449,7 @@ function RegisterGroup(name, title, options) {
         this.oldStateStatus.renderTabs();
         
         for (var i=0,l=tabs.length; i<l; i++) {
-          win._removeTab(tabs[i].uid);
+          win._removeTab(tabs[i].name);
           this.oldStateStatus.tabPages.removeChild(tabs[i].mainPage);
         }
       }
@@ -413,18 +458,24 @@ function RegisterGroup(name, title, options) {
     }
   });
   
+  this.setState("selectedTab", null);
+  this.addStateListener("selectedTab", function(tab) {
+    if (that.window)
+      that.window.selectedTab = tab;
+  });
+  
   this.getTab = function(name) {
     return tabs[name] instanceof RegisterTab ? tabs[name] : null;
   }
   
   this.add = function(tab) {
     if (tab instanceof RegisterTab) {
-      tabs[tab.uid] = tab;
+      tabs[tab.name] = tab;
       tabs.push(tab);
       main.appendChild(tab.mainTab);
       
       if (this.window && tab.window !== this.window) {
-        this.window._addTab(tab.uid, tab);
+        this.window._addTab(tab.name, tab);
         this.window.addMember(tab);
         this.window.tabPages.appendChild(tab.mainPage);
         
@@ -437,12 +488,12 @@ function RegisterGroup(name, title, options) {
   
   this.remove = function(tab) {
     if (tabs.indexOf(tab) !== -1) {
-      tabs[tab.uid] = undefined;
+      tabs[tab.name] = undefined;
       tabs.splice(tabs.indexOf(tab), 1);
       main.removeChild(tab.mainTab);
       
       if (this.window) {
-        this.window._removeTab(tab.uid);
+        this.window._removeTab(tab.name);
         this.window.removeMember(tab);
         this.window.tabPages.removeChild(tab.mainPage);
       }
@@ -489,6 +540,8 @@ function EmptyProp(name, width, options) {
   jSh.constProp(this, "name", name);
   
   main.style.width = (100 * (width / 12)) + "%";
+  if (options.padding)
+    this.main.classList.add("aur-ui-prop-padd");
   
   this.setState("disabled", false);
   this.addStateListener("disabled", function(disabled) {
@@ -509,6 +562,39 @@ function EmptyProp(name, width, options) {
   });
   
   this.align = options.align;
+  
+  this.setState("visible", true);
+  this.addStateListener("visible", function(visible) {
+    visible = !!visible;
+    this.stateStatus = visible;
+    
+    if (visible) {
+      main.classList.remove("aur-ui-prop-invisible");
+    } else {
+      main.classList.add("aur-ui-prop-invisible");
+    }
+  });
+  
+  this.align = options.align;
+  
+  this.setState("style", {});
+  this.addStateListener("style", function(style) {
+    var props = Object.getOwnPropertyNames(style);
+    
+    for (var i=0,l=props.length; i<l; i++) {
+      var propName = props[i];
+      that.main.style[propName] = style[propName];
+    }
+  });
+  
+  this.addStateCondition("style", function(value) {
+    if (jSh.type(value) === "object")
+      return true;
+    
+    return false;
+  });
+  
+  this.style = options.style;
   
   this.setState("linebreak", false);
   this.addStateListener("linebreak", function(linebr) {
@@ -535,7 +621,10 @@ function GroupProp(name, width, options) {
   var options = jSh.type(options) === "object" ? options : {};
   
   EmptyProp.call(this, name, 12, options);
-  this.main.classList.add("aur-ui-prop-group");
+  if (jSh.boolOp(options.groupIsolate, true))
+    this.main.classList.add("aur-ui-prop-group");
+  else
+    this.main.classList.add("aur-ui-prop-group-blend");
   
   this.add = function(prop) {
     if (!(prop instanceof EmptyProp))
@@ -555,7 +644,7 @@ function GroupProp(name, width, options) {
     }
   });
   
-  if (options.title && typeof options.type === "string")
+  if (options.title && typeof options.title === "string")
     this.title = options.title;
   
   var propNames = Object.getOwnPropertyNames(propMap);
@@ -605,6 +694,16 @@ function TextProp(name, width, options) {
     mainDis[that.htmlData ? "innerHTML" : "textContent"] = data;
   });
   
+  this.setState("select", true);
+  this.addStateListener("select", function(select) {
+    if (select)
+      that.main.classList.remove("aur-ui-no-select");
+    else
+      that.main.classList.add("aur-ui-no-select");
+  });
+  
+  this.select = boolOp(options.select, true);
+  
   // Apply options
   if (options.data !== undefined) {
     if (!options.dynText)
@@ -634,6 +733,7 @@ function ButtonProp(name, width, options) {
   var that = this;
   EmptyProp.call(this, name, width, options);
   this.main.classList.add("aur-ui-prop-padd");
+  this.main.classList.add("aur-ui-btn-prop");
   
   var that     = this;
   var options  = jSh.type(options) === "object" ? options : {};
@@ -647,13 +747,18 @@ function ButtonProp(name, width, options) {
   // LCES Window Button manipulation functions
   this.addButton = function(text, onClick) {
     var button = new lcWidget(jSh.c("button", undf, text));
+    var buttonWrap = jSh.d(".aur-ui-btn-prop-btn");
+    buttonWrap.appendChild(button.element);
     
     if (typeof onClick === "function") {
       button.addEventListener("click", onClick);
     }
     
     this.buttons.push(button);
-    that.main.appendChild(button.element);
+    that.main.appendChild(buttonWrap);
+    
+    // Reupdate fill
+    this.setState("fill", this.fill, true);
     
     return button;
   }
@@ -663,8 +768,31 @@ function ButtonProp(name, width, options) {
       return false;
     
     this.buttons.splice(this.buttons.indexOf(button), 1);
-    that.main.removeChild(button.element);
+    that.main.removeChild(button.parent);
   }
+  
+  // Fill option
+  this.setState("fill", false);
+  this.addStateListener("fill", function(fill) {
+    var btns = that.buttons;
+    
+    var width = fill ? (100 / btns.length) + "%" : "auto";
+    var toggle = fill ? "add" : "remove";
+    
+    for (var i=0,l=btns.length; i<l; i++) {
+      var parent = btns[i].parent;
+      
+      parent.style.width = width;
+      parent.classList[toggle]("aur-ui-prop-fill");
+      
+      if (l === 1)
+        parent.classList.add("aur-ui-prop-nofill");
+      else
+        parent.classList.remove("aur-ui-prop-nofill");
+    }
+  });
+  
+  this.fill = boolOp(options.fill, false);
   
   // Apply options
   if (jSh.type(options.data) === "array") {
@@ -726,14 +854,19 @@ function InputTextProp(name, width, options) {
     input.element.placeholder = options.placeholder;
   
   // UI Property Data Link
-  this.setState("data", options.data ? (options.data + "") : "");
+  this.setState("data", "");
   this.addStateListener("data", function(data) {
     input.value = data;
   });
   
+  this.data = jSh.strOp(options.data, "");
+  
   input.addEventListener("change", function() {
     that.data = this.value;
   });
+  
+  // User events
+  this.onEvent = input.addEventListener.bind(input);
   
   // LCES Settings link
   if (typeof options.link === "string" && options.link) {
@@ -772,6 +905,27 @@ function InputNumProp(name, width, options) {
   input.addStateListener("value", function(value) {
     that.data = value;
   });
+  
+  this.addStateListener("min", function(min) {
+    input.min = min;
+  });
+  
+  this.addStateListener("max", function(max) {
+    input.max = max;
+  });
+  
+  this.addStateListener("integer", function(intg) {
+    input.decimals = !intg;
+  });
+  
+  if (typeof numOp(options.min, null) === "number")
+    this.min = options.min;
+  
+  if (typeof numOp(options.max, null) === "number")
+    this.max = options.max;
+  
+  if (typeof boolOp(options.integer, null) === "boolean")
+    this.integer = options.integer;
   
   // LCES Settings link
   if (typeof options.link === "string" && options.link) {
@@ -969,6 +1123,9 @@ function DropDownProp(name, width, options) {
   
   this.input = input;
   
+  if (options.fill)
+    this.main.classList.add("aur-ui-prop-dropdown-fill");
+  
   // UI Property Data Link
   this.setState("data", options.data ? (options.data + "") : "");
   this.addStateListener("data", function(data) {
@@ -1076,8 +1233,8 @@ var propMap = {
 regs.interface = {
   prefs: null, // When aur-prefs module loads, update this entry
   
-  __setPrefs: function() { // Set the prefs when aur-ui-prefs
-    
+  __setPrefs: function(prefs) { // Set the prefs when aur-ui-prefs loads
+    regs.interface.prefs = prefs;
     delete regs.interface.__setPrefs;
   },
   
@@ -1088,7 +1245,7 @@ regs.interface = {
     notifi: function(type, msg, delay, placement, visible) {
       var notifi = new lcNotification(msg, delay, placement);
       
-      notifi.container.className += " aur-notifi aur-notifi-" + type;
+      notifi.container.className += " aur-ui-root aur-notifi aur-notifi-" + (type || "info");
       notifi.visible = visible;
       
       return notifi;
@@ -1104,6 +1261,10 @@ regs.interface = {
     
     error: function(msg, delay, placement, visible) {
       return this.notifi.apply(this, ["error"].concat(jSh.toArr(arguments)));
+    },
+    
+    warn: function(msg, delay, placement, visible) {
+      return this.notifi.apply(this, ["warn"].concat(jSh.toArr(arguments)));
     },
     
     neutral: function(msg, delay, placement, visible) {
@@ -1122,6 +1283,47 @@ AUR.onLoaded("aur-styles", "aur-settings", function() {
   var smooth = "cubic-bezier(.31,.26,.1,.92)";
   
   var winStyles = styles.styleBlock(`
+    /* AUR Notifi Styles */
+    
+    .lces-notification.aur-notifi {
+      box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.35);
+    }
+    
+    .lces-notification.aur-notifi > div {
+      border-radius: 0px;
+      border: 0px;
+      background: #202326;
+    }
+    
+    .lces-notification.aur-notifi div div .lces-window-contents {
+      color: inherit !important;
+    }
+    
+    .lces-notification.aur-notifi.aur-notifi-info > div {
+      border-left: 5px solid #69A5BF;
+      color: #9CA1A6;
+    }
+    
+    .lces-notification.aur-notifi.aur-notifi-success > div {
+      border-left: 5px solid #2ABF19;
+      color: #2ABF19;
+    }
+    
+    .lces-notification.aur-notifi.aur-notifi-error > div {
+      border-left: 5px solid #BF1919;
+      color: #BF1919;
+    }
+    
+    .lces-notification.aur-notifi.aur-notifi-warn > div {
+      border-left: 5px solid #BFAB19;
+      color: #BFAB19;
+    }
+    
+    .lces-notification.aur-notifi.aur-notifi-neutral > div {
+      border-left: 5px solid #6C7680;
+      color: #9CA1A6;
+    }
+    
     /* AUR Window Styles */
     
     .aur-ui-win.lces-window > div > div {
@@ -1176,11 +1378,16 @@ AUR.onLoaded("aur-styles", "aur-settings", function() {
       background: #16181A;
     }
     
+    .aur-ui-win .aur-ui-tabpanel {
+      display: none;
+    }
+    
     .aur-ui-win .aur-tabsvisible .aur-ui-tabpanel {
       width: ${tabPanelWidth};
       height: 100%;
       box-sizing: border-box;
       // padding-top: 20px;
+      display: block;
       overflow: auto;
       
       background: #111314;
@@ -1249,6 +1456,10 @@ AUR.onLoaded("aur-styles", "aur-settings", function() {
       vertical-align: top;
     }
     
+    .aur-ui-prop.aur-ui-prop-invisible {
+      display: none;
+    }
+    
     .aur-ui-prop-padd {
       padding: 0px ${propHorzMargin} ${propVertMargin} ${propHorzMargin};
     }
@@ -1256,6 +1467,12 @@ AUR.onLoaded("aur-styles", "aur-settings", function() {
     .aur-ui-prop-group {
       display: block;
       margin: 30px 0px;
+    }
+    
+    .aur-ui-prop.aur-ui-prop-group-blend {
+      display: block;
+      padding: 0px;
+      margin: 0px;
     }
     
     .aur-ui-prop-group::before {
@@ -1276,21 +1493,95 @@ AUR.onLoaded("aur-styles", "aur-settings", function() {
     }
     
     .aur-ui-prop-text {
+      padding-top: 5px;
       line-height: 1.4;
       cursor: default;
     }
     
-    .aur-ui-prop > button {
+    .aur-ui-prop-text.aur-ui-no-select {
+      user-select: none;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      cursor: default;
+    }
+    
+    .aur-ui-prop-dropdown-fill .lcesdropdown {
+      display: block;
+    }
+    
+    .aur-ui-root .aur-ui-prop-text h1,
+    .aur-ui-root .aur-ui-prop-text h2,
+    .aur-ui-root .aur-ui-prop-text h3,
+    .aur-ui-root .aur-ui-prop-text h4,
+    .aur-ui-root .aur-ui-prop-text h5,
+    .aur-ui-root .aur-ui-prop-text h6 {
+      color: inherit;
+    }
+    
+    .aur-ui-root table.lces {
+      margin-bottom: 5px;
+    }
+    
+    .aur-ui-root table.lces tr {
+      color: inherit;
+    }
+    
+    .aur-ui-root table.lces thead th {
+      border: 0px;
+      line-height: 30px;
+      background: #202326;
+      font-size: 15px;
+    }
+    
+    .aur-ui-root table.lces thead th:first-child::before {
+      display: none;
+    }
+    
+    .aur-ui-root table.lces thead th::before {
+      top: 0px;
+      bottom: 0px;
+      width: 1px;
+    }
+    
+    .aur-ui-btn-prop .aur-ui-btn-prop-btn {
+      position: relative;
+      box-sizing: border-box;
+      display: inline-block;
+      padding: 0px 5px 0px;
+    }
+    
+    .aur-ui-btn-prop .aur-ui-btn-prop-btn:last-child {
+      padding-right: 0px;
+    }
+    
+    .aur-ui-btn-prop div.aur-ui-btn-prop-btn:nth-of-type(1) {
+      padding-left: 0px;
+    }
+    
+    .aur-ui-btn-prop .aur-ui-btn-prop-btn.aur-ui-prop-nofill {
+      padding: 0px !important;
+    }
+    
+    .aur-ui-btn-prop .aur-ui-btn-prop-btn button {
+      margin: 0px;
       box-sizing: border-box;
       height: 34px;
       font-weight: normal;
       color: #B0B6BF;
-      margin-left: 5px;
-      margin-right: 5px;
-      margin-bottom: 0px;
     }
     
-    .aur-ui-prop > button:hover::before {
+    .aur-ui-btn-prop .aur-ui-btn-prop-btn.aur-ui-prop-fill button {
+      width: 100%;
+    }
+    
+    .aur-ui-prop > button {
+      // Check this later
+      // margin-left: 5px;
+      // margin-right: 5px;
+      // margin-bottom: 0px;
+    }
+    
+    .aur-ui-btn-prop .aur-ui-btn-prop-btn > button:hover::before {
       background: rgba(255, 255, 255, 0.05)
     }
     
@@ -1313,9 +1604,14 @@ AUR.onLoaded("aur-styles", "aur-settings", function() {
     }
     
     // Numberfield Props
-    .aur-ui-win input.lces.lces-numberfield {
+    .aur-ui-root input.lces.lces-numberfield {
       text-align: left;
       min-width: 68px !important;
+    }
+    
+    // Dropdown props
+    .aur-ui-root .aur-ui-prop .lcesdropdown {
+      top: 0px;
     }
     
     // Slider props
@@ -1324,7 +1620,7 @@ AUR.onLoaded("aur-styles", "aur-settings", function() {
       padding-right: 10px;
     }
     
-    .aur-ui-win .lces-slider {
+    .aur-ui-root .lces-slider {
       box-sizing: border-box;
       width: 80%;
       height: 34px;
@@ -1335,7 +1631,7 @@ AUR.onLoaded("aur-styles", "aur-settings", function() {
       background: transparent;
     }
     
-    .aur-ui-win .lces-slider::before {
+    .aur-ui-root .lces-slider::before {
       content: "";
       position: absolute;
       top: 0px;
@@ -1348,7 +1644,7 @@ AUR.onLoaded("aur-styles", "aur-settings", function() {
       background: #0B0C0D;
     }
     
-    .aur-ui-win .lces-slider-scrubber {
+    .aur-ui-root .lces-slider-scrubber {
       height: 15px;
       top: 0px;
       bottom: 0px;
@@ -1358,7 +1654,7 @@ AUR.onLoaded("aur-styles", "aur-settings", function() {
       background: #292C30;
     }
     
-    .aur-ui-win .lces-slider-value {
+    .aur-ui-root .lces-slider-value {
       right: auto;
       top: 50%;
       left: -25%;
@@ -1370,12 +1666,12 @@ AUR.onLoaded("aur-styles", "aur-settings", function() {
       text-align: left;
     }
     
-    .aur-ui-win .lces-slider-min, .aur-ui-win .lces-slider-max, .aur-ui-win .lces-slider-value {
+    .aur-ui-root .lces-slider-min, .aur-ui-root .lces-slider-max, .aur-ui-root .lces-slider-value {
       font-family: inherit !important;
       font-size: inherit;
     }
     
-    .aur-ui-win .lces-slider-min, .aur-ui-win .lces-slider-max {
+    .aur-ui-root .lces-slider-min, .aur-ui-root .lces-slider-max {
       z-index: 20;
       padding: 3px 4px;
       border-radius: 2px;
@@ -1394,22 +1690,22 @@ AUR.onLoaded("aur-styles", "aur-settings", function() {
       pointer-events: none;
     }
     
-    .aur-ui-win .lces-slider-min {
+    .aur-ui-root .lces-slider-min {
       left: 7px;
       transform: translate3d(-50%, 0px, 0px) translateX(-9px);
     }
     
-    .aur-ui-win .lces-slider-max {
+    .aur-ui-root .lces-slider-max {
       right: 7px;
       transform: translate3d(50%, 0px, 0px) translateX(9px);
     }
     
-    .aur-ui-win .lces-slider:hover .lces-slider-min, .aur-ui-win .lces-slider.scrubbing .lces-slider-min {
+    .aur-ui-root .lces-slider:hover .lces-slider-min, .aur-ui-root .lces-slider.scrubbing .lces-slider-min {
       opacity: 1;
       // transform: translate3d(-50%, 0px, 0px) translateX(-10px);
     }
     
-    .aur-ui-win .lces-slider:hover .lces-slider-max, .aur-ui-win .lces-slider.scrubbing .lces-slider-max {
+    .aur-ui-root .lces-slider:hover .lces-slider-max, .aur-ui-root .lces-slider.scrubbing .lces-slider-max {
       opacity: 1;
       // transform: translate3d(50%, 0px, 0px) translateX(10px);
     }
@@ -1419,7 +1715,7 @@ AUR.onLoaded("aur-styles", "aur-settings", function() {
       color: #9CA1A6;
     }
     
-    .aur-ui-win input.lces, .aur-ui-win textarea.lces {
+    .aur-ui-root input.lces, .aur-ui-root textarea.lces {
       border-color: #0B0C0D;
       background: #0B0C0D;
       color: #7A7B7B;
@@ -1427,39 +1723,40 @@ AUR.onLoaded("aur-styles", "aur-settings", function() {
       font-weight: normal;
     }
     
-    .aur-ui-win input.lces {
+    .aur-ui-root input.lces {
       height: 34px;
     }
     
-    .aur-ui-win .lces-togglebox {
+    .aur-ui-root .lces-togglebox {
       background: #0B0C0D;
     }
     
-    .aur-ui-win .lces-togglebox .lces-togglebox-handle .lces-togglebox-inner::before {
+    .aur-ui-root .lces-togglebox .lces-togglebox-handle .lces-togglebox-inner::before {
       background: #232529;
     }
     
-    .aur-ui-win .lces-togglebox .lces-togglebox-handle .lces-togglebox-inner .lces-togglebox-text {
+    .aur-ui-root .lces-togglebox .lces-togglebox-handle .lces-togglebox-inner .lces-togglebox-text {
       color: #B0B6BF;
     }
     
-    .aur-ui-win .numberfield-container .arrow.active {
+    .aur-ui-root .numberfield-container .arrow.active {
       background: rgba(255, 255, 255, 0.1);
     }
     
-    .aur-ui-win input.lces[type="text"]:focus, .aur-ui-win input.lces[type="password"]:focus, .aur-ui-win textarea.lces:focus, .aur-ui-win .lces-togglebox:focus,
-    .aur-ui-win .lces-slider:focus, .aur-ui-win .lcesdropdown:focus, .aur-ui-win .lces-colorchooser .lces-cc-display:focus {
+    .aur-ui-root input.lces[type="text"]:focus, .aur-ui-root input.lces[type="password"]:focus, .aur-ui-root textarea.lces:focus, .aur-ui-root .lces-togglebox:focus,
+    .aur-ui-root .lces-slider:focus, .aur-ui-root .lcesdropdown:focus, .aur-ui-root .lces-colorchooser .lces-cc-display:focus,
+    .aur-ui-btn-prop .aur-ui-btn-prop-btn button:focus {
       box-shadow: 0px 0px 2px rgba(191, 219, 255, 0.75);
       outline: none !important;
     }
     
     // Colorchooser
-    .aur-ui-win .lces-colorchooser .lces-cc-display {
+    .aur-ui-root .lces-colorchooser .lces-cc-display {
       width: auto !important;
       height: auto !important;
     }
     
-    .aur-ui-win .lces-colorchooser .lces-cc-color {
+    .aur-ui-root .lces-colorchooser .lces-cc-color {
       width: 44px;
       height: 20px;
       margin: 5px;
@@ -1512,21 +1809,21 @@ AUR.onLoaded("aur-styles", "aur-settings", function() {
     }
     
     // Dropdown
-    .aur-ui-win .lcesdropdown, .aur-ui-win-dropdown-options .lcesdropdown {
+    .aur-ui-root .lcesdropdown, .aur-ui-win-dropdown-options .lcesdropdown {
       background: #232529;
       border-color: #232529;
       box-sizing: border-box;
       height: 34px;
     }
     
-    .aur-ui-win .lcesdropdown .lcesselected {
+    .aur-ui-root .lcesdropdown .lcesselected {
       line-height: 24px;
       background: #232529;
       font-weight: normal;
       color: #B0B6BF;
     }
     
-    .aur-ui-win .lcesdropdown .lcesdropdown-arrow svg path {
+    .aur-ui-root .lcesdropdown .lcesdropdown-arrow svg path {
       fill: #B0B6BF !important;
     }
     
@@ -1571,28 +1868,28 @@ AUR.onLoaded("aur-styles", "aur-settings", function() {
     }
     
     /* Focusing Events */
-    .aur-ui-win input.lces::-webkit-input-placeholder, .aur-ui-win textarea.lces::-webkit-input-placeholder {
+    .aur-ui-root input.lces::-webkit-input-placeholder, .aur-ui-root textarea.lces::-webkit-input-placeholder {
       color: #2B2F33;
     }
-    .aur-ui-win input.lces:-moz-placeholder, .aur-ui-win textarea.lces:-moz-placeholder { /* Firefox 18- */
+    .aur-ui-root input.lces:-moz-placeholder, .aur-ui-root textarea.lces:-moz-placeholder { /* Firefox 18- */
       color: #2B2F33;
     }
-    .aur-ui-win input.lces::-moz-placeholder, .aur-ui-win textarea.lces::-moz-placeholder {  /* Firefox 19+ */
+    .aur-ui-root input.lces::-moz-placeholder, .aur-ui-root textarea.lces::-moz-placeholder {  /* Firefox 19+ */
       color: #2B2F33;
     }
     
     /* Scrollbar */
-    .aur-ui-win .lces-scrollbar-trough {
+    .aur-ui-root .lces-scrollbar-trough {
       width: 10px;
       background: #1C1E21;
     }
     
-    .aur-ui-win .lces-scrollbar-trough:hover, .aur-ui-win .lces-scrollbar-trough.active {
+    .aur-ui-root .lces-scrollbar-trough:hover, .aur-ui-root .lces-scrollbar-trough.active {
       width: 10px;
       opacity: 1;
     }
     
-    .aur-ui-win .lces-scrollbar {
+    .aur-ui-root .lces-scrollbar {
       background: #292C30;
     }
   `);

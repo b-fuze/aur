@@ -123,8 +123,17 @@
     var that = this;
     
     // Module interface default
+    this.setState("interfaceType", "literal");
     this.interface = null;
     var settings   = null;
+    
+    var validITypes = ["auto", "literal"];
+    this.addStateCondition("interfaceType", function(itype) {
+      if (validITypes.indexOf(itype) === -1)
+        return false;
+      
+      return true;
+    });
     
     // Module name and version
     jSh.constProp(this, "modName", modName);
@@ -140,7 +149,7 @@
     // Events
     this.addEvent("moddisable");
     this.addEvent("modenable");
-    this.addEvent("loaded");
+    this.addEvent("loaded"); // TODO: Check wtf this is for
   }
   
   jSh.inherit(ModRegister, lcComponent);
@@ -168,12 +177,14 @@
       register: modRegs
     });
     
+    // Set interface type from meta if provided
+    modRegs.interfaceType = nameMap[modName].modInterface;
+    
     return modRegs;
   }
   
   AUR.import = function(modName, ...args) {
     var aurMod = nameMap[modName];
-    var aurInstance = {};
     
     // Check for loaded module
     if (!aurMod || modArray.indexOf(aurMod.register) === -1) {
@@ -189,25 +200,34 @@
     
     // Module exists and is loaded, reference register
     aurMod = aurMod.register;
-    
-    // Constructor interface
-    if (typeof aurMod.interface === "function") {
-      aurInstance = new (Function.prototype.bind.apply(aurMod.interface, [null].concat(args)));
-      // aurMod.interface.apply(aurInstance, args);
-      // aurInstance.constructor = aurMod;
       
-    // Object interface
-    } else if (jSh.type(aurMod.interface) === "object") {
-      jSh.extendObj(aurInstance, aurMod.interface);
+    // Check if implements normal AUR interfacing procedures
+    if (aurMod.interfaceType === "auto") {
+      var aurInstance = {};
+      
+      // Constructor interface
+      if (typeof aurMod.interface === "function") {
+        aurInstance = new (Function.prototype.bind.apply(aurMod.interface, [null].concat(args)));
+        // aurMod.interface.apply(aurInstance, args);
+        // aurInstance.constructor = aurMod;
+        
+      // Object interface
+      } else if (jSh.type(aurMod.interface) === "object") {
+        jSh.extendObj(aurInstance, aurMod.interface);
+      }
+      
+      // Event Handling
+      aurInstance.on = (typeof aurInstance.on === "function" ? aurInstance.on : instMethods.on.bind(aurMod));
+      aurInstance.removeListener = instMethods.removeListener.bind(aurMod);
+      
+      // Module-specific properties
+      aurInstance.modName = aurMod.modName;
+      aurInstance.loaded  = true;
     }
-    
-    // Event Handling
-    aurInstance.on = (typeof aurInstance.on === "function" ? aurInstance.on : instMethods.on.bind(aurMod));
-    aurInstance.removeListener = instMethods.removeListener.bind(aurMod);
-    
-    // Module-specific properties
-    aurInstance.modName = aurMod.modName;
-    aurInstance.loaded  = true;
+    // No special AUR encapsulation, just send the interface as-is
+    else {
+      var aurInstance = aurMod.interface;
+    }
     
     return aurInstance;
   }
@@ -274,6 +294,7 @@
     "DESC": MOD_META_STR,
     "VERSION": [[MOD_META_ARR, MOD_META_NUM], [MOD_META_NUM]],
     "AUTHORS": [MOD_META_ARR, MOD_META_STR],
+    "INTERFACE": MOD_META_STR,
     "RESTART": MOD_META_BOOL
   };
   

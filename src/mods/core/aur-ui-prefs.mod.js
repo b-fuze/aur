@@ -4,6 +4,7 @@ AUR_DESC = "AUR UI Preferences Window + API";
 AUR_VERSION = [0, 1];
 AUR_AUTHORS = ["Mike32 (b-fuze)"];
 AUR_RESTART = false;
+AUR_INTERFACE = "auto";
 
 AUR.onLoaded("aur-ui", "aur-settings", "aur-styles", function() {
   var ui    = AUR.import("aur-ui");
@@ -666,24 +667,6 @@ AUR.onLoaded("aur-ui", "aur-settings", "aur-styles", function() {
       background: linear-gradient( to right, rgba(42, 44, 46, 0), #2A2C2E 30px) !important;
     }
   `);
-  
-  // Add to nav
-  if (jSh("#left-nav")) {
-    var AUREntry = jSh.c("li", {
-      child: jSh.c("span", ".ddtitle", "AUR"),
-      attr: {
-        style: "cursor: pointer;"
-      }
-    });
-    
-    AUREntry.addEventListener("click", function() {
-      prefs.visible = !prefs.visible;
-      prefs.centered = false;
-      prefs.draggable = true;
-    });
-    
-    jSh("#left-nav").insertBefore(AUREntry, jSh("#left-nav").getChild(0));
-  }
   
   // TODO: Remove when done testing aur-ui
   // prefs.visible = true;
