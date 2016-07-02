@@ -1295,6 +1295,10 @@ AUR.onLoaded("aur-styles", "aur-settings", function() {
       background: #202326;
     }
     
+    .lces-notification.aur-notifi div div .lces-window-buttonpanel {
+      background: rgba(0, 0, 0, 0.1);
+    }
+    
     .lces-notification.aur-notifi div div .lces-window-contents {
       color: inherit !important;
     }
@@ -1581,8 +1585,8 @@ AUR.onLoaded("aur-styles", "aur-settings", function() {
       // margin-bottom: 0px;
     }
     
-    .aur-ui-btn-prop .aur-ui-btn-prop-btn > button:hover::before {
-      background: rgba(255, 255, 255, 0.05)
+    .aur-ui-root button:hover::before {
+      background: rgba(255, 255, 255, 0.05);
     }
     
     // This isn't working... TODO: Check this later
