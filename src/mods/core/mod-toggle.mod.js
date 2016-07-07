@@ -49,6 +49,8 @@ reg.interface = function(register) {
   }
 };
 
+jSh.inherit(reg.interface, lces.type());
+
 // Append necessary properties
 jSh.extendObj(reg.interface.prototype, {
   setting: setting,

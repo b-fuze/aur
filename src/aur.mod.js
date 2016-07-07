@@ -5,8 +5,8 @@
   var nameMap  = {}; // Module name map
   var modOpt   = false;
   
-  var coreList = [EMPTYCORE]; // Replaced by build.aur.js
-  var miscList = [EMPTYMISC]; // Ditto
+  var coreList = [AUR_EMPTYCORE]; // Replaced by build.aur.js
+  var miscList = [AUR_EMPTYMISC]; // Ditto
   var mixList  = coreList.concat(miscList);
   
   // Make globally accessible

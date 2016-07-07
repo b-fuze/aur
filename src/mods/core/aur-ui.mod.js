@@ -1283,6 +1283,13 @@ AUR.onLoaded("aur-styles", "aur-settings", function() {
   var smooth = "cubic-bezier(.31,.26,.1,.92)";
   
   var winStyles = styles.styleBlock(`
+    /* AUR primary styles */
+    
+    .aur-disabled-ctrl {
+      opacity: 0.5;
+      pointer-events: none;
+    }
+    
     /* AUR Notifi Styles */
     
     .lces-notification.aur-notifi {

@@ -1,7 +1,9 @@
 var jSh = require("./jShorts2");
+var console;
 
 // Builder meta parsing utlities
-exports.processMeta = function(src, modName) {
+exports.processMeta = function(src, modName, cons) {
+  console = cons;
   var meta = getMeta(src);
   var regsBody = "";
   
@@ -28,7 +30,8 @@ exports.processMeta = function(src, modName) {
   var metaRegs = `AUR.__registerModule("${modName}", {\n${regsBody}\n}, __aurModCode);`;
   return {
     meta: metaRegs,
-    metaEnd: meta.metaBlockEnd
+    metaEnd: meta.metaBlockEnd,
+    newLineCount: meta.newLineCount
   };
 }
 
@@ -101,6 +104,7 @@ function getMeta(src, modName) {
       if (endStatement && !inArray && char === "\n") {
         lastNewline = i;
         newLineCount++;
+        // console.log(i, newLineCount, next, prev);
       }
       // Single line comment
       else if (char === "/" && next === "/") {
@@ -142,6 +146,9 @@ function getMeta(src, modName) {
       }
       // Whitespace
       else if (reWhite.test(char)) {
+        if (char === "\n")
+          newLineCount++;
+        
         // Do nothing, move on
       }
       // Meta variable name
@@ -328,6 +335,7 @@ function getMeta(src, modName) {
   
   return jSh.extendObj(metaMap, {
     metaBlockEnd: lastNewline,
-    identifiers: identifiers
+    identifiers: identifiers,
+    newLineCount: newLineCount
   });
 }

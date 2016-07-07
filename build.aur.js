@@ -1,13 +1,14 @@
-#! /usr/local/bin/node
+#! /usr/bin/env node
 
 // Require deps
-var fs       = require("fs");
-var path     = require("path");
-var uglifyjs = require("uglify-js");
-var babel    = require("babel-core");
-var chalk    = require("chalk");
-var metaUtil = require("./build_libs/parse-meta.aur");
-var jSh      = require("./build_libs/jShorts2");
+var fs          = require("fs");
+var path        = require("path");
+var uglifyjs    = require("uglify-js");
+var babel       = require("babel-core");
+var chalk       = require("chalk");
+var metaUtil    = require("./build_libs/parse-meta.aur");
+var absPathUtil = require("./build_libs/resolve-path.aur");
+var jSh         = require("./build_libs/jShorts2");
 
 // Buildtime vars
 var coreModules = [];
@@ -17,16 +18,17 @@ coreModules.removalList = [];
 miscModules.removalList = [];
 
 // CD to the current dir
-process.chdir(path.dirname(process.argv[1]));
+// process.chdir(path.dirname(process.argv[1]));
+// Get paths
+var AURPATH = path.dirname(process.argv[1]) + "/";
+absPathUtil.setRoot(process.cwd());
 
 // Current time
 var time = (new Date()).toGMTString().replace(/ GMT|,/ig,"").replace(/:/g,".").replace(/\s/g,"-").toLowerCase();
 
-// Get paths
-var AURPATH = path.dirname(process.argv[1]) + "/";
-
 // Arguments
 var argValues = {
+  "profile": ["default"],
   "out": `${AURPATH}build/bleeding/aur.build.${time}.js`,
   "cat": false,
   "debug": false,
@@ -38,8 +40,9 @@ var argValues = {
 };
 
 var argShort = {
+  p: "profile",
   o: "out"
-}
+};
 
 var curArg = null;
 
@@ -49,10 +52,10 @@ var args = process.argv.slice(2);
 // Checks each argument and compares against (if exists) it's counterpart in
 // argValues then either sets or appends values accordingly
 for (var i=0,l=args.length; i<l; i++) {
-  var arg = args[i];
+  var arg = args[i].trim();
   
   if (arg.substr(0, 2) === "--" || arg[0] === "-" && arg.length === 2) {
-    if (arg.length === "2") {
+    if (arg.length === 2) {
       var longName = argShort[arg[1]];
       var curVal   = argValues[longName];
     } else {
@@ -85,10 +88,18 @@ Object.getOwnPropertyNames(argValues).forEach(function(n) {
   argValues[jsName] = argValues[n];
 });
 
-// AUR uncompliled source cram
-// var EMPTYCORE, EMPTYMISC;
-var AURSRC = "";
-var AUROUT = argValues.out;
+// Container that merges all JSON options
+var AUROptions = {
+  name: "AUR",
+  userscript: false,
+  userscriptFile: "userscript.head.js",
+  profile: "default"
+};
+
+// AUR unminified source cram
+var AURHEAD = ""; // Inserted before *all* of the code
+var AURSRC  = ""; // The actual code compiled
+var AUROUT  = absPathUtil(argValues.out); // Output dest
 
 // Logging
 function logStatus(msg, status) {
@@ -133,13 +144,15 @@ function encapsulate(fpath, name) {
   var npath = fpath;
   var src   = getFile(npath, true);
   
-  var srcParse = metaUtil.processMeta(src, name);
-  var litSrc   = src.substr(srcParse.metaEnd);
+  var srcParse = metaUtil.processMeta(src, name, console);
+  var litSrc   = jSh.nChars("\n", Math.max(0, srcParse.newLineCount - 1)) + src.substr(srcParse.metaEnd);
   
   // Test src
   try {
     if (!argValues.ignoreSyntax)
-      babel.transform(litSrc);
+      uglifyjs.minify(litSrc, {
+        fromString: true
+      });
     
     // Log status
     logStatus(" " + chalk.bold(name) + (includedMods ? "" : ""), "[" + chalk.green("SUCCESS") + "] ");
@@ -155,7 +168,7 @@ function encapsulate(fpath, name) {
     
     return modBody;
   } catch (e) {
-    logStatus(" " + chalk.bold(name) + (includedMods ? "" : ""), e + " [" + chalk.red(" ERROR ") + "] ");
+    logStatus(" " + chalk.bold(name) + (includedMods ? "" : ""), e.toString().split("\n")[0] + " [" + chalk.red(" ERROR ") + "] ");
     return null;
   }
   
@@ -185,10 +198,51 @@ function getFolder(fpath, dumpModName) {
       dumpModName[name] = fpath + "/" + f;
       return true;
     } else {
-      logStatus("" + chalk.bold.red(name) + " - " + fpath, "[" + chalk.red("ERROR: MOD CONFLICT") + "] ");
+      logStatus(chalk.bold.red(name) + " - " + fpath, "[" + chalk.red("ERROR: MOD CONFLICT") + "] ");
       process.exit();
     }
   });
+}
+
+function loadAUROptions(fpath) {
+  var src     = getFile(fpath, true);
+  var dir     = path.dirname(fpath);
+  var srcName = path.basename(fpath);
+  var profile = argValues.profile.length !== 1 ? argValues.profile.slice(1) : null;
+  
+  try {
+    var options    = JSON.parse(src);
+    var defOptions = jSh.extendObj(AUROptions, options);
+    
+    if (profile && jSh.type(defOptions.profiles) === "object")
+      profile.forEach(function(prof) {
+        if (defOptions.profiles[prof]) {
+          jSh.mergeObj(defOptions, defOptions.profiles[prof], false, false, true);
+        }
+      });
+    
+    // Check if runtime args should be changed
+    if (jSh.type(defOptions.excl) === "array")
+      argValues.excl = argValues.excl.concat(defOptions.excl.map(f => {
+        return absPathUtil(f, dir);
+      }));
+    
+    if (jSh.type(defOptions.incl) === "array")
+      argValues.incl = argValues.incl.concat(defOptions.incl.map(f => {
+        return absPathUtil(f, dir);
+      }));
+    
+    argValues.eval = jSh.boolOp(defOptions.eval, argValues.eval);
+    argValues.cat = jSh.boolOp(defOptions.cat, argValues.cat);
+    argValues.debug = jSh.boolOp(defOptions.debug, argValues.debug);
+    
+    return defOptions;
+  } catch (e) {
+    // Just warn that parsing failed
+    logStatus("Parsing AUR option file " + chalk.bold(srcName) + " FAILED", "[ " + chalk.red("ERROR") + " ] ");
+  }
+  
+  return null;
 }
 
 // Check extra module folders for modules
@@ -198,15 +252,29 @@ function checkDirectory(fpath) {
   if (fs.existsSync(fpath) && fs.statSync(fpath).isDirectory()) {
     var contents = fs.readdirSync(fpath);
     
-    // Scan for main module folders
-    var coreFolder = fpath + "/core";
-    var miscFolder = fpath + "/misc";
+    // Scan for main module folders and AUR options JSON
+    var coreFolder  = fpath + "/core";
+    var miscFolder  = fpath + "/misc";
+    var JSONOptions = fpath + "/aur-options.json";
+    var options     = null;
     
     if (fs.existsSync(coreFolder) && fs.statSync(coreFolder).isDirectory())
       getFolder(coreFolder, coreModules);
     
     if (fs.existsSync(miscFolder) && fs.statSync(miscFolder).isDirectory())
       getFolder(miscFolder, miscModules);
+    
+    if (fs.existsSync(JSONOptions) && fs.statSync(JSONOptions).isFile())
+      options = loadAUROptions(JSONOptions);
+    
+    // Check if userscript file provided and enabled
+    if (options && options.userscript) {
+      var usFilePath = absPathUtil(options.userscriptFile, fpath);
+      
+      if (fs.existsSync(usFilePath) && fs.statSync(usFilePath).isFile()) {
+        AURHEAD += getFile(usFilePath, true);
+      }
+    }
     
     // Check root folder files for extra misc mods
     contents.forEach(function(file) {
@@ -259,7 +327,7 @@ function uglify(src) {
 
 // Get LCES/jSh
 var lcesSrc = getFile(AURPATH + "src/lces.current.js", true);
-var lcesSrc = argValues.cat ? lcesSrc : uglify(babel.transform(lcesSrc, {presets: ["es2015"]}).code);
+var lcesSrc = argValues.cat ? lcesSrc : uglify(lcesSrc);
 var lces    = `function lces(l){return LCES.components[l]};lces.rc = [];lces.loadedDeps = false;${ lcesSrc }lces.rc.forEach(f => f());lces.init();\n`;
 
 // Get core files
@@ -274,7 +342,7 @@ getFolder(AURPATH + "src/mods/misc", miscModules);
 
 // Get other core/misc mod directories
 argValues.mods.forEach(function(modDir) {
-  checkDirectory(modDir);
+  checkDirectory(absPathUtil(modDir));
 });
 
 console.log("\nAdding core modules...");
@@ -290,6 +358,8 @@ includedMods = true;
 var curIncl;
 
 argValues.incl.forEach(file => {
+  file = absPathUtil(file);
+  
   var name = mn(path.basename(file));
   curIncl = encapsulate(file, name);
   
@@ -304,16 +374,15 @@ coreModules.removalList.forEach((m, i, arr) => coreModules.splice(coreModules.in
 miscModules.removalList.forEach((m, i, arr) => miscModules.splice(miscModules.indexOf(m), 1));
 
 // Add module names
-AURSRC = AURSRC.replace(/EMPTYCORE/, '"' + coreModules.join('", "') + '"');
-AURSRC = AURSRC.replace(/EMPTYMISC/, '"' + miscModules.join('", "') + '"');
+AURSRC = AURSRC.replace(/AUR_EMPTYCORE/, '"' + coreModules.join('", "') + '"');
+AURSRC = AURSRC.replace(/AUR_EMPTYMISC/, '"' + miscModules.join('", "') + '"');
+AURSRC = AURSRC.replace(/AUR_BUILDNAME/, AUROptions.name);
 
-// Transform to ES5.1
-var result = argValues.cat ? AURSRC : babel.transform(AURSRC, {presets: ["es2015"]}).code;
-// Uglify this shit
-result = argValues.cat ? result : uglify(result);
+// Uglify this stuff if necessary
+var result = argValues.cat ? AURSRC : uglify(AURSRC);
 
 // Concat it to lces
-result = `${getFile(AURPATH + "src/userscript.head.js", true)}
+result = `${AURHEAD}
 ${argValues.debug ? `try { // DEBUG FLAG -TRY` : ""}
 
   ${lces + result}
@@ -325,3 +394,6 @@ ${argValues.debug ? `} catch (e) { // DEBUG FLAG -CATCH
 
 // Write it out
 fs.writeFileSync(AUROUT, result);
+
+// Old but probably helpful:
+// Transform to ES5.1: babel.transform(AURSRC, {presets: ["es2015"]}).code;

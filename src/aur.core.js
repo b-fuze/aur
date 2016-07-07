@@ -2,7 +2,26 @@
 //
 // Build script: /aur/build.aur.js
 
-var AURGlobal = this;
+// Detect multiple instances
+var activeAURInst = jSh("#aur-instance-marker");
+
+if (activeAURInst) {
+  throw new Error("An AUR instance \"" + jSh.strOp(activeAURInst.getAttribute("data-aur-name"), "Default") + "\" is already running.");
+}
+
+// Get reference to global
+var AURGlobal  = (()=>{return this})();
+var AURAppName = "AUR_BUILDNAME";
+
+// Create AUR instance hook element
+jSh("head")[0].appendChild(jSh.c("meta", {
+  attr: {
+    "data-aur-name": AURAppName,
+    "content": AURAppName,
+    "type": "aur-instance-marker",
+    "id": "aur-instance-marker"
+  }
+}));
 
 // Add constant AUR to window
 jSh.constProp(this, "AUR", new lcComponent());
@@ -125,7 +144,6 @@ AUR.request = function(args) {
     onerror: onerror,
     synchronous: false
   });
-  
   
   return xhr;
 }

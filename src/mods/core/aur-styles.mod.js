@@ -59,6 +59,8 @@ function AURStyleBlock(style, enabled) {
   renderStyles();
 }
 
+jSh.inherit(AURStyleBlock, lces.type());
+
 // Style block methods
 AURStyleBlock.prototype.enable = function() {
   this.enabled = true;

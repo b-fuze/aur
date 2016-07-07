@@ -158,6 +158,8 @@ AUR.onLoaded("aur-ui", "aur-settings", "aur-styles", function() {
     });
   }
   
+  jSh.inherit(ModRow, lces.type());
+  
   // Enabled settings
   var enabledMods = {};
   var enabledModsArr = [];
