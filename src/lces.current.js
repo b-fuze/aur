@@ -281,7 +281,7 @@ lces.rc[0] = function() {
     }
     
     // Check if the args provided are all enclosed in an object
-    if (typeof className == "object") {
+    if (jSh.type(className) == "object") {
       var args = className;
 
       className  = args.className || args.class || args.sel;
@@ -336,9 +336,15 @@ lces.rc[0] = function() {
     
     if (child) {
       if (jSh.type(child) === "array") {
-        child.forEach(function (i) {
-          n.appendChild(i);
-        });
+        var frag = this.lcesElement || jSh.docFrag();
+        
+        for (var i=0,l=child.length; i<l; i++) {
+          frag.appendChild(child[i]);
+        }
+        
+        // Append if not LCES template element
+        if (!this.lcesElement)
+          n.appendChild(frag);
       } else
         n.appendChild(child);
     }
@@ -347,24 +353,28 @@ lces.rc[0] = function() {
     var checkNSAttr = /^ns:[^:]+:[^]*$/i;
     
     if (attributes) {
-      for (attr in attributes) {
-        if (attributes.hasOwnProperty(attr)) {
-          if (!checkNSAttr.test(attr) || jSh.MockupElement && n instanceof jSh.MockupElement)
-            n.setAttribute(attr, attributes[attr]);
-          else {
-            var nsURI = attr.replace(/^ns:[^:]+:([^]*)$/i, "$1");
-            var nsAttr = attr.replace(/^ns:([^:]+):[^]*$/i, "$1");
-            
-            n.setAttributeNS(nsURI ? nsURI : null, nsAttr, attributes[attr]);
-          }
+      var attrs = Object.getOwnPropertyNames(attributes);
+      
+      for (var i=0,l=attrs.length; i<l; i++) {
+        var attr = attrs[i];
+        
+        if (!checkNSAttr.test(attr) || jSh.MockupElement && n instanceof jSh.MockupElement)
+          n.setAttribute(attr, attributes[attr]);
+        else {
+          var nsURI = attr.replace(/^ns:[^:]+:([^]*)$/i, "$1");
+          var nsAttr = attr.replace(/^ns:([^:]+):[^]*$/i, "$1");
+          
+          n.setAttributeNS(nsURI ? nsURI : null, nsAttr, attributes[attr]);
         }
       }
     }
 
     if (properties) {
-      for (prop in properties) {
-        if (properties.hasOwnProperty(prop))
-          n[prop] = properties[prop];
+      var props = Object.getOwnPropertyNames(properties);
+      
+      for (var i=0,l=props.length; i<l; i++) {
+        var prop = props[i];
+        n[prop] = properties[prop];
       }
     }
     
@@ -4556,8 +4566,8 @@ lces.rc[7] = function() {
       // Create the window from a reference
       e = jSh(e);
       
-      var className     = e.getAttribute("class");
-      var windowHTMLId  = e.getAttribute("id");
+      var className    = e.getAttribute("class");
+      var windowHTMLId = e.getAttribute("id");
       
       var lcesTitle   = e.jSh("lces-title")[0];
       var lcesContent = e.jSh("lces-contents")[0];
@@ -4657,12 +4667,13 @@ lces.rc[7] = function() {
       this._buttonpanel.removeChild(button.element);
     }
     
-    
-    
     // Add draggable functionality with the title as the anchor and the container as the target
-    lcDraggable.call(this, this.container.getChild(0).getChild(0).getChild(0), this.container);
-    
-    
+    lcDraggable.call(
+      this,
+      this.container.getChild(0).getChild(0).getChild(0),
+      this.container,
+      true // True to enable optimizations for lcWindow
+    );
     
     // Window fade in effect
     // onTransitionEnd(this.container, function(e) {
@@ -4708,12 +4719,16 @@ lces.rc[7] = function() {
     }
     
     this._center = function() {
-      this.container.style.left = ((innerWidth - this.container.offsetWidth) / 2) + "px";
-      
       var top = ((innerHeight - this.container.offsetHeight) / 2);
       top = top < this.borderOffset ? this.borderOffset : top;
+      var left = ((innerWidth - this.container.offsetWidth) / 2);
       
-      this.container.style.top = top + "px";
+      // Center with GPU
+      this.container.style.transform = `translate3d(${left}px, ${top}px, 0px)`;
+      
+      // The old way of centering:
+      // this.container.style.left = ((innerWidth - this.container.offsetWidth) / 2) + "px";
+      // this.container.style.top = top + "px";
     }
     
     this.setState("centered", false);
@@ -6420,54 +6435,79 @@ lces.rc[3] = function() {
   lces._WidgetInit();
   
   // lcDraggable for draggable functionality Z
-  window.lcDraggable = function(anchor, target) {
+  window.lcDraggable = function(anchor, target, lcWindow) {
     var that = this;
     this._drag = {};
     
+    var targetWidth  = null;
+    var targetHeight = null;
+    var rightBound   = null;
+    
     this.onDrag = function(e) {
+      var that = this;
       e.preventDefault();
       
-      if (that.centered)
+      if (this.centered)
         return false;
       
-      that._drag.mouseX = e.clientX;
-      that._drag.mouseY = e.clientY;
-      that._drag.winX = target.offsetLeft;
-      that._drag.winY = target.offsetTop;
+      if (lcWindow) {
+        var bRect = target.getBoundingClientRect();
+        
+        var tLeft = bRect.left;
+        var tTop  = bRect.top;
+      } else {
+        var tLeft = target.offsetLeft;
+        var tTop  = target.offsetTop;
+      }
       
-      window.addEventListener("mousemove", that.onDragging);
-      window.addEventListener("mouseup", function() {
+      this._drag.mouseX = e.clientX;
+      this._drag.mouseY = e.clientY;
+      this._drag.winX = tLeft;
+      this._drag.winY = tTop;
+      
+      targetWidth  = target.offsetWidth;
+      targetHeight = target.offsetHeight;
+      rightBound   = innerWidth - targetWidth - this.borderOffset;
+      bottomBound  = innerHeight - targetHeight - this.borderOffset;
+      
+      window.addEventListener("mousemove", this.onDragging);
+      window.addEventListener("mouseup", function handler() {
         window.removeEventListener("mousemove", that.onDragging);
-        window.removeEventListener("mouseup", arguments.callee);
+        window.removeEventListener("mouseup", handler);
       });
     }
     
     this.onDragging = function(e) {
+      var borderOffset = that.borderOffset;
       e.preventDefault();
       
-      
       var newX = that._drag.winX + (e.clientX - that._drag.mouseX);
-      if (newX > innerWidth - target.offsetWidth - that.borderOffset)
-        newX = innerWidth - target.offsetWidth - that.borderOffset;
-      else if (newX < that.borderOffset)
-        newX = that.borderOffset;
+      if (newX > rightBound)
+        newX = rightBound;
+      else if (newX < borderOffset)
+        newX = borderOffset;
       
       var newY = that._drag.winY + (e.clientY - that._drag.mouseY);
-      if (newY < that.borderOffset)
-        newY = that.borderOffset;
-      else if (innerHeight > target.offsetHeight + that.borderOffset * 4 && newY > innerHeight - target.offsetHeight - that.borderOffset)
-        newY = innerHeight - target.offsetHeight - that.borderOffset;
+      if (newY < borderOffset)
+        newY = borderOffset;
+      else if (innerHeight > targetHeight + borderOffset * 4 && newY > bottomBound)
+        newY = bottomBound;
       
-      target.style.left = newX + "px";
-      target.style.top = newY + "px";
+      if (lcWindow) {
+        target.style.transform = `translate3d(${newX}px, ${newY}px, 0px)`;
+      } else {
+        target.style.left = newX + "px";
+        target.style.top = newY + "px";
+      }
     }
     
+    var onDragBound = this.onDrag.bind(this);
     this.setState("draggable", false);
     this.addStateListener("draggable", function(draggable) {
       if (draggable)
-        anchor.addEventListener("mousedown", that.onDrag);
+        anchor.addEventListener("mousedown", onDragBound);
       else
-        anchor.removeEventListener("mousedown", that.onDrag);
+        anchor.removeEventListener("mousedown", onDragBound);
     });
     
     this.borderOffset = 20;
