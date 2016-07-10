@@ -35,5 +35,8 @@ regs.interface = {
     
     dbBuffer[moddb] = dbState;
     updateDB();
+  },
+  clearDB: function(moddb) {
+    if( dbBuffer[moddb] ) dbBuffer[moddb] = null;
   }
 }
