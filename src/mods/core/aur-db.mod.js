@@ -2,7 +2,7 @@
 AUR_NAME = "AUR DB";
 AUR_DESC = "AUR Database API";
 AUR_VERSION = [0, 1];
-AUR_AUTHORS = ["Mike32 (b-fuze)"];
+AUR_AUTHORS = ["Mike32 (b-fuze)", "TDN (Samu)"];
 AUR_RESTART = true;
 AUR_INTERFACE = "auto";
 
@@ -37,6 +37,7 @@ regs.interface = {
     updateDB();
   },
   clearDB: function(moddb) {
-    if( dbBuffer[moddb] ) dbBuffer[moddb] = null;
+    if (dbBuffer[moddb])
+      dbBuffer[moddb] = null;
   }
 }
