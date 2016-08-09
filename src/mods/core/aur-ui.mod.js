@@ -135,12 +135,20 @@ function RegisterWin(name, title, options) {
   
   this.setState("left", aurwin.container.offsetLeft);
   this.addStateListener("left", function(left) {
-    aurwin.container.style.left = typeof left === "number" ? left + "px" : left;
+    var bRect = aurwin.container.getBoundingClientRect();
+    var top   = bRect.top;
+    var left  = typeof left === "number" ? left + "px" : left;
+    
+    aurwin.container.style.transform = `translate3d(${left}, ${top}px, 0px)`;
   });
   
   this.setState("top", aurwin.container.offsetTop);
   this.addStateListener("top", function(top) {
-    aurwin.container.style.top = typeof top === "number" ? top + "px" : top;
+    var bRect = aurwin.container.getBoundingClientRect();
+    var top   = typeof top === "number" ? top + "px" : top;
+    var left  = bRect.left;
+    
+    aurwin.container.style.transform = `translate3d(${left}px, ${top}, 0px)`;
   });
   
   this.setState("draggable", aurwin.draggable);
