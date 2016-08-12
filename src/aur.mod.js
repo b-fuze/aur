@@ -282,12 +282,12 @@
     "boolean": MOD_META_BOOL
   };
   
-  var metaTypeCheckers = {};
-  
-  metaTypeCheckers[MOD_META_ARR] = v => jSh.type(v) === "array";
-  metaTypeCheckers[MOD_META_NUM] = v => typeof v === "number";
-  metaTypeCheckers[MOD_META_STR] = v => typeof v === "string";
-  metaTypeCheckers[MOD_META_BOOL] = v => typeof v === "boolean";
+  var metaTypeCheckers = {
+    [MOD_META_ARR]: v => jSh.type(v) === "array",
+    [MOD_META_NUM]: v => typeof v === "number",
+    [MOD_META_STR]: v => typeof v === "string",
+    [MOD_META_BOOL]: v => typeof v === "boolean"
+  };
   
   var modMetaTypes = {
     "NAME": MOD_META_STR,
@@ -295,7 +295,8 @@
     "VERSION": [[MOD_META_ARR, MOD_META_NUM], [MOD_META_NUM]],
     "AUTHORS": [MOD_META_ARR, MOD_META_STR],
     "INTERFACE": MOD_META_STR,
-    "RESTART": MOD_META_BOOL
+    "RESTART": MOD_META_BOOL,
+    "RUN_AT": MOD_META_STR
   };
   
   var modMetaList = Object.getOwnPropertyNames(modMetaTypes);
@@ -427,8 +428,10 @@
     nameMap[modName] = modObj;
     
     // Check if module's disabled
-    if (enabled)
+    if (enabled) {
       readyMods.push(code);
+      code.run_at = validMeta["modRun_at"] || "doc-end";
+    }
   }
   
   AUR.__triggerLoaded = function(modName) {
@@ -465,20 +468,44 @@
   // Invokable modules
   var readyMods = [];
   var loadedAllModules = false;
+  var loadedModulesStart = false;
   
-  AUR.on("load", function() {
+  if (AUR.RUNAT === "doc-end") {
+    loadedModulesStart = true;
+  }
+  
+  AUR.on("__load", function() {
     var verbose = AURUserSett.aurSett && AURUserSett.aurSett.modErrorsVerbose;
     
-    if (!loadedAllModules) {
-      loadedAllModules = true;
-      
-      for (var i=0,l=readyMods.length; i<l; i++) {
-        AUR.sandbox(readyMods[i], !verbose); // Run module
-      }
+    // Reverse module list for easy plucking
+    if (!readyMods.rev) {
+      readyMods.reverse();
+      readyMods.rev = true;
+    }
     
+    for (var i=readyMods.length - 1; i>=0; i--) {
+      var modFunc = readyMods[i];
+      
+      if (loadedModulesStart || modFunc.run_at === "doc-start") {
+        AUR.sandbox(modFunc, !verbose); // Run module
+        readyMods.splice(i, 1);
+      }
+    }
+    
+    // Trigger load event when completely done
+    if (loadedModulesStart) {
       // Trigger load event for loaded modules now
       AUR.triggerEvent("load", {});
       AUR.loadedAllModules = true;
     }
   });
+  
+  if (AUR.RUNAT === "doc-start")
+    document.addEventListener("DOMContentLoaded", function() {
+      AURDetectInst();
+      lces.init();
+      
+      loadedModulesStart = true;
+      AUR.triggerEvent("__load", {});
+    });
 })();

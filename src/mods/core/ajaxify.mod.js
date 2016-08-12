@@ -5,6 +5,7 @@ AUR_VERSION = [0, 1];
 AUR_AUTHORS = ["Mike32 (b-fuze)"];
 AUR_RESTART = false;
 AUR_INTERFACE = "auto";
+AUR_RUN_AT = "doc-start";
 
 // AJAX'ify main model
 var model = lces.new("group");

@@ -93,7 +93,8 @@ var AUROptions = {
   name: "AUR",
   userscript: false,
   userscriptFile: "userscript.head.js",
-  profile: "default"
+  profile: "default",
+  run_at: "doc-end"
 };
 
 // AUR unminified source cram
@@ -325,11 +326,6 @@ function uglify(src) {
   }).code;
 }
 
-// Get LCES/jSh
-var lcesSrc = getFile(AURPATH + "src/lces.current.js", true);
-var lcesSrc = argValues.cat ? lcesSrc : uglify(lcesSrc);
-var lces    = `function lces(l){return LCES.components[l]};lces.rc = [];lces.loadedDeps = false;${ lcesSrc }lces.rc.forEach(f => f());lces.init();\n`;
-
 // Get core files
 getFile(AURPATH + "src/aur.core.js");
 getFile(AURPATH + "src/aur.mod.js");
@@ -377,6 +373,12 @@ miscModules.removalList.forEach((m, i, arr) => miscModules.splice(miscModules.in
 AURSRC = AURSRC.replace(/AUR_EMPTYCORE/, '"' + coreModules.join('", "') + '"');
 AURSRC = AURSRC.replace(/AUR_EMPTYMISC/, '"' + miscModules.join('", "') + '"');
 AURSRC = AURSRC.replace(/AUR_BUILDNAME/, AUROptions.name);
+AURSRC = AURSRC.replace(/AUR_RUN_AT/, AUROptions.run_at);
+
+// Get LCES/jSh
+var lcesSrc = getFile(AURPATH + "src/lces.current.js", true);
+var lcesSrc = argValues.cat ? lcesSrc : uglify(lcesSrc);
+var lces    = `function lces(l){return LCES.components[l]};lces.rc = [];lces.loadedDeps = false;${ lcesSrc }lces.rc.forEach(f => f());${AUROptions.run_at === "doc-end" ? "lces.init();" : ""}\n`;
 
 // Uglify this stuff if necessary
 var result = argValues.cat ? AURSRC : uglify(AURSRC);
@@ -386,7 +388,7 @@ result = `${AURHEAD}
 ${argValues.debug ? `try { // DEBUG FLAG -TRY` : ""}
 
   ${lces + result}
-  AUR.triggerEvent("load",{});
+  AUR.triggerEvent("__load",{});
   
 ${argValues.debug ? `} catch (e) { // DEBUG FLAG -CATCH
   alert(e + "\\n\\n\\n" + e.stack);

@@ -2,31 +2,39 @@
 //
 // Build script: /aur/build.aur.js
 
-// Detect multiple instances
-var activeAURInst = jSh("#aur-instance-marker");
-
-if (activeAURInst) {
-  throw new Error("An AUR instance \"" + jSh.strOp(activeAURInst.getAttribute("data-aur-name"), "Default") + "\" is already running.");
-}
-
 // Get reference to global
 var AURGlobal  = (()=>{return this})();
 var AURAppName = "AUR_BUILDNAME";
 
-// Create AUR instance hook element
-jSh("head")[0].appendChild(jSh.c("meta", {
-  attr: {
-    "data-aur-name": AURAppName,
-    "content": AURAppName,
-    "type": "aur-instance-marker",
-    "id": "aur-instance-marker"
-  }
-}));
-
 // Add constant AUR to window
-jSh.constProp(this, "AUR", new lcComponent());
-var AUR = this.AUR;
+jSh.constProp(AURGlobal, "AUR", new lcComponent());
+var AUR = AURGlobal.AUR;
+jSh.constProp(AUR, "RUNAT", "AUR_RUN_AT");
 
+function AURDetectInst() {
+  // Detect multiple instances
+  var activeAURInst = jSh("#aur-instance-marker");
+
+  if (activeAURInst) {
+    throw new Error("An AUR instance \"" + jSh.strOp(activeAURInst.getAttribute("data-aur-name"), "Default") + "\" is already running.");
+  }
+
+  // Create AUR instance hook element
+  jSh("head")[0].appendChild(jSh.c("meta", {
+    attr: {
+      "data-aur-name": AURAppName,
+      "content": AURAppName,
+      "type": "aur-instance-marker",
+      "id": "aur-instance-marker"
+    }
+  }));
+}
+
+// Easy detection if done at the end
+if (AUR.RUNAT === "doc-end")
+  AURDetectInst();
+
+AUR.addEvent("__load"); // Internal load event
 AUR.addEvent("load");
 
 AUR._on = AUR.on;
