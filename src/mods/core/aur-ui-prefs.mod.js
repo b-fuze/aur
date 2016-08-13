@@ -11,7 +11,6 @@ AUR.onLoaded(true, "aur-ui", "aur-settings", "aur-styles", function() {
   var sett  = AUR.import("aur-settings");
   var style = AUR.import("aur-styles");
   
-  alert("ADDING WIN");
   var prefs = ui.registerWin("aur-prefs", "AUR", {
     tabsVisible: true,
     draggable: false,
@@ -162,7 +161,6 @@ AUR.onLoaded(true, "aur-ui", "aur-settings", "aur-styles", function() {
   jSh.inherit(ModRow, lces.type());
   
   // Enabled settings
-  var enabledMods = {};
   var enabledModsArr = [];
   
   // Modsgroup for managing module visibility
@@ -334,10 +332,6 @@ AUR.onLoaded(true, "aur-ui", "aur-settings", "aur-styles", function() {
         // Add to dis/enabled settings
         var modName = mod.replace(/-/g, "") + "mod";
         
-        enabledMods[modName] = {
-          enabled: sett.Setting("Mod Enable", "boolean", true)
-        };
-        
         enabledModsArr.push([modName, toggle, mod]);
         
         toggle.addStateListener("checked", function(checked) {
@@ -375,8 +369,6 @@ AUR.onLoaded(true, "aur-ui", "aur-settings", "aur-styles", function() {
   
   // Add core modules
   addModList(coreModNames, coreMods);
-  
-  sett.setDefault("AURModsEnabled", enabledMods);
   
   // Add toggling events
   enabledModsArr.forEach(function(arr) {

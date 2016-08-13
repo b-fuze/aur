@@ -1251,7 +1251,7 @@ regs.interface = {
   
   notifi: {
     notifi: function(type, msg, delay, placement, visible) {
-      var notifi = new lcNotification(msg, delay, placement);
+      var notifi = lces.new("notification", msg, delay, placement);
       
       notifi.container.className += " aur-ui-root aur-notifi aur-notifi-" + (type || "info");
       notifi.visible = visible;

@@ -164,8 +164,8 @@ function encapsulate(fpath, name) {
     modBody += `var reg = AUR.register("${name}");`;
     modBody += srcEscape(litSrc);
     modBody += argValues.eval ? "\`);" : "";
-    modBody += `\n  AUR.__triggerLoaded("${name}");});\n} catch `;
-    modBody += `(e) {\n  AUR.__triggerFailed("${name}", e);\n  __aurModeCode = null; \n};\n\n${srcParse.meta}\n__aurModCode = null;\n`;
+    modBody += `\n  /* AUR.__triggerLoaded("${name}"); */ });\n} catch `;
+    modBody += `(e) {\n  /* AUR.__triggerFailed("${name}", e); */\n  __aurModeCode = null; \n};\n\n${srcParse.meta}\n__aurModCode = null;\n`;
     
     return modBody;
   } catch (e) {

@@ -38,29 +38,12 @@
         // For aur-ui-prefs to do it's thing
         if (!modOpt)
           list[mod].setOpt = function(opt) {
-            var stringed = [];
-            
-            var optString = JSON.stringify(opt, function(key, value) {
-              if (value !== opt && jSh.type(value) === "object")
-                return "[Object]";
-              
-              if (typeof value === "function")
-                return "[Function]";
-              
-              return value;
-            });
-            
             modObj.ui = opt;
             modOpt = true;
-            // alert("GETTING OPT" + modObj.modName + "\n\n  " + optString + "\n\n" + JSON.stringify(modObj, function(key, value) {
-            //   if (value !== modObj && jSh.type(value) === "object")
-            //     return "[Object]";
-            //
-            //   if (typeof value === "function")
-            //     return "[Function]";
-            //
-            //   return value;
-            // }) + "\n\n" + Object.id(modObj));
+            
+            // Add UI to early modules
+            if (modObj.register)
+              modObj.register.ui = opt;
           }
       } else
         list[mod] = {
@@ -314,7 +297,7 @@
         evtArr.handler = function(enabled) {
           for (var i=0,l=evtArr.length; i<l; i++) {
             let i2 = i;
-            AUR.sandbox(() => evtArr[i2](enabled));
+            AUR.sandbox(() => evtArr[i2](enabled.value));
           }
         }
         
@@ -348,16 +331,27 @@
       if (!this.exists(mod))
         return null;
       
-      if (!nameMap[mod])
-        return false;
+      var modObj = nameMap[mod];
       
-      var modName = mod.replace(/-/g, "") + "mod";
-      return aurSettInst.get("AURModsEnabled." + modName + ".enabled");
+      if (!modObj.register)
+        return modObj.initEnabled;
+      
+      return modObj.enabled;
     }
   };
   
   AUR.onLoaded("aur-settings", function() {
     aurSettInst = AUR.import("aur-settings");
+    var modsToggleObj = {};
+    
+    for (var i=0,l=mixList.length; i<l; i++) {
+      var modName = mixList[i].replace(/-/g, "") + "mod";
+      modsToggleObj[modName] = {
+        enabled: sett.Setting("Mod Enable", "boolean", true)
+      };
+    }
+    
+    aurSettInst.setDefault("AURModsEnabled", modsToggleObj);
   });
   
   // Meta validating logic
@@ -522,6 +516,7 @@
     if (enabled) {
       readyMods.push(code);
       code.run_at = validMeta["modRun_at"] || "doc-end";
+      code.modName = modName;
     }
   }
   
@@ -575,10 +570,21 @@
     }
     
     for (var i=readyMods.length - 1; i>=0; i--) {
-      var modFunc = readyMods[i];
+      let modFunc = readyMods[i];
       
       if (loadedModulesStart || modFunc.run_at === "doc-start") {
-        AUR.sandbox(modFunc, !verbose); // Run module
+        // Run module
+        AUR.sandbox(
+          modFunc,
+          !verbose,
+          function() {
+            AUR.__triggerLoaded(modFunc.modName);
+          },
+          function(err) {
+            AUR.__triggerFailed(modFunc.modName, err);
+          }
+        );
+        
         readyMods.splice(i, 1);
       }
     }
