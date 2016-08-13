@@ -1281,7 +1281,7 @@ regs.interface = {
   }
 };
 
-AUR.onLoaded("aur-styles", "aur-settings", function() {
+AUR.onLoaded(true, "aur-styles", "aur-settings", function() {
   styles = AUR.import("aur-styles");
   sett   = AUR.import("aur-settings");
   

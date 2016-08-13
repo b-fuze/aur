@@ -38,8 +38,29 @@
         // For aur-ui-prefs to do it's thing
         if (!modOpt)
           list[mod].setOpt = function(opt) {
+            var stringed = [];
+            
+            var optString = JSON.stringify(opt, function(key, value) {
+              if (value !== opt && jSh.type(value) === "object")
+                return "[Object]";
+              
+              if (typeof value === "function")
+                return "[Function]";
+              
+              return value;
+            });
+            
             modObj.ui = opt;
             modOpt = true;
+            // alert("GETTING OPT" + modObj.modName + "\n\n  " + optString + "\n\n" + JSON.stringify(modObj, function(key, value) {
+            //   if (value !== modObj && jSh.type(value) === "object")
+            //     return "[Object]";
+            //
+            //   if (typeof value === "function")
+            //     return "[Function]";
+            //
+            //   return value;
+            // }) + "\n\n" + Object.id(modObj));
           }
       } else
         list[mod] = {
@@ -237,7 +258,8 @@
   
   AUR.onLoaded = function() {
     var callback;
-    var mods = [];
+    var mods    = [];
+    var prepend = false;
     
     jSh.toArr(arguments).forEach((arg, i, arr) => {
       if (i + 1 === arr.length) {
@@ -248,6 +270,8 @@
       } else {
         if (jSh.type(arg) === "string" && mixList.indexOf(arg) !== -1)
           mods.push(arg);
+        else if (typeof arg === "boolean")
+          prepend = arg;
       }
     });
     
@@ -264,12 +288,79 @@
     
     if (!load)
       mods.forEach(mod => {
-        loadedModules[mod].callbacks.push(loadObj);
+        if (!prepend)
+          loadedModules[mod].callbacks.push(loadObj);
+        else
+          loadedModules[mod].callbacks.splice(0, 0, loadObj);
       });
     else
-      callback(); // Modules are loaded already, invoke callback
+      AUR.sandbox(callback); // Modules are loaded already, invoke callback
   }
   
+  // Module modProbe logic
+  var modToggleEvents = {};
+  var aurSettInst     = null;
+  
+  AUR.modProbe = {
+    onToggle(mod, cb) {
+      if (!mod || typeof mod !== "string" || typeof cb !== "function" || !this.exists(mod))
+        return false;
+      
+      var modName = mod.replace(/-/g, "") + "mod";
+      var evtArr;
+      
+      if (!modToggleEvents[modName]) {
+        evtArr = [];
+        evtArr.handler = function(enabled) {
+          for (var i=0,l=evtArr.length; i<l; i++) {
+            let i2 = i;
+            AUR.sandbox(() => evtArr[i2](enabled));
+          }
+        }
+        
+        aurSettInst.on("AURModsEnabled." + modName + ".enabled", evtArr.handler);
+        modToggleEvents[modName] = evtArr;
+      }
+      
+      evtArr = modToggleEvents[modName];
+      
+      if (evtArr.indexOf(cb) === -1)
+        evtArr.push(cb);
+    },
+    
+    removeOnToggle(mod, cb) {
+      if (!mod || typeof mod !== "string" || typeof cb !== "function" || !this.exists(mod))
+        return false;
+      
+      var modName = mod.replace(/-/g, "") + "mod";
+      var evtArr  = modToggleEvents[modName];
+      var index   = evtArr ? evtArr.indexOf(cb) : -1;
+      
+      if (evtArr && index !== -1)
+        evtArr.splice(index, 1);
+    },
+    
+    exists(mod) {
+      return mixList.indexOf(mod) !== -1;
+    },
+    
+    enabled(mod) {
+      if (!this.exists(mod))
+        return null;
+      
+      if (!nameMap[mod])
+        return false;
+      
+      var modName = mod.replace(/-/g, "") + "mod";
+      return aurSettInst.get("AURModsEnabled." + modName + ".enabled");
+    }
+  };
+  
+  AUR.onLoaded("aur-settings", function() {
+    aurSettInst = AUR.import("aur-settings");
+  });
+  
+  // Meta validating logic
   var MOD_META_ARR  = 0;
   var MOD_META_NUM  = 1;
   var MOD_META_STR  = 2;
@@ -435,7 +526,7 @@
   }
   
   AUR.__triggerLoaded = function(modName) {
-    var modObj    = loadedModules[modName]
+    var modObj    = loadedModules[modName];
     var callbacks = modObj.callbacks;
     
     modObj.loaded = true;
@@ -455,7 +546,7 @@
         if (loaded) {
           // All required modules are loaded, invoke the callback
           loadObj.loaded = true;
-          loadObj.cb();
+          AUR.sandbox(loadObj.cb);
         }
       }
     }

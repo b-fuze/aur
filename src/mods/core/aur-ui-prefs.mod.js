@@ -6,11 +6,12 @@ AUR_AUTHORS = ["Mike32 (b-fuze)"];
 AUR_RESTART = false;
 AUR_INTERFACE = "auto";
 
-AUR.onLoaded("aur-ui", "aur-settings", "aur-styles", function() {
+AUR.onLoaded(true, "aur-ui", "aur-settings", "aur-styles", function() {
   var ui    = AUR.import("aur-ui");
   var sett  = AUR.import("aur-settings");
   var style = AUR.import("aur-styles");
   
+  alert("ADDING WIN");
   var prefs = ui.registerWin("aur-prefs", "AUR", {
     tabsVisible: true,
     draggable: false,
