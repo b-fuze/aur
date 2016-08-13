@@ -334,6 +334,7 @@ AUR.onLoaded(true, "aur-ui", "aur-settings", "aur-styles", function() {
         
         enabledModsArr.push([modName, toggle, mod]);
         
+        toggle.checked = sett.get("AURModsEnabled." + modName + ".enabled");
         toggle.addStateListener("checked", function(checked) {
           if (checked) {
             if (detailCount !== 0 && addedOptions) {

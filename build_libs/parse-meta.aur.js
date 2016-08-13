@@ -31,7 +31,8 @@ exports.processMeta = function(src, modName, cons) {
   return {
     meta: metaRegs,
     metaEnd: meta.metaBlockEnd,
-    newLineCount: meta.newLineCount
+    newLineCount: meta.newLineCount,
+    identifiers: meta
   };
 }
 

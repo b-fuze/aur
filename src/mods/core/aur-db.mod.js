@@ -3,9 +3,14 @@ AUR_NAME = "AUR DB";
 AUR_DESC = "AUR Database API";
 AUR_VERSION = [0, 1];
 AUR_AUTHORS = ["Mike32 (b-fuze)", "TDN (Samu)"];
+
 AUR_RESTART = true;
 AUR_INTERFACE = "auto";
 AUR_RUN_AT = "doc-start";
+AUR_USERSCRIPT_CLAUSE = [
+  "@grant GM_getValue",
+  "@grant GM_setValue"
+];
 
 var regs      = reg;
 var dbname    = "aur-db-global";

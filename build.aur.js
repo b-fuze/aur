@@ -93,8 +93,9 @@ var AUROptions = {
   name: "AUR",
   userscript: false,
   userscriptFile: "userscript.head.js",
+  userscriptClauses: [],
   profile: "default",
-  run_at: "doc-end"
+  run_at: "doc-end",
 };
 
 // AUR unminified source cram
@@ -158,6 +159,21 @@ function encapsulate(fpath, name) {
     // Log status
     logStatus(" " + chalk.bold(name) + (includedMods ? "" : ""), "[" + chalk.green("SUCCESS") + "] ");
     
+    // Check for userscript clauses
+    var validUSClause = /[ \t]*@[^\s]+[ \t]+[^\s][^\n]*/;
+    var USClause = srcParse.identifiers.AUR_USERSCRIPT_CLAUSE;
+    
+    if (USClause !== undefined) {
+      if (USClause[1] === "array") {
+        USClause[0].splice(USClause[0].length - 1, 1);
+        USClause[0].forEach(clause => (clause[1] === "string" &&
+                                       validUSClause.test(clause[0]) &&
+                                       AUROptions.userscriptClauses.push(clause[0])));
+      } else if (USClause[1] === "string" && validUSClause.test(USClause[0]))
+        AUROptions.userscriptClauses.push(USClause[0]);
+    }
+    
+    // Make full body
     var modBody = "";
     modBody += "\n\ntry {\n  __aurModCode = (function() {";
     modBody += argValues.eval ? "eval(\`" : "";
@@ -374,6 +390,13 @@ AURSRC = AURSRC.replace(/AUR_EMPTYCORE/, '"' + coreModules.join('", "') + '"');
 AURSRC = AURSRC.replace(/AUR_EMPTYMISC/, '"' + miscModules.join('", "') + '"');
 AURSRC = AURSRC.replace(/AUR_BUILDNAME/, AUROptions.name);
 AURSRC = AURSRC.replace(/AUR_RUN_AT/, AUROptions.run_at);
+
+AURHEAD = AURHEAD.replace(
+  /AUR_USERSCRIPT_CLAUSES\s+/,
+  [""].concat(AUROptions.userscriptClauses).reduce(function(clauseA, clauseB) {
+    return clauseA + "// " + clauseB + "\n";
+  })
+);
 
 // Get LCES/jSh
 var lcesSrc = getFile(AURPATH + "src/lces.current.js", true);

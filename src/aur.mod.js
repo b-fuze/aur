@@ -345,9 +345,10 @@
     var modsToggleObj = {};
     
     for (var i=0,l=mixList.length; i<l; i++) {
-      var modName = mixList[i].replace(/-/g, "") + "mod";
+      var mod = mixList[i];
+      var modName = mod.replace(/-/g, "") + "mod";
       modsToggleObj[modName] = {
-        enabled: sett.Setting("Mod Enable", "boolean", true)
+        enabled: sett.Setting("Mod Enable", "boolean", nameMap[mod].initEnabled)
       };
     }
     
@@ -381,7 +382,8 @@
     "AUTHORS": [MOD_META_ARR, MOD_META_STR],
     "INTERFACE": MOD_META_STR,
     "RESTART": MOD_META_BOOL,
-    "RUN_AT": MOD_META_STR
+    "RUN_AT": MOD_META_STR,
+    "USERSCRIPT_CLAUSE": [[MOD_META_ARR, MOD_META_STR], [MOD_META_STR]]
   };
   
   var modMetaList = Object.getOwnPropertyNames(modMetaTypes);
@@ -495,7 +497,16 @@
         // Was this thing enabled to begin with?
         else if (!modObj.initEnabled) {
           modObj.initEnabled = true;
-          AUR.sandbox(code, !settings.get("aurSett.modErrorsVerbose"));
+          AUR.sandbox(
+            code,
+            !settings.get("aurSett.modErrorsVerbose"),
+            function() {
+              AUR.__triggerLoaded(modName);
+            },
+            function() {
+              AUR.__triggerFailed(modName, err);
+            }
+          );
           
           // Update any settings
           lces.user.settings.clearLate();
