@@ -95,7 +95,7 @@ function setting(link, disabled) {
   
   function disable() {
     settingVal = true;
-    sett.set(link, disabled);
+    sett.set("tmp." + link, disabled);
     settingVal = false;
   }
   

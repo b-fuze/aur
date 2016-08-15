@@ -49,7 +49,8 @@ AUR.jSh  = jSh;
 AUR.lces = lces;
 
 // Initial check for AUR settings
-var AURUserSett = lces.global.GM_getValue ? jSh.parseJSON(GM_getValue("aur-db-global")) : null;
+var AURStorageFunc = typeof GM_getValue === "function" ? GM_getValue : localStorage.getItem.bind(localStorage);
+var AURUserSett = jSh.parseJSON(AURStorageFunc("aur-db-global"));
 var AURUserModSett;
 
 if (AURUserSett && AURUserSett["aur-sett-db"]) {
@@ -187,7 +188,7 @@ AUR.sandbox = function(func, silent, success, fail) {
       alert(err);
     
     if (typeof fail === "function")
-      fail();
+      fail(e);
   }
 };
 

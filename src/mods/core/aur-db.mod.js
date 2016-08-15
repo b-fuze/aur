@@ -12,38 +12,103 @@ AUR_USERSCRIPT_CLAUSE = [
   "@grant GM_setValue"
 ];
 
-var regs      = reg;
-var dbname    = "aur-db-global";
-var dbBuffer  = {};
-var dbGetFunc = lces.global.GM_getValue || localStorage.getItem.bind(localStorage);
-var dbSetFunc = lces.global.GM_setValue || localStorage.setItem.bind(localStorage);
+var regs        = reg;
+var dbName      = "aur-db-global";
+var dbBuffer    = {__namespaces: []};
+var dbNSBuffers = {};
+var emptyDBNS   = {placeholder: true};
+var dbGetFunc   = typeof GM_getValue === "function" ? GM_getValue : localStorage.getItem.bind(localStorage);
+var dbSetFunc   = typeof GM_setValue === "function" ? GM_setValue : localStorage.setItem.bind(localStorage);
 
 // Get DB current state to check
-var GMDB = dbGetFunc(dbname);
+var GMDB = dbGetFunc(dbName);
 
 if (!GMDB) {
-  dbSetFunc(dbname, "{}");
+  dbSetFunc(dbName, "{__namespaces: []}");
 } else {
   dbBuffer = JSON.parse(GMDB);
+  
+  if (dbBuffer.__namespaces)
+    for (var i=0,l=dbBuffer.__namespaces.length; i<l; i++) {
+      var ns = dbBuffer.__namespaces[i];
+      dbNSBuffers[ns + "db"] = emptyDBNS;
+    }
+  else
+    dbBuffer.__namespaces = [];
 }
 
-function updateDB() {
-  dbSetFunc(dbname, JSON.stringify(dbBuffer));
+function updateDB(dbNSName, dbNSBuffer) {
+  dbSetFunc(dbNSName || dbName, JSON.stringify(dbNSName ? dbNSBuffer : dbBuffer));
 }
 
 regs.interface = {
-  getDB: function(moddb) {
+  getNS(modNS) {
+    var NSDBName = dbName + "-" + modNS;
+    var dbNSBuffer = dbNSBuffers[modNS + "db"];
+    
+    if (!dbNSBuffer) {
+      dbNSBuffer = {};
+      dbNSBuffers[modNS + "db"] = dbNSBuffer;
+      
+      dbBuffer.__namespaces.push(modNS);
+      updateDB();
+    }
+    
+    function fetchNSDB() {
+      dbNSBuffer = jSh.parseJSON(dbGetFunc(NSDBName));
+      
+      if (!(dbNSBuffer instanceof Object) || dbNSBuffer.data === null && dbNSBuffer.error) {
+        dbNSBuffer = {};
+      }
+      
+      dbNSBuffers[modNS + "db"] = dbNSBuffer;
+    }
+    
+    return {
+      getDB(moddb) {
+        if (dbNSBuffer === emptyDBNS) {
+          fetchNSDB();
+        }
+        
+        return dbNSBuffer[moddb] === undefined ? null : dbNSBuffer[moddb];
+      },
+      setDB(moddb, dbState) {
+        if (jSh.type(dbState) === "undefined" || jSh.type(dbState) === "null")
+          return false;
+        
+        if (dbNSBuffer === emptyDBNS) {
+          fetchNSDB();
+        }
+        
+        dbNSBuffer[moddb] = dbState;
+        updateDB(NSDBName, dbNSBuffer);
+      },
+      clearDB(moddb) {
+        if (dbNSBuffer === emptyDBNS) {
+          fetchNSDB()
+        }
+        
+        if (dbNSBuffer[moddb])
+          dbNSBuffer[moddb] = null;
+        
+        updateDB(NSDBName, dbNSBuffer);
+      }
+    };
+  },
+  getDB(moddb) {
     return dbBuffer[moddb] === undefined ? null : dbBuffer[moddb];
   },
-  setDB: function(moddb, dbState) {
+  setDB(moddb, dbState) {
     if (jSh.type(dbState) === "undefined" || jSh.type(dbState) === "null")
       return false;
     
     dbBuffer[moddb] = dbState;
     updateDB();
   },
-  clearDB: function(moddb) {
+  clearDB(moddb) {
     if (dbBuffer[moddb])
       dbBuffer[moddb] = null;
+    
+    updateDB();
   }
 }

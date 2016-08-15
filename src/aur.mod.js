@@ -503,7 +503,7 @@
             function() {
               AUR.__triggerLoaded(modName);
             },
-            function() {
+            function(err) {
               AUR.__triggerFailed(modName, err);
             }
           );

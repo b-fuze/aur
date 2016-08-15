@@ -23,11 +23,12 @@ sett.default = settDefault;
 AUR.onLoaded("aur-db", function() {
   db = AUR.import("aur-db");
   
-  sett.on(function() {
-    // Save settings with old settings if any
-    db.setDB(dbName, {user: JSON.stringify(
-      oldDB ? jSh.mergeObj(sett.user, oldDB, true, true) : sett.user
-    )});
+  sett.on(function(e) {
+    // Save settings with old settings if any if not a temporary setting
+    if (!e.temporary)
+      db.setDB(dbName, {user: JSON.stringify(
+        oldDB ? jSh.mergeObj(sett.user, oldDB, true, true) : sett.user
+      )});
   });
 });
 
