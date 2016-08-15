@@ -617,6 +617,10 @@ AUR.onLoaded(true, "aur-ui", "aur-settings", "aur-styles", function() {
       display: none;
     }
     
+    .aur-ui-tabpage .aur-ui-prefs-mod-list.lces tr.aur-ui-prefs-mod-core .aur-ui-prefs-mod-click .aur-ui-prefs-mod-click-tray {
+      background: linear-gradient(to right, rgba(28, 24, 24, 0), #1C1818 30px);
+    }
+    
     .aur-ui-tabpage .aur-ui-prefs-mod-list.lces tr.tray-visible .aur-ui-prefs-mod-click .aur-ui-prefs-mod-click-tray {
       display: block;
     }
@@ -659,8 +663,16 @@ AUR.onLoaded(true, "aur-ui", "aur-settings", "aur-styles", function() {
       background: linear-gradient( to right, rgba(31, 34, 36, 0), #1F2224 30px);
     }
     
+    .aur-ui-tabpage .aur-ui-prefs-mod-list.lces tr.aur-ui-prefs-mod-core[checker] .aur-ui-prefs-mod-click .aur-ui-prefs-mod-click-tray {
+      background: linear-gradient(to right, rgba(36, 31, 31, 0), #241F1F 30px);
+    }
+    
     .aur-ui-tabpage .aur-ui-prefs-mod-list.lces tr.visible .aur-ui-prefs-mod-click .aur-ui-prefs-mod-click-tray {
       background: linear-gradient( to right, rgba(42, 44, 46, 0), #2A2C2E 30px) !important;
+    }
+    
+    .aur-ui-tabpage .aur-ui-prefs-mod-list.lces tr.aur-ui-prefs-mod-core.visible .aur-ui-prefs-mod-click .aur-ui-prefs-mod-click-tray {
+      background: linear-gradient(to right, rgba(46, 37, 37, 0), #2E2525 30px) !important;
     }
   `);
   

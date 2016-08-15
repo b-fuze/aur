@@ -21,6 +21,7 @@ reg.interface = function AJAXifyConstructor() {
   lces.type().call(this);
   
   // Add enabled state
+  this.ignoreAttr = ignoreAnchorAttr;
   this.setState("enabled", false);
   model.addMember(this);
 };

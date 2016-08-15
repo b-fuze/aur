@@ -383,7 +383,8 @@
     "INTERFACE": MOD_META_STR,
     "RESTART": MOD_META_BOOL,
     "RUN_AT": MOD_META_STR,
-    "USERSCRIPT_CLAUSE": [[MOD_META_ARR, MOD_META_STR], [MOD_META_STR]]
+    "USERSCRIPT_CLAUSE": [[MOD_META_ARR, MOD_META_STR], [MOD_META_STR]],
+    "DEFAULT_DISABLED": MOD_META_BOOL
   };
   
   var modMetaList = Object.getOwnPropertyNames(modMetaTypes);
@@ -457,11 +458,6 @@
     var modSettName = modName.replace(/-/g, "") + "mod";
     var settings = lces.user.settings;
     
-    if (AURUserModSett[modSettName])
-      var enabled = AURUserModSett[modSettName].enabled;
-    else
-      var enabled = true;
-    
     var validMeta = {
       ui: null
     };
@@ -475,6 +471,7 @@
       
       if (details[metaName] !== undf) {
         validMeta[metaRegName] = metaTypeValidate(modMetaTypes[meta], details[metaName]);
+        validMeta[metaName] = metaTypeValidate(modMetaTypes[meta], details[metaName]);
       } else {
         validMeta[metaRegName] = null;
       }
@@ -482,6 +479,12 @@
     
     validMeta["modCodename"] = modName;
     
+    if (AURUserModSett[modSettName])
+      var enabled = AURUserModSett[modSettName].enabled;
+    else
+      var enabled = validMeta["AUR_DEFAULT_DISABLED"] === true ? false : true;
+    
+    // Create module object
     var modObj = lces.new();
     modObj.initEnabled = enabled;
     modObj.setState("enabled", enabled);
