@@ -580,7 +580,7 @@
       readyMods.rev = true;
     }
     
-    for (var i=readyMods.length - 1; i>=0; i--) {
+    for (var i=readyMods.length-1; i>=0; i--) {
       let modFunc = readyMods[i];
       
       if (loadedModulesStart || modFunc.run_at === "doc-start") {

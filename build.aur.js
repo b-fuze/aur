@@ -165,9 +165,9 @@ function encapsulate(fpath, name) {
     
     if (USClause !== undefined) {
       if (USClause[1] === "array") {
-        USClause[0].splice(USClause[0].length - 1, 1);
         USClause[0].forEach(clause => (clause[1] === "string" &&
                                        validUSClause.test(clause[0]) &&
+                                       AUROptions.userscriptClauses.indexOf(clause[0]) === -1 &&
                                        AUROptions.userscriptClauses.push(clause[0])));
       } else if (USClause[1] === "string" && validUSClause.test(USClause[0]))
         AUROptions.userscriptClauses.push(USClause[0]);

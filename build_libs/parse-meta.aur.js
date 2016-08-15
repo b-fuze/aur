@@ -72,6 +72,7 @@ function getMeta(src, modName) {
   var inArray  = false;
   var endStatement = true;
   var assignment   = false;
+  var pushedToArr  = false;
   
   var curIdentifier = null;
   var curPrimValue  = null;
@@ -96,8 +97,10 @@ function getMeta(src, modName) {
       curIdentifier = null;
     }
     // Check for completed values in an array
-    else if (assignment && inArray && endStatement) {
+    else if (assignment && inArray && endStatement && !pushedToArr) {
       curValue.push([curPrimValue, curPrimType]);
+      
+      pushedToArr = true;
     }
     
     if (!inString) {
@@ -207,6 +210,8 @@ function getMeta(src, modName) {
         if (!inArray) {
           curValue = curPrimValue;
           assignment = false;
+        } else {
+          pushedToArr = false;
         }
         
         endStatement = true;
@@ -274,6 +279,7 @@ function getMeta(src, modName) {
         endStatement = true;
         assignment = false;
         curPrimType = "array";
+        pushedToArr = false;
       }
       // Check for semicolon to signify completion of assignment
       else if (!assignment && char === ";") {
@@ -302,6 +308,8 @@ function getMeta(src, modName) {
         if (!inArray) {
           curValue = curPrimValue;
           assignment = false;
+        } else {
+          pushedToArr = false;
         }
       } else
         curPrimValue += char;
