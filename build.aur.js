@@ -92,7 +92,7 @@ Object.getOwnPropertyNames(argValues).forEach(function(n) {
 var AUROptions = {
   name: "AUR",
   userscript: false,
-  userscriptFile: "userscript.head.js",
+  userscript_file: "userscript.head.js",
   userscriptClauses: [],
   profile: "default",
   run_at: "doc-end",
@@ -286,7 +286,7 @@ function checkDirectory(fpath) {
     
     // Check if userscript file provided and enabled
     if (options && options.userscript) {
-      var usFilePath = absPathUtil(options.userscriptFile, fpath);
+      var usFilePath = absPathUtil(options.userscript_file, fpath);
       
       if (fs.existsSync(usFilePath) && fs.statSync(usFilePath).isFile()) {
         AURHEAD += getFile(usFilePath, true);

@@ -21,7 +21,7 @@ var settDefault = {
 sett.default = settDefault;
 
 AUR.onLoaded("aur-db", function() {
-  db = AUR.import("aur-db");
+  db = AUR.import("aur-db").getNS("aur-sett");
   
   sett.on(function(e) {
     // Save settings with old settings if any if not a temporary setting

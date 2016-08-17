@@ -6465,6 +6465,9 @@ lces.rc[3] = function() {
     var rightBound   = null;
     
     this.onDrag = function(e) {
+      if (e.button !== 0)
+        return false;
+      
       var that = this;
       e.preventDefault();
       

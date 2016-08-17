@@ -12,9 +12,14 @@ var model = lces.new("group");
 model.setState("enabled", false);
 model.setState("scriptsEnabled", false);
 model.curRequest = null;
+model.cachedPages = [];
+model.inPopstate = false;
 
 // Ignoring attribute
 var ignoreAnchorAttr = "data-aur-ajaxify-ignore";
+
+// Max page cache for history, only set to an even number
+var maxPageCache = 50;
 
 // Constructor
 reg.interface = function AJAXifyConstructor() {
@@ -29,12 +34,27 @@ reg.interface = function AJAXifyConstructor() {
 // Instance methods
 jSh.inherit(reg.interface, lces.type());
 jSh.extendObj(reg.interface.prototype, {
-  load(route) {
+  go(route) {
+    if (!jSh.strOp(route, null) || !route)
+      return null;
     
+    if (/^https?:\/\//.test(route)) {
+      if (localLink.test(route)) {
+        this.cancel();
+        engine(route);
+      }
+    } else {
+      this.cancel();
+      engine();
+    }
   },
   
   cancel() {
+    if (model.curRequest) {
+      model.curRequest.abort();
+    }
     
+    model.curRequest = null;
   },
   
   // Event adding function
@@ -50,13 +70,13 @@ jSh.extendObj(reg.interface.prototype, {
       var hasNeg  = typeof arg2 === "boolean";
       var neg     = hasNeg ? arg2 : false;
       var fn      = hasNeg ? arg3 : arg2;
-      var general = route && (typeof route === "string" || route instanceof RegExp);
+      var general = !route || !(typeof route === "string" || route instanceof RegExp);
       var list    = general ? genEvts : (neg ? negEvts : regEvts);
       
       // Confirm that fn is a valid function and hasn't been added already
       if (typeof fn === "function" && list.indexOf(fn) === -1)
         list.push([
-          general ? route : null,
+          !general ? route : null,
           fn
         ]);
     }
@@ -72,7 +92,7 @@ jSh.extendObj(reg.interface.prototype, {
     }
   },
   
-  incl(route) {
+  clearExcl(route) {
     if (route && (typeof route === "string" || route instanceof RegExp)) {
       var routeIndex = routeExcl.indexOf(route);
       
@@ -83,7 +103,19 @@ jSh.extendObj(reg.interface.prototype, {
   },
   
   limit() {
-    var routes = jSh.toArr(arguments);
+    var routes = jSh.toArr(arguments).filter(r => typeof r === "string" || r instanceof RegExp);
+    
+    if (routes.length) {
+      limitRoutes = true;
+      routeLimit = routes;
+    } else {
+      this.clearLimit();
+    }
+  },
+  
+  clearLimit() {
+    limitRoutes = false;
+    routeLimit = [];
   },
   
   remove(evt, route, arg3, arg4) {
@@ -114,7 +146,7 @@ var regEvents = {};
 var negEvents = {};
 
 // Create event arrays
-for (var i,l=engineEvents.length; i<l; i++) {
+for (var i=0,l=engineEvents.length; i<l; i++) {
   var evName = engineEvents[i];
   
   genEvents["on" + evName] = [];
@@ -125,9 +157,10 @@ for (var i,l=engineEvents.length; i<l; i++) {
 // Excl/Incl lists
 var routeExcl  = [];
 var routeLimit = [];
+var limitRoutes = false;
 
 // AJAX'ify core engine
-function engine(url) {
+function engine(url, cache) {
   var urlPath = url.match(/https?:\/\/(?:[a-z\d](?:[a-z\d\-]*[a-z\d])*\.)+(?:[a-z\d](?:[a-z\d\-]*[a-z\d])*)(\/[^]*)/i)[1];
   
   // Get all associated handlers
@@ -149,12 +182,12 @@ function engine(url) {
     var evName   = engineEvents[ie];
     var clearGen = false;
     
-    var gen = genEvents[evName];
-    var reg = regEvents[evName];
-    var neg = negEvents[evName];
+    var gen = genEvents["on" + evName];
+    var reg = regEvents["on" + evName];
+    var neg = negEvents["on" + evName];
     
     var cur = evNameMap[evName];
-    var tmp = gen.slice();
+    var tmp = [];
     
     // Breaking DRY principle here too...
     for (var i=0,l=reg.length; i<l; i++) {
@@ -177,8 +210,10 @@ function engine(url) {
           clearGen = true;
         }
         
-        tmp.push(routeHandler);
+        tmp.push(routeHandler[1]);
       }
+      
+      cur.push.apply(cur, tmp);
     }
     
     for (var i=0,l=neg.length; i<l; i++) {
@@ -201,35 +236,265 @@ function engine(url) {
           clearGen = true;
         }
         
-        tmp.push(routeHandler);
+        tmp.push(routeHandler[1]);
       }
+      
+      cur.push.apply(cur, tmp);
     }
+    
+    // Add general functions
+    cur.push.apply(cur, gen.map(h => h[1]));
   }
+  
+  var abortReq = false;
+  var endReq   = false;
+  
+  // Show the loader
+  loadingIndicator.visible = true;
   
   // Call trigger event handlers
   for (var i=0,l=onTrigger.length; i<l; i++) {
     try {
-      onTrigger[i](urlPath);
+      let breakIter = false;
+      
+      onTrigger[i]({
+        route: urlPath,
+        break() {
+          breakIter = true;
+        },
+        abort() {
+          abortReq = true;
+        }
+      });
+      
+      if (breakIter || abortReq)
+        break;
     } catch (e) {
       // YOUR function crashed and burned, NOT mine...
       // ...nothing to do here, moving on...
+      console.error("AJAX'ify Callback Error [onTrigger]", e);
     }
   }
   
   // Start loading page
-  var req = new lcRequest({
-    method: "GET",
-    uri: urlPath,
-    success() {
+  if (!abortReq) {
+    function processPageSrc(src) {
+      var parser = new DOMParser();
+      var newDOM = jSh(parser.parseFromString(src, "text/html"));
+      var curDOM = jSh(document);
+      
+      // Filter stage
+      for (var i=0,l=onFilter.length; i<l; i++) {
+        try {
+          let breakIter = false;
+          
+          onFilter[i]({
+            route: urlPath,
+            dom: newDOM,
+            domOld: curDOM,
+            cache: !!cache,
+            break() {
+              breakIter = true;
+            },
+            abort() {
+              abortReq = true;
+            },
+            end() {
+              endReq = true;
+            }
+          });
+          
+          if (breakIter || abortReq || endReq)
+            break;
+        } catch(e) {
+          // An error at filtering stage...
+          console.error("AJAX'ify Callback Error [onFilter]", e);
+        }
+      }
+      
+      if (abortReq)
+        return false;
+      
+      // Clear stage
+      if (!endReq)
+        for (var i=0,l=onClear.length; i<l; i++) {
+          try {
+            let breakIter = false;
+            
+            onClear[i]({
+              route: urlPath,
+              dom: curDOM,
+              domNew: newDOM,
+              cache: !!cache,
+              break() {
+                breakIter = true;
+              },
+              abort() {
+                abortReq = true;
+              },
+              end() {
+                endReq = true;
+              }
+            });
+            
+            if (breakIter || abortReq || endReq)
+              break;
+          } catch(e) {
+            // Error at clearing stage
+            console.error("AJAX'ify Callback Error [onClear]", e);
+          }
+        }
+      
+      if (abortReq)
+        return false;
+      
+      // Merge stage
+      if (!endReq)
+        for (var i=0,l=onMerge.length; i<l; i++) {
+          try {
+            let breakIter = false;
+            
+            onMerge[i]({
+              route: urlPath,
+              domNew: newDOM,
+              domOld: curDOM,
+              cache: !!cache,
+              break() {
+                breakIter = true;
+              }
+            });
+            
+            if (breakIter)
+              break;
+          } catch(e) {
+            // Error at clearing stage
+            console.error("AJAX'ify Callback Error [onMerge]", e);
+          }
+        }
+      
+      // Now that we've loaded, gonna pushstate
+      if (!cache)
+        window.history.pushState({
+          aurAjaxify: true,
+          route: urlPath
+        }, "New AJAX'fy page", urlPath);
+      
+      // Scroll to top
+      scrollTo(0, 0);
+      
+      // Loaded stage
+      for (var i=0,l=onLoad.length; i<l; i++) {
+        try {
+          let breakIter = false;
+          
+          onLoad[i]({
+            route: urlPath,
+            cache: !!cache,
+            break() {
+              breakIter = true;
+            }
+          });
+          
+          if (breakIter)
+            break;
+        } catch(e) {
+          // Error at loaded stage
+        }
+      }
+      
+      loadingIndicator.visible = false;
       // TODO: Finish this engine...
-    },
-    fail() {
-      // Do some... Kinda... Magic... Here...
     }
-  });
+    
+    // Check if we don't have a cache saved already
+    var cachedPage = model.cachedPages.indexOf(urlPath);
+    
+    if (cachedPage === -1 || !model.inPopstate)
+      var req = new lcRequest({
+        method: "GET",
+        uri: urlPath,
+        success() {
+          // Save to cache or replace older one
+          if (cachedPage === -1) {
+            model.cachedPages.push(urlPath, this.responseText);
+            
+            // Prevent cache from occupying too much memory
+            model.cachedPages = model.cachedPages.slice(-maxPageCache);
+          } else {
+            // Remove and readd to the front
+            model.cachedPages.splice(cachedPage, 2);
+            model.cachedPages.push(urlPath, this.responseText);
+          }
+          
+          // Load the page
+          processPageSrc(this.responseText);
+        },
+        fail() {
+          if (this.status === 0) // Browser denied with influence from a 3rd party source
+          document.location = "http://www.animeultima.io" + urlPath; // Force user to the location
+          else {
+            // Do some... Kinda... Magic... Here...
+          }
+        }
+      });
+    else {
+      // Make dummy request object
+      req = {
+        abort() {}
+      };
+      
+      // Pass cache instead
+      processPageSrc(model.cachedPages[cachedPage + 1]);
+      model.inPopstate = false;
+    }
+    
+  }
   
   model.curRequest = req;
   req.send();
+}
+
+function isValidRoute(route) {
+  var urlPath = route.match(/https?:\/\/(?:[a-z\d](?:[a-z\d\-]*[a-z\d])*\.)+(?:[a-z\d](?:[a-z\d\-]*[a-z\d])*)(\/[^]*)/i)[1];
+  var valid = true;
+  
+  if (limitRoutes) {
+    valid = false;
+    
+    for (var i=0,l=routeLimit.length; i<l; i++) {
+      var limit = routeLimit[i];
+      
+      if (typeof limit === "string") {
+        if (urlPath === limit) {
+          valid = true;
+          break;
+        }
+      } else {
+        if (limit.test(urlPath)) {
+          valid = true;
+          break;
+        }
+      }
+    }
+  }
+    
+  for (var i=0,l=routeExcl.length; i<l; i++) {
+    var excl = routeExcl[i];
+    
+    if (typeof excl === "string") {
+      if (urlPath === excl) {
+        valid = false;
+        break;
+      }
+    } else {
+      if (excl.test(urlPath)) {
+        valid = false;
+        break;
+      }
+    }
+  }
+  
+  return valid;
 }
 
 // Capturing events
@@ -239,7 +504,13 @@ var localLink = new RegExp(
   "/[^]*", "i"
 );
 
+var curAnchor = false;
+var curHref   = null;
+
 function onWinMDown(e) {
+  if (!isValidRoute(document.location + ""))
+    return false;
+  
   // Only start if main mouse button
   if (e.button === 0) {
     var target = e.target;
@@ -251,7 +522,7 @@ function onWinMDown(e) {
       if (target.tagName === "A") {
         // Check if the anchor isn't flagged with the ignore flag and isn't
         // a link to a foreign host
-        if (target.getAttribute(ignoreAnchorAttr) !== null &&
+        if (target.getAttribute(ignoreAnchorAttr) === null &&
             localLink.test(target.href))
           anchor = target;
         
@@ -262,14 +533,27 @@ function onWinMDown(e) {
     }
     
     // We found a valid link
-    if (anchor) {
+    if (anchor && anchor.getAttribute("target") !== "_blank" && isValidRoute(anchor.href)) {
       e.preventDefault();
-      engine(anchor.href);
+      curAnchor = anchor;
+      curHref = anchor.href;
+      
+      anchor.href = "javascript: void(0);";
+      engine(curHref);
     }
   }
 }
 
+function onWinMUp(e) {
+  setTimeout(function() {
+    curAnchor.href = curHref;
+  }, 10);
+}
+
 function onWinKDown(e) {
+  if (!isValidRoute(document.location + ""))
+    return false;
+  
   // Only start if Enter key
   if (e.keyCode === 13) {
     var target = e.target;
@@ -278,24 +562,121 @@ function onWinKDown(e) {
     // Check if the anchor isn't flagged with the ignore flag and isn't
     // a link to a foreign host
     if (target.tagName === "A" &&
-        target.getAttribute(ignoreAnchorAttr) !== null &&
+        target.getAttribute(ignoreAnchorAttr) === null &&
         localLink.test(target.href))
       anchor = target;
     
     // Anchor is valid
-    if (anchor) {
+    if (anchor && anchor.getAttribute("target") !== "_blank" && isValidRoute(anchor.href)) {
       e.preventDefault();
+      curAnchor = anchor;
+      curHref = anchor.href;
+      
       engine(anchor.href);
+      
+      setTimeout(function() {
+        curAnchor.href = curHref;
+      }, 10);
     }
   }
 }
 
+function onPopstate(e) {
+  if (model.enabled) {
+    model.inPopstate = true;
+    engine(document.location.toString(), e);
+    console.log("Reload");
+  } else {
+    location.reload();
+  }
+}
+
+window.addEventListener("popstate", onPopstate);
 model.addStateListener("enabled", function(enabled) {
   if (enabled) {
     window.addEventListener("mousedown", onWinMDown);
+    window.addEventListener("mouseup", onWinMUp);
     window.addEventListener("keydown", onWinKDown);
   } else {
     window.removeEventListener("mousedown", onWinMDown);
+    window.removeEventListener("mouseup", onWinMUp);
     window.removeEventListener("keydown", onWinKDown);
   }
+});
+
+// Loading indicator
+var loadingIndicator = lces.new("widget", jSh.d(".aur-ajaxify-loading-indicator", undf, [
+  jSh.t("AJAX'ify loading"),
+  jSh.d(".aur-busy-spinner")
+]));
+
+var liVisibleTimeout = null;
+loadingIndicator.setState("visible", false);
+loadingIndicator.addStateListener("visible", function(visible) {
+  if (visible) {
+    clearTimeout(liVisibleTimeout);
+    loadingIndicator.classList.add("aur-ajaxify-spinner-visible")
+    
+    loadingIndicator.classList.add("visible");
+  } else {
+    loadingIndicator.classList.remove("visible");
+    
+    liVisibleTimeout = setTimeout(function() {
+      loadingIndicator.classList.remove("aur-ajaxify-spinner-visible")
+    }, 520);
+  }
+});
+
+AUR.onLoaded("aur-ui", "aur-styles", function() {
+  var style = AUR.import("aur-styles");
+  
+  style.styleBlock(`
+    .aur-ajaxify-loading-indicator {
+      position: fixed;
+      z-index: 1000000;
+      top: -45px;
+      left: 0px;
+      right: 0px;
+      margin: 0px auto;
+      height: 45px;
+      width: 178px;
+      
+      line-height: 45px;
+      text-align: center;
+      font-size: 15px;
+      font-weight: bold;
+      color: rgba(0, 0, 0, 0.65);
+      background: rgba(199, 206, 217, 0.9);
+      border-bottom-left-radius: 3px;
+      border-bottom-right-radius: 3px;
+      
+      opacity: 0;
+      box-shadow: 0px 3px 3px rgba(0, 0, 0, 0.25);
+      transition: top 500ms cubic-bezier(.31,.26,.1,.92), opacity 500ms cubic-bezier(.31,.26,.1,.92);
+      pointer-events: none;
+      user-select: none;
+      -moz-user-select: none;
+    }
+    
+    .aur-ajaxify-loading-indicator.visible {
+      opacity: 0.85;
+      top: 0px;
+    }
+    
+    .aur-ajaxify-loading-indicator .aur-busy-spinner {
+      content: unset !important;
+      position: relative;
+      display: inline-block;
+      vertical-align: middle;
+      width: 24px;
+      height: 24px;
+      margin-left: 10px;
+    }
+    
+    .aur-ajaxify-loading-indicator.aur-ajaxify-spinner-visible .aur-busy-spinner {
+      content: "" !important;
+    }
+  `);
+  
+  document.body.appendChild(loadingIndicator.element);
 });
