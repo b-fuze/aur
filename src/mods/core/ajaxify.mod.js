@@ -11,6 +11,7 @@ AUR_RUN_AT = "doc-start";
 var model = lces.new("group");
 model.setState("enabled", false);
 model.setState("scriptsEnabled", false);
+model.curURLPath = (document.location + "").match(/https?:\/\/(?:[a-z\d](?:[a-z\d\-]*[a-z\d])*\.)+(?:[a-z\d](?:[a-z\d\-]*[a-z\d])*)(\/[^]*)/i)[1];
 model.curRequest = null;
 model.cachedPages = [];
 model.inPopstate = false;
@@ -162,6 +163,7 @@ var limitRoutes = false;
 // AJAX'ify core engine
 function engine(url, cache) {
   var urlPath = url.match(/https?:\/\/(?:[a-z\d](?:[a-z\d\-]*[a-z\d])*\.)+(?:[a-z\d](?:[a-z\d\-]*[a-z\d])*)(\/[^]*)/i)[1];
+  model.curURLPath = urlPath;
   
   // Get all associated handlers
   var onLoad    = [];
@@ -458,9 +460,23 @@ function engine(url, cache) {
   req.send();
 }
 
-function isValidRoute(route) {
+function stripHash(urlPath) {
+  return urlPath.match(/^([^#]+)(?:#[^]*)?$/)[1];
+}
+
+function isValidRoute(route, newPath) {
   var urlPath = route.match(/https?:\/\/(?:[a-z\d](?:[a-z\d\-]*[a-z\d])*\.)+(?:[a-z\d](?:[a-z\d\-]*[a-z\d])*)(\/[^]*)/i)[1];
   var valid = true;
+  
+  if (!newPath) {
+    // Make sure it isn't a hash link
+    var rawPath    = stripHash(urlPath);
+    var curRawPath = stripHash(model.curURLPath);
+    
+    if (rawPath === curRawPath && urlPath !== model.curURLPath) {
+      return false;
+    }
+  }
   
   if (limitRoutes) {
     valid = false;
@@ -512,7 +528,7 @@ var curAnchor = false;
 var curHref   = null;
 
 function onWinMDown(e) {
-  if (!isValidRoute(document.location + ""))
+  if (!isValidRoute(document.location + "", true))
     return false;
   
   // Only start if main mouse button
@@ -556,7 +572,7 @@ function onWinMUp(e) {
 }
 
 function onWinKDown(e) {
-  if (!isValidRoute(document.location + ""))
+  if (!isValidRoute(document.location + "", true))
     return false;
   
   // Only start if Enter key
@@ -589,9 +605,10 @@ function onWinKDown(e) {
 
 function onPopstate(e) {
   if (model.enabled) {
-    model.inPopstate = true;
-    engine(document.location.toString(), e);
-    console.log("Reload");
+    if (isValidRoute(document.location + "")) {
+      model.inPopstate = true;
+      engine(document.location.toString(), e);
+    }
   } else {
     location.reload();
   }
