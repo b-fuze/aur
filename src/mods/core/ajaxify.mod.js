@@ -212,9 +212,10 @@ function engine(url, cache) {
         
         tmp.push(routeHandler[1]);
       }
-      
-      cur.push.apply(cur, tmp);
     }
+      
+    cur.push.apply(cur, tmp);
+    tmp = [];
     
     for (var i=0,l=neg.length; i<l; i++) {
       var routeHandler = neg[i];
@@ -238,9 +239,9 @@ function engine(url, cache) {
         
         tmp.push(routeHandler[1]);
       }
-      
-      cur.push.apply(cur, tmp);
     }
+      
+    cur.push.apply(cur, tmp);
     
     // Add general functions
     cur.push.apply(cur, gen.map(h => h[1]));
@@ -403,7 +404,7 @@ function engine(url, cache) {
       }
       
       loadingIndicator.visible = false;
-      // TODO: Finish this engine...
+      // Finished this engine...
     }
     
     // Check if we don't have a cache saved already
@@ -414,16 +415,19 @@ function engine(url, cache) {
         method: "GET",
         uri: urlPath,
         success() {
+          var cachedPages = model.cachedPages;
+          
           // Save to cache or replace older one
           if (cachedPage === -1) {
-            model.cachedPages.push(urlPath, this.responseText);
+            cachedPages.push(urlPath, this.responseText);
             
             // Prevent cache from occupying too much memory
-            model.cachedPages = model.cachedPages.slice(-maxPageCache);
+            if (cachedPages.length > maxPageCache)
+              model.cachedPages = cachedPages.slice(-maxPageCache);
           } else {
             // Remove and readd to the front
-            model.cachedPages.splice(cachedPage, 2);
-            model.cachedPages.push(urlPath, this.responseText);
+            cachedPages.splice(cachedPage, 2);
+            cachedPages.push(urlPath, this.responseText);
           }
           
           // Load the page
@@ -538,6 +542,7 @@ function onWinMDown(e) {
       curAnchor = anchor;
       curHref = anchor.href;
       
+      reg.interface.prototype.cancel();
       anchor.href = "javascript: void(0);";
       engine(curHref);
     }
@@ -572,6 +577,7 @@ function onWinKDown(e) {
       curAnchor = anchor;
       curHref = anchor.href;
       
+      reg.interface.prototype.cancel();
       engine(anchor.href);
       
       setTimeout(function() {
@@ -664,7 +670,6 @@ AUR.onLoaded("aur-ui", "aur-styles", function() {
     }
     
     .aur-ajaxify-loading-indicator .aur-busy-spinner {
-      content: unset !important;
       position: relative;
       display: inline-block;
       vertical-align: middle;
@@ -673,7 +678,11 @@ AUR.onLoaded("aur-ui", "aur-styles", function() {
       margin-left: 10px;
     }
     
-    .aur-ajaxify-loading-indicator.aur-ajaxify-spinner-visible .aur-busy-spinner {
+    .aur-ajaxify-loading-indicator .aur-busy-spinner::after {
+      content: unset !important;
+    }
+    
+    .aur-ajaxify-loading-indicator.aur-ajaxify-spinner-visible .aur-busy-spinner::after {
       content: "" !important;
     }
   `);

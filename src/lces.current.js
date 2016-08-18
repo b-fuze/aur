@@ -35,7 +35,7 @@ lces.rc[0] = function() {
     if (typeof src === "string" || typeof src === "number") {
       // "Locate" mode
       
-      var parent   = this === jSh.global ? document : (this instanceof Node || jSh.MockupElement && this instanceof jSh.MockupElement ? this : (lces.global.lcWidget && this instanceof lcWidget ? this.element : document));
+      var parent   = this === jSh.global ? document : (this instanceof Node || jSh.MockupElement && this instanceof jSh.MockupElement || this instanceof HTMLDocument ? this : (lces.global.lcWidget && this instanceof lcWidget ? this.element : document));
       var selector = jSh.determineSelector(src);
       var result   = jSh[selector](selector === "queryAll" || selector === "tag" || selector === "getChild" ? src : src.substr(1), parent, first);
       
@@ -81,7 +81,7 @@ lces.rc[0] = function() {
       // "Shorten" mode
       // In this mode «first» is referring to whether to enclose it in an lcWidget
       
-      var e = jSh.determineType(src);
+      var e = jSh.determineType(src, true);
       
       if (!e)
         return src;
@@ -626,11 +626,11 @@ lces.rc[0] = function() {
   }
 
   // For distinguishing between lcWidget and a Node instance
-  jSh.determineType = function(obj) {
+  jSh.determineType = function(obj, jShDetermine) {
     if (!obj)
       return false;
     
-    if (obj instanceof Node)
+    if (obj instanceof Node || obj instanceof HTMLDocument && jShDetermine)
       return obj;
     
     // MockupElement
@@ -756,6 +756,11 @@ lces.rc[2] = function() {
   // LCES JS code (Acronym Galore! :D)
   // On another note, these *LV* things might be useless...
   
+  // lces stats
+  lces.LCES = {
+    objectCount: 0
+  };
+  
   lces.global.LCESVar = function(n) {
     this.LCESVAR = true; // Might be needed in the future.
     this.id = n;
@@ -796,25 +801,19 @@ lces.rc[2] = function() {
     // AUCP Linked Component Event System I guess.
     // I like thinking up weird names, LCES is pronounced "Elsis" btw...
 
-    if (this.type)
+    if (this.__LCESCOMPONENT__)
       return true;
 
-    this.type = "LCES Component";
-    this.isLCESComponent = true;
-
     // Use this to distinguish between instanced LCES components
-    this.LCESID = LCES.components.length;
+    this.LCESID = ++lces.LCES.objectCount;
+    var that = this;
     
     // If noReference is on then it just appends null
-    LCES.components.push(lces.noReference ? null : this);
+    if (!lces.noReference)
+      LCES.components.push(this);
 
     this.states = {};
-
-    this.dataLinks = [];
-
     this.extensionData = []; // Data for extensions
-
-    var that = this;
 
     // Check if needs to add methods manually
     if (!(this instanceof lcComponent)) {
@@ -829,11 +828,13 @@ lces.rc[2] = function() {
         LCES.components[LCESName] = that;
     });
     this.addStateCondition("LCESName", function(LCESName) {
-      if (this.get()) {
-        if (this.get() === LCESName)
+      var curValue = this.get();
+      
+      if (curValue) {
+        if (curValue === LCESName)
           return false;
         
-        LCES.components[this.get()] = undefined;
+        LCES.components[curValue] = undefined;
       }
 
       return true;
@@ -855,11 +856,14 @@ lces.rc[2] = function() {
     // Add the event array
     this.events = [];
     
+    jSh.constProp(this, "__LCESCOMPONENT__", 1);
     return false; // Not being extended or anything, a new component.
   }
   
   jSh.extendObj(lcComponent.prototype, {
-    __lcComponent__: 1
+    __lcComponent__: 1,
+    type: "LCES Component",
+    isLCESComponent: true
   });
   
   lcComponent.prototype.constructor = lcComponent;

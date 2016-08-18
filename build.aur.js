@@ -401,7 +401,7 @@ AURHEAD = AURHEAD.replace(
 // Get LCES/jSh
 var lcesSrc = getFile(AURPATH + "src/lces.current.js", true);
 var lcesSrc = argValues.cat ? lcesSrc : uglify(lcesSrc);
-var lces    = `function lces(l){return LCES.components[l]};lces.rc = [];lces.loadedDeps = false;${ lcesSrc }lces.rc.forEach(f => f());${AUROptions.run_at === "doc-end" ? "lces.init();" : ""}\n`;
+var lces    = `function lces(l){return LCES.components[l]};lces.rc = [];lces.loadedDeps = false;${ lcesSrc }lces.rc.forEach(f => f());lces.noReference = true;${AUROptions.run_at === "doc-end" ? "lces.init();" : ""}\n`;
 
 // Uglify this stuff if necessary
 var result = argValues.cat ? AURSRC : uglify(AURSRC);

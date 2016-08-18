@@ -50,7 +50,7 @@ AUR.lces = lces;
 
 // Initial check for AUR settings
 var AURStorageFunc = typeof GM_getValue === "function" ? GM_getValue : localStorage.getItem.bind(localStorage);
-var AURUserSett = jSh.parseJSON(AURStorageFunc("aur-db-global"));
+var AURUserSett = jSh.parseJSON(AURStorageFunc("aur-db-global-aur-sett"));
 var AURUserModSett;
 
 if (AURUserSett && AURUserSett["aur-sett-db"]) {
