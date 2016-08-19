@@ -528,7 +528,7 @@ var curAnchor = false;
 var curHref   = null;
 
 function onWinMDown(e) {
-  if (!isValidRoute(document.location + "", true))
+  if (!isValidRoute(document.location + "", true) || e.ctrlKey || e.altKey || e.shiftKey)
     return false;
   
   // Only start if main mouse button
