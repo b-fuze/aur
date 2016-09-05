@@ -1,7 +1,7 @@
 // AUR-Database Source
 AUR_NAME = "AUR DB";
 AUR_DESC = "AUR Database API";
-AUR_VERSION = [0, 1];
+AUR_VERSION = [0, 1, 3];
 AUR_AUTHORS = ["Mike32 (b-fuze)", "TDN (Samu)"];
 
 AUR_RESTART = true;
@@ -24,34 +24,36 @@ var dbSetFunc   = typeof GM_setValue === "function" ? GM_setValue : localStorage
 AUR.onLoaded("aur-ui-prefs", "aur-ui", "aur-ui-components", function() {
   var uiComp = AUR.import("aur-ui-components");
   
-  reg.ui.textProp(null, 5, {
-    data: "Clear database"
-  });
-  
-  reg.ui.buttonProp(null, 7, {
-    fill: true
-  }).addButton("Clear", function() {
-    uiComp.confirm({
-      text: "Are you sure you want to clear the complete AUR-Database? You'll lose any settings and saved/cached data, and the effect won't be reversible.",
-      yes: function() {
-       var namespaces = dbBuffer.__namespaces;
-       
-       dbBuffer = {__namespaces: []};
-       updateDB();
-       
-       for (var i=0,l=namespaces.length; i<l; i++) {
-         var ns = namespaces[i];
-         var NSDBName = dbName + "-" + ns;
-         
-         dbNSBuffers[ns + "db"] = emptyDBNS;
-         updateDB(NSDBName, {});
-       }
-      },
-      no: function() {
-        // Nothing to do here
-      }
+  if (uiComp && reg.ui) {
+    reg.ui.textProp(null, 5, {
+      data: "Clear database"
     });
-  });
+    
+    reg.ui.buttonProp(null, 7, {
+      fill: true
+    }).addButton("Clear", function() {
+      uiComp.confirm({
+        text: "Are you sure you want to clear the complete AUR-Database? You'll lose any settings and saved/cached data, and the effect won't be reversible.",
+        yes: function() {
+         var namespaces = dbBuffer.__namespaces;
+         
+         dbBuffer = {__namespaces: []};
+         updateDB();
+         
+         for (var i=0,l=namespaces.length; i<l; i++) {
+           var ns = namespaces[i];
+           var NSDBName = dbName + "-" + ns;
+           
+           dbNSBuffers[ns + "db"] = emptyDBNS;
+           updateDB(NSDBName, {});
+         }
+        },
+        no: function() {
+          // Nothing to do here
+        }
+      });
+    });
+  }
 });
 
 // Get DB current state to check

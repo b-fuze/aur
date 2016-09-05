@@ -10,7 +10,7 @@
 //
 AUR_NAME = "AUR UI";
 AUR_DESC = "AUR UI API";
-AUR_VERSION = [0, 1];
+AUR_VERSION = [0, 2, 5];
 AUR_AUTHORS = ["Mike32 (b-fuze)"];
 AUR_RESTART = true;
 AUR_INTERFACE = "auto";
@@ -94,7 +94,8 @@ function RegisterWin(name, title, options) {
   });
   
   aurwin.addStateListener("visible", function(visible) {
-    that.states.visible.stateStatus = visible;
+    // that.states.visible.stateStatus = visible;
+    that.visible = visible;
   });
   
   // Make title container for close button

@@ -240,9 +240,7 @@ function loadAUROptions(fpath) {
     
     // Check if runtime args should be changed
     if (jSh.type(defOptions.excl) === "array")
-      argValues.excl = argValues.excl.concat(defOptions.excl.map(f => {
-        return absPathUtil(f, dir);
-      }));
+      argValues.excl = argValues.excl.concat(defOptions.excl);
     
     if (jSh.type(defOptions.incl) === "array")
       argValues.incl = argValues.incl.concat(defOptions.incl.map(f => {
@@ -263,7 +261,7 @@ function loadAUROptions(fpath) {
 }
 
 // Check extra module folders for modules
-function checkDirectory(fpath) {
+function checkDirectory(fpath, loadOptions) {
   var validModName = /[a-z\-\d]+\.mod\.js/;
   
   if (fs.existsSync(fpath) && fs.statSync(fpath).isDirectory()) {
@@ -275,41 +273,43 @@ function checkDirectory(fpath) {
     var JSONOptions = fpath + "/aur-options.json";
     var options     = null;
     
-    if (fs.existsSync(coreFolder) && fs.statSync(coreFolder).isDirectory())
-      getFolder(coreFolder, coreModules);
-    
-    if (fs.existsSync(miscFolder) && fs.statSync(miscFolder).isDirectory())
-      getFolder(miscFolder, miscModules);
-    
-    if (fs.existsSync(JSONOptions) && fs.statSync(JSONOptions).isFile())
-      options = loadAUROptions(JSONOptions);
-    
-    // Check if userscript file provided and enabled
-    if (options && options.userscript) {
-      var usFilePath = absPathUtil(options.userscript_file, fpath);
+    if (loadOptions) {
+      if (fs.existsSync(JSONOptions) && fs.statSync(JSONOptions).isFile())
+        options = loadAUROptions(JSONOptions);
       
-      if (fs.existsSync(usFilePath) && fs.statSync(usFilePath).isFile()) {
-        AURHEAD += getFile(usFilePath, true);
-      }
-    }
-    
-    // Check root folder files for extra misc mods
-    contents.forEach(function(file) {
-      var itemPath = fpath + "/" + file;
-      
-      if (validModName.test(file) && fs.statSync(itemPath).isFile()) {
-        var name = mn(file);
-        miscModules.push(name);
+      // Check if userscript file provided and enabled
+      if (options && options.userscript) {
+        var usFilePath = absPathUtil(options.userscript_file, fpath);
         
-        if (!miscModules[name] && !coreModules[name]) {
-          miscModules[name] = itemPath;
-          return true;
-        } else {
-          logStatus("" + chalk.bold.red(name) + " - " + fpath, "[" + chalk.red("ERROR: MOD CONFLICT") + "] ");
-          process.exit();
+        if (fs.existsSync(usFilePath) && fs.statSync(usFilePath).isFile()) {
+          AURHEAD += getFile(usFilePath, true);
         }
       }
-    });
+    } else {
+      if (fs.existsSync(coreFolder) && fs.statSync(coreFolder).isDirectory())
+        getFolder(coreFolder, coreModules);
+      
+      if (fs.existsSync(miscFolder) && fs.statSync(miscFolder).isDirectory())
+        getFolder(miscFolder, miscModules);
+      
+      // Check root folder files for extra misc mods
+      contents.forEach(function(file) {
+        var itemPath = fpath + "/" + file;
+        
+        if (validModName.test(file) && fs.statSync(itemPath).isFile()) {
+          var name = mn(file);
+          miscModules.push(name);
+          
+          if (!miscModules[name] && !coreModules[name]) {
+            miscModules[name] = itemPath;
+            return true;
+          } else {
+            logStatus("" + chalk.bold.red(name) + " - " + fpath, "[" + chalk.red("ERROR: MOD CONFLICT") + "] ");
+            process.exit();
+          }
+        }
+      });
+    }
   } else {
     console.log(" " + chalk.bold(fpath) + chalk.red(" doesn't exist or is a file"));
   }
@@ -341,6 +341,11 @@ function uglify(src) {
     mangle: true
   }).code;
 }
+
+// Load any settings early
+argValues.mods.forEach(function(modDir) {
+  checkDirectory(absPathUtil(modDir), true);
+});
 
 // Get core files
 getFile(AURPATH + "src/aur.core.js");
@@ -386,8 +391,8 @@ coreModules.removalList.forEach((m, i, arr) => coreModules.splice(coreModules.in
 miscModules.removalList.forEach((m, i, arr) => miscModules.splice(miscModules.indexOf(m), 1));
 
 // Add module names
-AURSRC = AURSRC.replace(/AUR_EMPTYCORE/, '"' + coreModules.join('", "') + '"');
-AURSRC = AURSRC.replace(/AUR_EMPTYMISC/, '"' + miscModules.join('", "') + '"');
+AURSRC = AURSRC.replace(/AUR_EMPTYCORE/, coreModules.length ? '"' + coreModules.join('", "') + '"' : "");
+AURSRC = AURSRC.replace(/AUR_EMPTYMISC/, miscModules.length ? '"' + miscModules.join('", "') + '"' : "");
 AURSRC = AURSRC.replace(/AUR_BUILDNAME/, AUROptions.name);
 AURSRC = AURSRC.replace(/AUR_RUN_AT/, AUROptions.run_at);
 

@@ -1,7 +1,7 @@
 // AUR AJAX'ify module
 AUR_NAME = "AUR AJAX'ify";
 AUR_DESC = "AUR AJAX'ify API";
-AUR_VERSION = [0, 1];
+AUR_VERSION = [0, 1, 5];
 AUR_AUTHORS = ["Mike32 (b-fuze)"];
 AUR_RESTART = false;
 AUR_INTERFACE = "auto";
@@ -20,6 +20,9 @@ model.inPopstate = false;
 var ignoreAnchorAttr = "data-aur-ajaxify-ignore";
 
 // Max page cache for history, only set to an even number
+//
+// Will be half of the number, as it will be two indices per
+// entry, in the form of [[...,] URL, PAGE_SRC[, ...]]
 var maxPageCache = 50;
 
 // Constructor
@@ -28,7 +31,7 @@ reg.interface = function AJAXifyConstructor() {
   
   // Add enabled state
   this.ignoreAttr = ignoreAnchorAttr;
-  this.setState("enabled", false);
+  this.setState("enabled", model.enabled);
   model.addMember(this);
 };
 
@@ -437,7 +440,8 @@ function engine(url, cache) {
         },
         fail() {
           if (this.status === 0) // Browser denied with influence from a 3rd party source
-          document.location = "http://www.animeultima.io" + urlPath; // Force user to the location
+            // TODO: FIX THIS AND MAKE IT UNASSUMING
+            document.location = "http://www.animeultima.io" + urlPath; // Force user to the location
           else {
             // Do some... Kinda... Magic... Here...
           }
