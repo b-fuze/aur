@@ -36,9 +36,9 @@ function RegisterWin(name, title, options) {
   var tabs = [];
   var defaultGroup;
   
-  var aurwin   = new lcWindow();
-  var tabPanel = new lcWidget(jSh.d(".aur-ui-tabpanel"));
-  var tabPages = new lcWidget(jSh.d(".aur-ui-tabpages"));
+  var aurwin   = lces.new("window");
+  var tabPanel = lces.new("widget", jSh.d(".aur-ui-tabpanel"));
+  var tabPages = lces.new("widget", jSh.d(".aur-ui-tabpages"));
   
   this.tabPanel = tabPanel;
   this.tabPages = tabPages;
@@ -411,7 +411,7 @@ function RegisterTab(name, title, options) {
   }
   
   // Add custom LCES scrollbars
-  var pageWidget = jSh.extendObj(new lcComponent(), {
+  var pageWidget = jSh.extendObj(lces.new(), {
     element: mainPage,
     scrollbarContent: mainPage
   });
@@ -419,6 +419,15 @@ function RegisterTab(name, title, options) {
   
   var scrollbar  = pageWidget.lcesScrollbar;
   this.scrollbar = scrollbar;
+  
+  // Add space for scrollbar
+  scrollbar.on("scrollbarvisible", function(e) {
+    if (e.visible) {
+      mainPage.classList.add("aur-ui-scrollbar-visible");
+    } else {
+      mainPage.classList.remove("aur-ui-scrollbar-visible");
+    }
+  });
 }
 
 jSh.inherit(RegisterTab, lcComponent);
@@ -1190,33 +1199,32 @@ function Prop(options) {
     if (setting.type === "string") {
       if (options.color) {
         input = InputColorProp(null, inpWidth, {
-          link: "uiTest.lol",
-          align: "left"
+          link: "uiTest.lol"
         });
       } else {
         input = InputTextProp(null, inpWidth, jSh.extendObj(options, {
-          align: "left"
+          // align: "left"
         }));
       }
     } else if (setting.type === "number") {
       if (options.slider) {
         input = SliderProp(null, inpWidth, jSh.extendObj(options, {
-          align: "left"
+          // align: "left"
         }));
       } else {
         input = InputNumProp(null, inpWidth, jSh.extendObj(options, {
-          align: "left"
+          // align: "left"
         }));
       }
     } else if (setting.type === "boolean") {
       input = ToggleProp(null, inpWidth, jSh.extendObj(options, {
-        align: "left"
+        // align: "left"
       }));
     }
   } else {
     input = DropDownProp(null, inpWidth, {
       link: options.link,
-      align: "left"
+      // align: "left"
     });
   }
   
@@ -1453,6 +1461,10 @@ AUR.onLoaded(true, "aur-styles", "aur-settings", function() {
       height: 100%;
       box-sizing: border-box;
       overflow: auto;
+    }
+    
+    .aur-ui-tabpage.aur-ui-scrollbar-visible {
+      padding-right: 15px;
     }
     
     .aur-ui-tabpage-focus {

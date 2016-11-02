@@ -172,7 +172,10 @@ AUR.onLoaded(true, "aur-ui", "aur-settings", "aur-styles", function() {
   
   sett.on("aurSett.listCoreMods", function(e) {
     modsGroup.coreVisible = e.value;
-    modTab.scrollbar.update();
+    
+    setTimeout(function() {
+      modTab.scrollbar.update();
+    }, 10);
   });
   
   var coreMods = AUR.modules.core;
@@ -675,7 +678,4 @@ AUR.onLoaded(true, "aur-ui", "aur-settings", "aur-styles", function() {
       background: linear-gradient(to right, rgba(46, 37, 37, 0), #2E2525 30px) !important;
     }
   `);
-  
-  // TODO: Remove when done testing aur-ui
-  // prefs.visible = true;
 });

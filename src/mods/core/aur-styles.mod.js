@@ -37,7 +37,7 @@ function renderStyles() {
 
 // Style block constructor
 function AURStyleBlock(style, enabled) {
-  lcComponent.call(this);
+  lces.types.component.call(this);
   var that = this;
   
   styleBlocks.push(this);
@@ -60,7 +60,7 @@ function AURStyleBlock(style, enabled) {
   renderStyles();
 }
 
-jSh.inherit(AURStyleBlock, lces.type());
+jSh.inherit(AURStyleBlock, lces.types.component);
 
 // Style block methods
 AURStyleBlock.prototype.enable = function() {
@@ -71,22 +71,50 @@ AURStyleBlock.prototype.disable = function() {
   this.enabled = false;
 }
 
+// Import constructor
+function AURStyleImport(url, enabled) {
+  lces.types.component.call(this);
+  
+  var styleElement = jSh.c("link", {
+    sel: ".aur-imported-styles",
+    prop: {
+      type: "text/css",
+      rel: "stylesheet",
+      href: url
+    }
+  });
+  
+  this.setState("enabled", jSh.boolOp(enabled, true));
+  this.addStateListener("enabled", function(enabled) {
+    styleElement.disabled = !enabled;
+  });
+  
+  // Add to page
+  jSh("head")[0].appendChild(styleElement);
+}
+
+jSh.inherit(AURStyleImport, lces.type());
+
 function onChange() {
   renderStyles();
 }
 
 // aur-styles constructor interface
 regs.interface = function() {
-  
+  // Nothing to do here...
 }
 
 regs.interface.prototype.styleBlock = function(style, enabled) {
   return new AURStyleBlock(style, enabled);
 }
 
+regs.interface.prototype.import = function(url, enabled) {
+  return new AURStyleImport(url, enabled);
+}
+
 // Add important clause
 regs.interface.prototype.important = function(src) {
-  return src.replace(/([a-z\-\d]+\s*:\s*)([#\d\.\s,a-z()\-]+);/ig, function(m, p1, p2) {
+  return src.replace(/([a-z\-\d]+\s*:\s*)([#\d\.\s,a-z()%\-]+);/ig, function(m, p1, p2) {
     return p1 + p2 + " !important;";
   });
 };

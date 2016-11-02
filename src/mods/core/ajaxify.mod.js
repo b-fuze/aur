@@ -36,7 +36,7 @@ reg.interface = function AJAXifyConstructor() {
 };
 
 // Instance methods
-jSh.inherit(reg.interface, lces.type());
+jSh.inherit(reg.interface, lces.types.component);
 jSh.extendObj(reg.interface.prototype, {
   go(route) {
     if (!jSh.strOp(route, null) || !route)
@@ -49,7 +49,7 @@ jSh.extendObj(reg.interface.prototype, {
       }
     } else {
       this.cancel();
-      engine();
+      engine(route);
     }
   },
   
@@ -165,7 +165,7 @@ var limitRoutes = false;
 
 // AJAX'ify core engine
 function engine(url, cache) {
-  var urlPath = url.match(/https?:\/\/(?:[a-z\d](?:[a-z\d\-]*[a-z\d])*\.)+(?:[a-z\d](?:[a-z\d\-]*[a-z\d])*)(\/[^]*)/i)[1];
+  var urlPath = url.match(/^(?:https?:\/\/(?:[a-z\d](?:[a-z\d\-]*[a-z\d])*\.)+(?:[a-z\d](?:[a-z\d\-]*[a-z\d])*))?(\/[^]*)/i)[1];
   model.curURLPath = urlPath;
   
   // Get all associated handlers
@@ -373,7 +373,7 @@ function engine(url, cache) {
             if (breakIter)
               break;
           } catch(e) {
-            // Error at clearing stage
+            // Error at merging stage
             console.error("AJAX'ify Callback Error [onMerge]", e);
           }
         }
@@ -405,6 +405,7 @@ function engine(url, cache) {
             break;
         } catch(e) {
           // Error at loaded stage
+          console.error("AJAX'ify Callback Error [onLoad]", e);
         }
       }
       
@@ -440,8 +441,7 @@ function engine(url, cache) {
         },
         fail() {
           if (this.status === 0) // Browser denied with influence from a 3rd party source
-            // TODO: FIX THIS AND MAKE IT UNASSUMING
-            document.location = "http://www.animeultima.io" + urlPath; // Force user to the location
+            document.location = location.protocol + "//" + location.host + urlPath; // Force user to the location
           else {
             // Do some... Kinda... Magic... Here...
           }

@@ -296,7 +296,7 @@ function checkDirectory(fpath, loadOptions) {
       contents.forEach(function(file) {
         var itemPath = fpath + "/" + file;
         
-        if (validModName.test(file) && fs.statSync(itemPath).isFile()) {
+        if (!excld(file) && validModName.test(file) && fs.statSync(itemPath).isFile()) {
           var name = mn(file);
           miscModules.push(name);
           
