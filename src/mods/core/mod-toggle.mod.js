@@ -15,7 +15,7 @@ AUR.onLoaded("aur-settings", function() {
 });
 
 reg.interface = function(register) {
-  lces.type("component").call(this);
+  lces.types.component.call(this);
   var that = this;
   
   jSh.extendObj(this, {
@@ -50,7 +50,7 @@ reg.interface = function(register) {
   }
 };
 
-jSh.inherit(reg.interface, lces.type());
+jSh.inherit(reg.interface, lces.types.component);
 
 // Append necessary properties
 jSh.extendObj(reg.interface.prototype, {

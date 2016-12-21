@@ -33,7 +33,8 @@ function RegisterWin(name, title, options) {
   lcGroup.call(this);
   var that = this;
   
-  var tabs = [];
+  var tabs   = [];
+  var groups = [];
   var defaultGroup;
   
   var aurwin   = lces.new("window");
@@ -193,6 +194,10 @@ function RegisterWin(name, title, options) {
          : findTab(name);
   }
   
+  this.getGroup = function(name) {
+    return groups[name] || null;
+  }
+  
   this.add = function(tab) {
     if (tab instanceof RegisterTab || tab instanceof RegisterGroup) {
       tabs[tab.name] = tab;
@@ -263,6 +268,9 @@ function RegisterWin(name, title, options) {
     if (options.defaultGroup)
       defaultGroup = group;
     
+    // TODO: MAKE THIS UPDATE WHEN YOU REMOVE THE GROUP
+    groups[name] = group;
+    
     tabs.push(group);
     group.window = this;
     
@@ -270,7 +278,7 @@ function RegisterWin(name, title, options) {
   }
 }
 
-jSh.inherit(RegisterWin, lcGroup);
+jSh.inherit(RegisterWin, lces.types.group);
 
 var tabCount = 0, tabMap = {};
 
@@ -430,7 +438,7 @@ function RegisterTab(name, title, options) {
   });
 }
 
-jSh.inherit(RegisterTab, lcComponent);
+jSh.inherit(RegisterTab, lces.types.component);
 
 var groupCount = 0, groupMap = {};
 
@@ -467,7 +475,7 @@ function RegisterGroup(name, title, options) {
         this.oldStateStatus.renderTabs();
         
         for (var i=0,l=tabs.length; i<l; i++) {
-          win._removeTab(tabs[i].name);
+          this.oldStateStatus._removeTab(tabs[i].name);
           this.oldStateStatus.tabPages.removeChild(tabs[i].mainPage);
         }
       }
@@ -533,7 +541,7 @@ function RegisterGroup(name, title, options) {
   }
 }
 
-jSh.inherit(RegisterGroup, lcComponent);
+jSh.inherit(RegisterGroup, lces.types.component);
 
 // Private propcount
 var propCount = 0;
@@ -628,7 +636,7 @@ function EmptyProp(name, width, options) {
   this.linebreak = options.linebreak;
 }
 
-jSh.inherit(EmptyProp, lcComponent);
+jSh.inherit(EmptyProp, lces.types.component);
 
 // Group Property
 function GroupProp(name, width, options) {
@@ -1198,9 +1206,9 @@ function Prop(options) {
   if (!setting.multipleValues) {
     if (setting.type === "string") {
       if (options.color) {
-        input = InputColorProp(null, inpWidth, {
-          link: "uiTest.lol"
-        });
+        input = InputColorProp(null, inpWidth, jSh.extendObj(options, {
+          // align: "left"
+        }));
       } else {
         input = InputTextProp(null, inpWidth, jSh.extendObj(options, {
           // align: "left"
@@ -1227,6 +1235,11 @@ function Prop(options) {
       // align: "left"
     });
   }
+  
+  // Link disabled state between label and input
+  input.addStateListener("disabled", function(disabled) {
+    label.disabled = disabled;
+  });
   
   input.label = label;
   return input;

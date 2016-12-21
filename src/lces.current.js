@@ -1,4 +1,4 @@
- 
+
 
 // jShorts 2 Code
 //
@@ -31,7 +31,7 @@ lces.rc[0] = function() {
     });
 
   // Main DOM Manipulation function
-  lces.global.jSh = function jSh(src, first) {
+  lces.global.jSh = function jSh(src, first, test) {
     var parent, doc, result;
     
     if (typeof src === "string") {
@@ -69,38 +69,30 @@ lces.rc[0] = function() {
       
       // Shorten them
       if (result) {
-        if (result instanceof Array) {
-          for (var i=result.length-1; i>-1; i--) {
-            var elm = result[i];
-      
-            if (!elm.jSh) {
-              elm.getParent = getParent;
-              elm.getChild  = getChild;
-              elm.css       = setCSS;
-              elm.on        = onEvent;
-              elm.jSh       = jSh;
-      
-              // Improve append and removechild methods
-              elm.__apch = elm.appendChild;
-              elm.__rmch = elm.removeChild;
-      
-              elm.appendChild = jSh.elementExt.appendChild;
-              elm.removeChild = jSh.elementExt.removeChild;
-            }
+        var shortenedResult;
+        
+        if (result instanceof Array)
+          shortenedResult = result;
+        else
+          shortenedResult = [result];
+        
+        for (var i=shortenedResult.length-1; i>=0; i--) {
+          var elm = shortenedResult[i];
+          
+          if (!elm.jSh) {
+            elm.getParent = getParent;
+            elm.getChild  = getChild;
+            elm.css       = setCSS;
+            elm.on        = onEvent;
+            elm.jSh       = jSh;
+            
+            // Improve append and removechild methods
+            elm.__apch = elm.appendChild;
+            elm.__rmch = elm.removeChild;
+            
+            elm.appendChild = jSh.elementExt.appendChild;
+            elm.removeChild = jSh.elementExt.removeChild;
           }
-        } else if (!result.jSh) {
-          result.getParent = getParent;
-          result.getChild  = getChild;
-          result.css       = setCSS;
-          result.on        = onEvent;
-          result.jSh       = jSh;
-      
-          // Improve append and removechild methods
-          result.__apch = result.appendChild;
-          result.__rmch = result.removeChild;
-      
-          result.appendChild = elementExt.appendChild;
-          result.removeChild = elementExt.removeChild;
         }
       }
       
@@ -154,23 +146,23 @@ lces.rc[0] = function() {
   }
   
   jSh.pushItems = function(array) {
-    var items = jSh.toArr(arguments);
+    var items = jSh.toArr(arguments).slice(1);
     
-    items.forEach(function(i) {
-      array.push(i);
-    });
+    for (var i=0,l=items.length; i<l; i++) {
+      array.push(items[i]);
+    }
   }
   
   // Remove multiple items from an array
   jSh.spliceItem = function(array) {
     var items = jSh.toArr(arguments).slice(1);
     
-    items.forEach(function(i) {
-      var index = array.indexOf(i);
+    for (var i=0,l=items.length; i<l; i++) {
+      var index = array.indexOf(items[i]);
       
       if (index !== -1)
         array.splice(index, 1);
-    });
+    }
   }
 
   // Convert array-like object to an array
@@ -202,7 +194,7 @@ lces.rc[0] = function() {
   jSh.extendObj = function(obj, extension, exclude) {
     var objNames = Object.getOwnPropertyNames(extension);
     
-    for (var i=objNames.length; i>-1; i--) {
+    for (var i=objNames.length-1; i>-1; i--) {
       var name = objNames[i];
       
       if (!exclude || exclude.indexOf(name) === -1)
@@ -448,7 +440,7 @@ lces.rc[0] = function() {
       }
     }
     
-    return jSh(n);
+    return jSh.shorten(n);
   };
 
   // Create a 'type' DOM element with flexible nesting system
@@ -610,18 +602,22 @@ lces.rc[0] = function() {
     appendChild: function() {
       var children = jSh.toArr(arguments);
       
-      if (jSh.type(children[0]) === "array")
+      if (children[0] instanceof Array)
         children = children[0];
       
       for (var i=0,l=children.length; i<l; i++) {
         this.__apch(children[i]);
       }
     },
+    
     removeChild: function() {
       var children = jSh.toArr(arguments);
       
       if (children[0] instanceof Array)
         children = children[0];
+      
+      if (typeof this.__rmch !== "function")
+        console.log({x: this}, this.__rmch, this.__apch);
       
       for (var i=children.length-1; i>-1; i--) {
         this.__rmch(children[i]);
@@ -635,7 +631,7 @@ lces.rc[0] = function() {
   }
   
   // Determine selector in the string
-  jSh.isID    = /^#[\w-]+$/;
+  jSh.isID    = /^#[\w\-]+$/;
   jSh.isClass = /^\.[a-zA-Z\d\-_]+$/;
   jSh.isTag   = /^[a-zA-Z\d\-]+$/;
   jSh.isPH    = /^~[a-zA-Z\d\-_]+$/; // LCES Templating, placeholder element
@@ -1816,8 +1812,8 @@ function lcesAppendCSS(className, css, before) {
 }
 
 // Will be amended by LCES builder
-lcesAppendCSS("lces-core-styles", ".abs-fill,.lces-togglebox::before,.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner,.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner::before,.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner .lces-togglebox-text{position:absolute;top:0px;left:0px;bottom:0px;right:0px}.lces-themify{font-family:Arial}br2{position:relative;display:block;padding:0px;margin:0px;height:10px}.lces-themify hr{border-top:0px;border-style:solid;opacity:0.75}.lces-themify a{font-weight:normal;text-decoration:none}.lces-themify label{font-weight:bold}@font-face{font-family:\"CODE\";src:url(http://b-fuze.github.io/lces/main-css/codebold.otf)}@font-face{font-family:\"Lato\";src:url(http://b-fuze.github.io/lces/main-css/lato-reg.ttf)}@font-face{font-family:\"Righteous\";src:url(http://b-fuze.github.io/lces/main-css/righteous.ttf)}@font-face{font-family:\"Couture\";src:url(http://b-fuze.github.io/lces/main-css/couture-bld.otf)}.lces-themify h1,.lces-themify h2,.lces-themify h3,.lces-themify h4,.lces-themify h5,.lces-themify h6{margin:0px;margin-bottom:10px;font-family:Lato;font-weight:normal}.lces-themify h1{font-size:2.25em}.lces-themify h2{font-size:2em}.lces-themify h3{font-size:1.75em}.lces-themify h4{font-size:1.5em}.lces-themify h5{font-size:1.25em}.lces-themify h6{font-size:1.125em}.lces-themify .lc-i{font-style:italic}.lces-themify .lc-b{font-weight:bold}.lces-themify .lc-centertext{text-align:center}.lces-themify .lc-indent{margin-left:15px;margin-right:15px}.lces-themify .lc-inlineblock{display:inline-block}.lces-text-quote{display:block;background:rgba(0,0,0,0.25);padding:7px 10px;margin:5px 0px}.lces-scrollbar-screen{position:fixed;z-index:99999999999;top:0px;left:0px;width:100%;height:100%;display:none}.lces-scrollbar-screen.lces-sb-screen-visible{display:block}.lces-scrollbars-visible *:hover>.lces-scrollbar-trough,.lces-scrollbars-visible .lces-scrollbar-trough.active{opacity:0.75}.lces-scrollbars-visible .lces-scrollbar-trough{opacity:0.5}.lces-scrollbar{position:absolute;width:100%}.lces-scrollbar-trough{position:absolute;top:0px;bottom:0px;width:6px;background:rgba(0,0,0,0.075);opacity:0;transition:opacity 200ms ease-out, width 200ms ease-out}.lces-scrollbar-trough:hover,.lces-scrollbar-trough.active{width:9px}.lces-scrollbar-trough.lc-sbright{right:0px}.lces-scrollbar-trough.lc-sbleft{left:0px}lces-placeholder{display:none}.lcescontrol{position:relative;opacity:1;transition:opacity 200ms ease-out}.lcescontrol[disabled]{opacity:0.5;cursor:default !important}.lcescontrol[disabled] *{pointer-events:none;cursor:default !important}.lcescontrol .lcescontrolclick{position:absolute;left:0px;top:0px;right:0px;bottom:0px;z-index:1000;display:none}.lces-themify *::-webkit-input-placeholder,.lces-themify *:-moz-placeholder,.lces-themify *::-moz-placeholder,.lces-themify *:-ms-input-placeholder{color:#BFBFBF;font-style:italic;font-weight:normal}.lces-numberfield::-webkit-input-placeholder{font-style:normal}.lces-numberfield:-moz-placeholder{font-style:normal}.lces-numberfield::-moz-placeholder{font-style:normal}.lces-numberfield:-ms-input-placeholder{font-style:normal}input.lces[type=\"text\"],input.lces[type=\"password\"]{vertical-align:middle}input.lces[type=\"text\"],input.lces[type=\"password\"],textarea.lces{padding:3px;min-width:150px;height:auto;outline:0px;border:2px solid #000;border-radius:3px;color:#262626;background-color:#fff;font-size:14px;font-family:\"Trebuchet MS\";resize:none}input.lces[type=\"text\"]:disabled,input.lces[type=\"password\"]:disabled{background-color:#F2F2F2}.numberfield-container{position:relative;display:inline-block}input.lces.lces-numberfield{font-size:14px;font-weight:bold;text-align:center;border-right-width:16px;border-top-right-radius:4px;border-bottom-right-radius:4px}.numberfield-container .arrow{width:16px;height:50%;position:absolute;right:0px;cursor:pointer;background:transparent}.numberfield-container .arrow.active{background:rgba(0,0,0,0.1)}.numberfield-container .arrow svg{position:absolute;top:0px;right:0px;bottom:0px;left:0px;margin:auto auto;opacity:0.85;transition:opacity 200ms ease-out}.numberfield-container .arrow:hover svg{opacity:1}.numberfield-container .arrow.top{top:0px;border-top-right-radius:4px}.numberfield-container .arrow.bottom{bottom:0px;border-bottom-right-radius:4px}.lces-slider{position:relative;top:-3px;vertical-align:middle;display:inline-block;border:2px solid #000;border-radius:5px;height:28px;width:138px;overflow:hidden;background:#fff;line-height:normal}.lces-slider-min,.lces-slider-max,.lces-slider-value{position:absolute;top:4px;font-family:Righteous;font-size:16px;color:#D9D9D9}.lces-slider-min{left:5px}.lces-slider-max{right:5px}.lces-slider-value{right:0px;left:0px;text-align:center;color:#f00;opacity:0.25}.lces-slider-scrubbar{position:absolute;top:0px;right:0px;bottom:0px;left:0px}.lces-slider-scrubber{position:absolute;top:1px;left:0px;margin:0px 0px 0px 1px;width:15px;height:26px;border-radius:3.5px;background:#000;opacity:0.75;transition:opacity 250ms ease-out}.lces-slider.animated .lces-slider-scrubber{transition:opacity 250ms ease-out,left 150ms cubic-bezier(0.1, 0.41, 0, 0.99)}.lces-slider-scrubbar:hover .lces-slider-scrubber,.lces-slider.scrubbing .lces-slider-scrubber{opacity:1}#lces-colorchoosermodalcontainer{position:fixed;z-index:999999999;top:0px;left:0px;right:0px;bottom:0px;transform:translateX(-100%);-webkit-transform:translateX(-100%);transition:transform 0ms linear 250ms}#lces-colorchoosermodalcontainer.visible{transition:transform 0ms linear 0ms;transform:translateX(0px);-webkit-transform:translateX(0px)}.lces-colorchooser{position:relative;top:-3px;vertical-align:middle;display:inline-block}.lces-colorchooser .lces-cc-display{display:inline-block;height:26px;width:46px;border-radius:4px;border:2px solid #000}.lces-colorchooser .lces-cc-color{margin:4px;width:38px;height:18px;border-radius:1px;background:#000;cursor:pointer}.lces-colorchooser-modal{position:absolute;z-index:20000000;top:0px;left:0px;margin:5px 0px 0px 0px;border-radius:5px;background:rgba(255,255,255,0.95);overflow:hidden;box-shadow:0px 2px 5px rgba(0,0,0,0.25);opacity:0;transform-origin:0% 0%;transform:scale(0.85);transition:transform 150ms cubic-bezier(0.31, 0.26, 0.1, 0.92),opacity 150ms cubic-bezier(0.31, 0.26, 0.1, 0.92)}.lces-colorchooser-modal.flipped{margin:0px;transform-origin:0% 100%}.lces-colorchooser-modal.visible{opacity:1;transform:scale(1)}.lces-colorchooser-modal .lces-cc-section{padding:15px}.lces-colorchooser-modal .lces-cc-section.lces-cc-controls{padding-top:0px;padding-bottom:0px;background:#F2F2F2}.lces-colorchooser-modal .lces-cc-wheel{position:relative;width:180px;height:180px;border-radius:100%;background-color:#F2F2F2;background-size:100%}.lces-colorchooser-modal .lces-cc-wheel-value{position:absolute;left:0px;top:0px;width:100%;height:100%;border-radius:100%;background:#000;opacity:0}.lces-colorchooser-modal .lces-cc-cursor{position:absolute;width:10px;height:10px;border-radius:100%;background:#fff;border:1px solid #000}.lces-colorchooser-modal .lces-cc-row{overflow:auto}.lces-colorchooser-modal .lces-cc-label{float:left;display:block;width:16px;font-family:Couture;font-size:25px;color:#808080;background:#e5e5e5;padding:10px 7px 5px 7px;cursor:default;margin-right:10px}.lces-colorchooser-modal .lces-slider{margin-top:7px;border-width:1px;outline:0px !important}.lces-file *{cursor:pointer !important}.lces-file input[type=\"file\"]{position:absolute;margin:0px;width:100%;height:100%;opacity:0;z-index:5;cursor:pointer !important}.lces-file{position:relative;display:block;padding:0px 33px 0px 0px;height:36px;width:123px;border-radius:3px;background-color:#000;font-family:Arial;font-weight:bold;font-size:14px;cursor:pointer !important}.lces-file>div{position:absolute;top:0px;left:0px;right:33px;bottom:0px}.lces-file>div>div{display:table;width:100%;height:100%}.lces-file>div>div>div{display:table-cell;vertical-align:middle}.lces-file>div>div>div>div{text-align:center;color:#fff}.lces-file>aside{position:absolute;right:0px;top:0px;bottom:0px;padding:8px;border-top-right-radius:3px;border-bottom-right-radius:3px;background:rgba(0,0,0,0.25);transition:background 200ms ease-out}.lces-file:hover>aside{background:rgba(0,0,0,0.15)}.lces-file:active>aside{background:rgba(0,0,0,0.5)}.lces-themify button{position:relative;font-family:Arial;font-size:14px;font-weight:bold;outline:0px;border-radius:3px;margin:0px 10px 10px 0px;padding:5px 10px;border:0px;color:#fff;background:#000;cursor:pointer}.lces-themify button:before,.lces-file:after{content:\"\";position:absolute;top:0px;left:0px;width:100%;height:100%;border-radius:3px;background:rgba(255,255,255,0);transition:background 100ms ease-out}.lces-themify button:hover:before,.lces-file:hover:after{background:rgba(255,255,255,0.2)}.lces-themify button:active:before,.lces-file:active:after{background:rgba(0,0,0,0.075);transition:background 0ms ease-out !important}.lcesradio{position:relative;top:1px;width:12px;height:11px;margin:2px;display:inline-block}.lcesradio .radiobuttoncolor{fill:#000}.lcesradio svg path:last-child{opacity:0;transition:opacity 150ms ease-out}.lcesradio[checked] svg path:last-child{opacity:1}.lcescheckbox{position:relative;vertical-align:middle;width:14px;height:14px;margin:2px;display:inline-block}.lcescheckbox .checkboxcolor{fill:#000}.lcescheckbox svg path:last-child{opacity:0;transition:opacity 150ms ease-out}.lcescheckbox[checked] svg path:last-child{opacity:1}.lces-togglebox{display:inline-block;position:relative;width:68px;height:34px;border-radius:5px;overflow:hidden;user-select:none;-webkit-user-select:none;-moz-user-select:none}.lces-togglebox::before{content:\"\";z-index:6;border-radius:5px;opacity:1;background:rgba(0,0,0,0.15);transition:opacity 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92)}.lces-togglebox.checked::before{opacity:0}.lces-togglebox.checked .lces-togglebox-handle{-webkit-transform:translateX(34px);-moz-transform:translateX(34px);-ms-transform:translateX(34px);-o-transform:translateX(34px);transform:translateX(34px)}.lces-togglebox,.lces-togglebox *{cursor:default !important}.lces-togglebox .lces-togglebox-handle{position:absolute;z-index:10;left:0px;top:0px;-webkit-transform:translateX(0px);-moz-transform:translateX(0px);-ms-transform:translateX(0px);-o-transform:translateX(0px);transform:translateX(0px);height:100%;width:34px;transition:-webkit-transform 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92) , -moz-transform 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92) , -ms-transform 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92) , -o-transform 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92) , transform 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92)}.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner{margin:2px;z-index:10;border-radius:4px;overflow:hidden}.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner::before{content:\"\";z-index:5;border-radius:4px;background:#fff;opacity:1}.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner .lces-togglebox-text{z-index:10;bottom:auto;line-height:30px;text-align:center;font-size:10px}.lces-dropdown-screen{position:fixed;z-index:9999999999;top:0px;right:0px;bottom:0px;left:0px;transform:translate3d(-100%, 0px, 0px)}.lces-dropdown-screen.visible{transform:translate3d(0px, 0px, 0px)}.lces-dropdown-screen .lcesdropdown{position:absolute;top:0px;left:0px;right:auto;bottom:auto;margin:0px;border-color:transparent !important;background:transparent !important}.lces-dropdown-screen .lcesdropdown .lcesselected,.lces-dropdown-screen .lcesdropdown .lcesdropdown-arrow{opacity:0 !important}.lcesdropdown{position:relative;vertical-align:middle;top:-3px;margin:0px;display:inline-block;min-width:98px;padding:3px;border:2px solid #000;border-width:2px 27px 2px 2px;border-radius:3px;text-align:left;font-size:14px;font-weight:bold;line-height:1.2;background:#fff;cursor:default}.lcesdropdown .lcesdropdown-arrow{position:absolute;top:0px;bottom:0px;margin:auto 0px;right:-18px;height:6px;width:10px}.lcesdropdown .lcesdropdown-arrow svg{position:absolute;transform:scaleY(1.2)}.lcesdropdown .lcesoptions{position:absolute;z-index:600000;top:100%;left:-2px;right:-27px;border:0px solid #000;border-width:2px;border-bottom-right-radius:3px;border-bottom-left-radius:3px;font-weight:bold;background:#fff;box-shadow:0px 2px 3px rgba(0,0,0,0.2);transform-origin:50% 0%;transform:scale(0.9);opacity:0;transition:transform 200ms cubic-bezier(0.31, 0.26, 0.1, 0.92),opacity 200ms cubic-bezier(0.31, 0.26, 0.1, 0.92)}.lcesdropdown.visible .lcesoptions{opacity:1;transform:scale(1)}.lcesdropdown.flipped .lcesoptions{transform-origin:50% 100%;top:auto;bottom:100%;border-radius:0px;border-top-right-radius:3px;border-top-left-radius:3px}.lcesoption{position:relative;padding:3px;margin-bottom:1px;background:transparent;color:#484848;transition:background-color 200ms ease-out}.lcesoption:after{position:absolute;content:\"\";top:100%;left:2px;right:2px;height:1px;background:#000;opacity:0.5}.lcesoption:hover,.lcesoption[lces-selected]{background:rgba(0,0,0,0.05)}.lcesoption:last-child{margin-bottom:0px}.lcesoption:last-child:after{height:0px}.lces-themify table{border-spacing:0px;font-family:Arial}table.lces thead th{position:relative;border:0px;border-top:3px solid #000;border-bottom:3px solid #000;padding:7px 10px;font-size:13px}table.lces thead th:before{position:absolute;content:\"\";left:0px;top:10%;bottom:10%;width:1px;background:#000}table.lces thead th:first-child:before{width:0px}table.lces tr{padding:0px;margin:0px;border:0px;background:#fff}table.lces tr td{border:0px;padding:10px}.lces-window{position:fixed;z-index:1000000;top:0px;left:0px;opacity:0;color:#484848;line-height:1.6;transition:opacity 250ms ease-out}.lces-window[visible]{opacity:1}.lces-window[window-invisible]{margin-left:-9999999%}.lces-window>div{padding:0px}.lces-window>div>div{background:#fff;overflow:hidden;border-radius:4px;box-shadow:0px 2px 5px rgba(0,0,0,0.25)}.lces-window .lces-window-title{padding:15px 10px;font-family:Arial;font-size:14px;font-weight:bold;color:#000;background:rgba(0,0,0,0.1);cursor:default}.lces-window .lces-window-contents{padding:25px 20px 30px 20px}.lces-window .lces-window-buttonpanel{padding:10px;text-align:right;background:rgba(0,0,0,0.1)}.lces-window .lces-window-buttonpanel button{margin-bottom:0px}.lces-window .lces-window-buttonpanel button:last-child,.lces-window .lces-window-buttonpanel div:last-child button{margin:0px}.lces-notification{border-radius:3px;position:static;width:300px;box-shadow:0px 2px 3px rgba(0,0,0,0.2);cursor:default}.lces-notification[visible]{opacity:0.95}.lces-notification>div{padding:0px;margin:4px 0px;border:1px solid #000;border-radius:3px;background:#fff;overflow:hidden;transition:height 400ms cubic-bezier(0.31, 0.26, 0.1, 0.92)}.lces-window.lces-notification>div>div{background:rgba(0,0,0,0.025);box-shadow:none}.notification-alignment.notifi-relative .lces-notification>div{margin:0px !important}.notification-alignment{position:fixed;z-index:1000000}.notification-alignment.notifi-relative{position:static !important}.notifi-top{top:5px}.notifi-bottom{bottom:5px}.notifi-middle{top:45%}.notifi-right{right:5px;text-align:right}.notifi-left{left:5px}.notifi-center{margin-right:auto;margin-left:auto;left:0px;right:0px;text-align:center;width:0px}.notifi-center .lces-window.lces-notification{transform:translate(-50%)}.notifi-center .lces-notification{margin-right:auto;margin-left:auto}.lces-accordion{display:block;margin:0px 0px 10px 0px}.lces-accordion .lces-acc-section{display:block;border:1px solid rgba(0,0,0,0.25);border-radius:3px;overflow:hidden;margin:0px 0px 5px 0px}.lces-accordion .lces-acc-section .lces-acc-title{display:block;padding:5px;font-weight:bold;font-size:13px;background:rgba(0,0,0,0.25);border:0px;border-bottom:0px solid rgba(0,0,0,0.05);cursor:pointer}.lces-accordion .lces-acc-section.lces-acc-open .lces-acc-title{border-bottom-width:1px}.lces-accordion .lces-acc-section .lces-acc-title .lces-acc-arrow{position:relative;top:3px;display:inline-block;width:15px;height:15px;transform:rotate(0deg);padding:0px;margin:0px;margin-right:5px;transition:transform 500ms cubic-bezier(0.1, 0.41, 0, 0.99)}.lces-accordion .lces-acc-section.lces-acc-open .lces-acc-title .lces-acc-arrow{transform:rotate(90deg)}.lces-accordion .lces-acc-section .lces-acc-title .lces-acc-arrow svg{margin:0px}.lces-accordion .lces-acc-section .lces-acc-contents>div{padding:10px}.lces-accordion .lces-acc-section .lces-acc-contents{overflow:hidden;height:0px;transition:height 500ms cubic-bezier(0.1, 0.41, 0, 0.99)}.lces-accordion .lces-acc-section.lces-acc-open .lces-acc-contents{overflow:auto}\n", document.getElementsByClassName("lces-themify-styles")[0]);
-lcesAppendCSS("lces-responsive-styles", ".abs-fill,.lces-togglebox::before,.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner,.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner::before,.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner .lces-togglebox-text{position:absolute;top:0px;left:0px;bottom:0px;right:0px}.lces-themify{font-family:Arial}br2{position:relative;display:block;padding:0px;margin:0px;height:10px}.lces-themify hr{border-top:0px;border-style:solid;opacity:0.75}.lces-themify a{font-weight:normal;text-decoration:none}.lces-themify label{font-weight:bold}@font-face{font-family:\"CODE\";src:url(http://b-fuze.github.io/lces/main-css/codebold.otf)}@font-face{font-family:\"Lato\";src:url(http://b-fuze.github.io/lces/main-css/lato-reg.ttf)}@font-face{font-family:\"Righteous\";src:url(http://b-fuze.github.io/lces/main-css/righteous.ttf)}@font-face{font-family:\"Couture\";src:url(http://b-fuze.github.io/lces/main-css/couture-bld.otf)}.lces-themify h1,.lces-themify h2,.lces-themify h3,.lces-themify h4,.lces-themify h5,.lces-themify h6{margin:0px;margin-bottom:10px;font-family:Lato;font-weight:normal}.lces-themify h1{font-size:2.25em}.lces-themify h2{font-size:2em}.lces-themify h3{font-size:1.75em}.lces-themify h4{font-size:1.5em}.lces-themify h5{font-size:1.25em}.lces-themify h6{font-size:1.125em}.lces-themify .lc-i{font-style:italic}.lces-themify .lc-b{font-weight:bold}.lces-themify .lc-centertext{text-align:center}.lces-themify .lc-indent{margin-left:15px;margin-right:15px}.lces-themify .lc-inlineblock{display:inline-block}.lces-text-quote{display:block;background:rgba(0,0,0,0.25);padding:7px 10px;margin:5px 0px}.lces-scrollbar-screen{position:fixed;z-index:99999999999;top:0px;left:0px;width:100%;height:100%;display:none}.lces-scrollbar-screen.lces-sb-screen-visible{display:block}.lces-scrollbars-visible *:hover>.lces-scrollbar-trough,.lces-scrollbars-visible .lces-scrollbar-trough.active{opacity:0.75}.lces-scrollbars-visible .lces-scrollbar-trough{opacity:0.5}.lces-scrollbar{position:absolute;width:100%}.lces-scrollbar-trough{position:absolute;top:0px;bottom:0px;width:6px;background:rgba(0,0,0,0.075);opacity:0;transition:opacity 200ms ease-out, width 200ms ease-out}.lces-scrollbar-trough:hover,.lces-scrollbar-trough.active{width:9px}.lces-scrollbar-trough.lc-sbright{right:0px}.lces-scrollbar-trough.lc-sbleft{left:0px}lces-placeholder{display:none}.lcescontrol{position:relative;opacity:1;transition:opacity 200ms ease-out}.lcescontrol[disabled]{opacity:0.5;cursor:default !important}.lcescontrol[disabled] *{pointer-events:none;cursor:default !important}.lcescontrol .lcescontrolclick{position:absolute;left:0px;top:0px;right:0px;bottom:0px;z-index:1000;display:none}.lces-themify *::-webkit-input-placeholder,.lces-themify *:-moz-placeholder,.lces-themify *::-moz-placeholder,.lces-themify *:-ms-input-placeholder{color:#BFBFBF;font-style:italic;font-weight:normal}.lces-numberfield::-webkit-input-placeholder{font-style:normal}.lces-numberfield:-moz-placeholder{font-style:normal}.lces-numberfield::-moz-placeholder{font-style:normal}.lces-numberfield:-ms-input-placeholder{font-style:normal}input.lces[type=\"text\"],input.lces[type=\"password\"]{vertical-align:middle}input.lces[type=\"text\"],input.lces[type=\"password\"],textarea.lces{padding:3px;min-width:150px;height:auto;outline:0px;border:2px solid #000;border-radius:3px;color:#262626;background-color:#fff;font-size:14px;font-family:\"Trebuchet MS\";resize:none}input.lces[type=\"text\"]:disabled,input.lces[type=\"password\"]:disabled{background-color:#F2F2F2}.numberfield-container{position:relative;display:inline-block}input.lces.lces-numberfield{font-size:14px;font-weight:bold;text-align:center;border-right-width:16px;border-top-right-radius:4px;border-bottom-right-radius:4px}.numberfield-container .arrow{width:16px;height:50%;position:absolute;right:0px;cursor:pointer;background:transparent}.numberfield-container .arrow.active{background:rgba(0,0,0,0.1)}.numberfield-container .arrow svg{position:absolute;top:0px;right:0px;bottom:0px;left:0px;margin:auto auto;opacity:0.85;transition:opacity 200ms ease-out}.numberfield-container .arrow:hover svg{opacity:1}.numberfield-container .arrow.top{top:0px;border-top-right-radius:4px}.numberfield-container .arrow.bottom{bottom:0px;border-bottom-right-radius:4px}.lces-slider{position:relative;top:-3px;vertical-align:middle;display:inline-block;border:2px solid #000;border-radius:5px;height:28px;width:138px;overflow:hidden;background:#fff;line-height:normal}.lces-slider-min,.lces-slider-max,.lces-slider-value{position:absolute;top:4px;font-family:Righteous;font-size:16px;color:#D9D9D9}.lces-slider-min{left:5px}.lces-slider-max{right:5px}.lces-slider-value{right:0px;left:0px;text-align:center;color:#f00;opacity:0.25}.lces-slider-scrubbar{position:absolute;top:0px;right:0px;bottom:0px;left:0px}.lces-slider-scrubber{position:absolute;top:1px;left:0px;margin:0px 0px 0px 1px;width:15px;height:26px;border-radius:3.5px;background:#000;opacity:0.75;transition:opacity 250ms ease-out}.lces-slider.animated .lces-slider-scrubber{transition:opacity 250ms ease-out,left 150ms cubic-bezier(0.1, 0.41, 0, 0.99)}.lces-slider-scrubbar:hover .lces-slider-scrubber,.lces-slider.scrubbing .lces-slider-scrubber{opacity:1}#lces-colorchoosermodalcontainer{position:fixed;z-index:999999999;top:0px;left:0px;right:0px;bottom:0px;transform:translateX(-100%);-webkit-transform:translateX(-100%);transition:transform 0ms linear 250ms}#lces-colorchoosermodalcontainer.visible{transition:transform 0ms linear 0ms;transform:translateX(0px);-webkit-transform:translateX(0px)}.lces-colorchooser{position:relative;top:-3px;vertical-align:middle;display:inline-block}.lces-colorchooser .lces-cc-display{display:inline-block;height:26px;width:46px;border-radius:4px;border:2px solid #000}.lces-colorchooser .lces-cc-color{margin:4px;width:38px;height:18px;border-radius:1px;background:#000;cursor:pointer}.lces-colorchooser-modal{position:absolute;z-index:20000000;top:0px;left:0px;margin:5px 0px 0px 0px;border-radius:5px;background:rgba(255,255,255,0.95);overflow:hidden;box-shadow:0px 2px 5px rgba(0,0,0,0.25);opacity:0;transform-origin:0% 0%;transform:scale(0.85);transition:transform 150ms cubic-bezier(0.31, 0.26, 0.1, 0.92),opacity 150ms cubic-bezier(0.31, 0.26, 0.1, 0.92)}.lces-colorchooser-modal.flipped{margin:0px;transform-origin:0% 100%}.lces-colorchooser-modal.visible{opacity:1;transform:scale(1)}.lces-colorchooser-modal .lces-cc-section{padding:15px}.lces-colorchooser-modal .lces-cc-section.lces-cc-controls{padding-top:0px;padding-bottom:0px;background:#F2F2F2}.lces-colorchooser-modal .lces-cc-wheel{position:relative;width:180px;height:180px;border-radius:100%;background-color:#F2F2F2;background-size:100%}.lces-colorchooser-modal .lces-cc-wheel-value{position:absolute;left:0px;top:0px;width:100%;height:100%;border-radius:100%;background:#000;opacity:0}.lces-colorchooser-modal .lces-cc-cursor{position:absolute;width:10px;height:10px;border-radius:100%;background:#fff;border:1px solid #000}.lces-colorchooser-modal .lces-cc-row{overflow:auto}.lces-colorchooser-modal .lces-cc-label{float:left;display:block;width:16px;font-family:Couture;font-size:25px;color:#808080;background:#e5e5e5;padding:10px 7px 5px 7px;cursor:default;margin-right:10px}.lces-colorchooser-modal .lces-slider{margin-top:7px;border-width:1px;outline:0px !important}.lces-file *{cursor:pointer !important}.lces-file input[type=\"file\"]{position:absolute;margin:0px;width:100%;height:100%;opacity:0;z-index:5;cursor:pointer !important}.lces-file{position:relative;display:block;padding:0px 33px 0px 0px;height:36px;width:123px;border-radius:3px;background-color:#000;font-family:Arial;font-weight:bold;font-size:14px;cursor:pointer !important}.lces-file>div{position:absolute;top:0px;left:0px;right:33px;bottom:0px}.lces-file>div>div{display:table;width:100%;height:100%}.lces-file>div>div>div{display:table-cell;vertical-align:middle}.lces-file>div>div>div>div{text-align:center;color:#fff}.lces-file>aside{position:absolute;right:0px;top:0px;bottom:0px;padding:8px;border-top-right-radius:3px;border-bottom-right-radius:3px;background:rgba(0,0,0,0.25);transition:background 200ms ease-out}.lces-file:hover>aside{background:rgba(0,0,0,0.15)}.lces-file:active>aside{background:rgba(0,0,0,0.5)}.lces-themify button{position:relative;font-family:Arial;font-size:14px;font-weight:bold;outline:0px;border-radius:3px;margin:0px 10px 10px 0px;padding:5px 10px;border:0px;color:#fff;background:#000;cursor:pointer}.lces-themify button:before,.lces-file:after{content:\"\";position:absolute;top:0px;left:0px;width:100%;height:100%;border-radius:3px;background:rgba(255,255,255,0);transition:background 100ms ease-out}.lces-themify button:hover:before,.lces-file:hover:after{background:rgba(255,255,255,0.2)}.lces-themify button:active:before,.lces-file:active:after{background:rgba(0,0,0,0.075);transition:background 0ms ease-out !important}.lcesradio{position:relative;top:1px;width:12px;height:11px;margin:2px;display:inline-block}.lcesradio .radiobuttoncolor{fill:#000}.lcesradio svg path:last-child{opacity:0;transition:opacity 150ms ease-out}.lcesradio[checked] svg path:last-child{opacity:1}.lcescheckbox{position:relative;vertical-align:middle;width:14px;height:14px;margin:2px;display:inline-block}.lcescheckbox .checkboxcolor{fill:#000}.lcescheckbox svg path:last-child{opacity:0;transition:opacity 150ms ease-out}.lcescheckbox[checked] svg path:last-child{opacity:1}.lces-togglebox{display:inline-block;position:relative;width:68px;height:34px;border-radius:5px;overflow:hidden;user-select:none;-webkit-user-select:none;-moz-user-select:none}.lces-togglebox::before{content:\"\";z-index:6;border-radius:5px;opacity:1;background:rgba(0,0,0,0.15);transition:opacity 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92)}.lces-togglebox.checked::before{opacity:0}.lces-togglebox.checked .lces-togglebox-handle{-webkit-transform:translateX(34px);-moz-transform:translateX(34px);-ms-transform:translateX(34px);-o-transform:translateX(34px);transform:translateX(34px)}.lces-togglebox,.lces-togglebox *{cursor:default !important}.lces-togglebox .lces-togglebox-handle{position:absolute;z-index:10;left:0px;top:0px;-webkit-transform:translateX(0px);-moz-transform:translateX(0px);-ms-transform:translateX(0px);-o-transform:translateX(0px);transform:translateX(0px);height:100%;width:34px;transition:-webkit-transform 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92) , -moz-transform 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92) , -ms-transform 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92) , -o-transform 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92) , transform 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92)}.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner{margin:2px;z-index:10;border-radius:4px;overflow:hidden}.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner::before{content:\"\";z-index:5;border-radius:4px;background:#fff;opacity:1}.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner .lces-togglebox-text{z-index:10;bottom:auto;line-height:30px;text-align:center;font-size:10px}.lces-dropdown-screen{position:fixed;z-index:9999999999;top:0px;right:0px;bottom:0px;left:0px;transform:translate3d(-100%, 0px, 0px)}.lces-dropdown-screen.visible{transform:translate3d(0px, 0px, 0px)}.lces-dropdown-screen .lcesdropdown{position:absolute;top:0px;left:0px;right:auto;bottom:auto;margin:0px;border-color:transparent !important;background:transparent !important}.lces-dropdown-screen .lcesdropdown .lcesselected,.lces-dropdown-screen .lcesdropdown .lcesdropdown-arrow{opacity:0 !important}.lcesdropdown{position:relative;vertical-align:middle;top:-3px;margin:0px;display:inline-block;min-width:98px;padding:3px;border:2px solid #000;border-width:2px 27px 2px 2px;border-radius:3px;text-align:left;font-size:14px;font-weight:bold;line-height:1.2;background:#fff;cursor:default}.lcesdropdown .lcesdropdown-arrow{position:absolute;top:0px;bottom:0px;margin:auto 0px;right:-18px;height:6px;width:10px}.lcesdropdown .lcesdropdown-arrow svg{position:absolute;transform:scaleY(1.2)}.lcesdropdown .lcesoptions{position:absolute;z-index:600000;top:100%;left:-2px;right:-27px;border:0px solid #000;border-width:2px;border-bottom-right-radius:3px;border-bottom-left-radius:3px;font-weight:bold;background:#fff;box-shadow:0px 2px 3px rgba(0,0,0,0.2);transform-origin:50% 0%;transform:scale(0.9);opacity:0;transition:transform 200ms cubic-bezier(0.31, 0.26, 0.1, 0.92),opacity 200ms cubic-bezier(0.31, 0.26, 0.1, 0.92)}.lcesdropdown.visible .lcesoptions{opacity:1;transform:scale(1)}.lcesdropdown.flipped .lcesoptions{transform-origin:50% 100%;top:auto;bottom:100%;border-radius:0px;border-top-right-radius:3px;border-top-left-radius:3px}.lcesoption{position:relative;padding:3px;margin-bottom:1px;background:transparent;color:#484848;transition:background-color 200ms ease-out}.lcesoption:after{position:absolute;content:\"\";top:100%;left:2px;right:2px;height:1px;background:#000;opacity:0.5}.lcesoption:hover,.lcesoption[lces-selected]{background:rgba(0,0,0,0.05)}.lcesoption:last-child{margin-bottom:0px}.lcesoption:last-child:after{height:0px}.lces-themify table{border-spacing:0px;font-family:Arial}table.lces thead th{position:relative;border:0px;border-top:3px solid #000;border-bottom:3px solid #000;padding:7px 10px;font-size:13px}table.lces thead th:before{position:absolute;content:\"\";left:0px;top:10%;bottom:10%;width:1px;background:#000}table.lces thead th:first-child:before{width:0px}table.lces tr{padding:0px;margin:0px;border:0px;background:#fff}table.lces tr td{border:0px;padding:10px}.lces-window{position:fixed;z-index:1000000;top:0px;left:0px;opacity:0;color:#484848;line-height:1.6;transition:opacity 250ms ease-out}.lces-window[visible]{opacity:1}.lces-window[window-invisible]{margin-left:-9999999%}.lces-window>div{padding:0px}.lces-window>div>div{background:#fff;overflow:hidden;border-radius:4px;box-shadow:0px 2px 5px rgba(0,0,0,0.25)}.lces-window .lces-window-title{padding:15px 10px;font-family:Arial;font-size:14px;font-weight:bold;color:#000;background:rgba(0,0,0,0.1);cursor:default}.lces-window .lces-window-contents{padding:25px 20px 30px 20px}.lces-window .lces-window-buttonpanel{padding:10px;text-align:right;background:rgba(0,0,0,0.1)}.lces-window .lces-window-buttonpanel button{margin-bottom:0px}.lces-window .lces-window-buttonpanel button:last-child,.lces-window .lces-window-buttonpanel div:last-child button{margin:0px}.lces-notification{border-radius:3px;position:static;width:300px;box-shadow:0px 2px 3px rgba(0,0,0,0.2);cursor:default}.lces-notification[visible]{opacity:0.95}.lces-notification>div{padding:0px;margin:4px 0px;border:1px solid #000;border-radius:3px;background:#fff;overflow:hidden;transition:height 400ms cubic-bezier(0.31, 0.26, 0.1, 0.92)}.lces-window.lces-notification>div>div{background:rgba(0,0,0,0.025);box-shadow:none}.notification-alignment.notifi-relative .lces-notification>div{margin:0px !important}.notification-alignment{position:fixed;z-index:1000000}.notification-alignment.notifi-relative{position:static !important}.notifi-top{top:5px}.notifi-bottom{bottom:5px}.notifi-middle{top:45%}.notifi-right{right:5px;text-align:right}.notifi-left{left:5px}.notifi-center{margin-right:auto;margin-left:auto;left:0px;right:0px;text-align:center;width:0px}.notifi-center .lces-window.lces-notification{transform:translate(-50%)}.notifi-center .lces-notification{margin-right:auto;margin-left:auto}.lces-accordion{display:block;margin:0px 0px 10px 0px}.lces-accordion .lces-acc-section{display:block;border:1px solid rgba(0,0,0,0.25);border-radius:3px;overflow:hidden;margin:0px 0px 5px 0px}.lces-accordion .lces-acc-section .lces-acc-title{display:block;padding:5px;font-weight:bold;font-size:13px;background:rgba(0,0,0,0.25);border:0px;border-bottom:0px solid rgba(0,0,0,0.05);cursor:pointer}.lces-accordion .lces-acc-section.lces-acc-open .lces-acc-title{border-bottom-width:1px}.lces-accordion .lces-acc-section .lces-acc-title .lces-acc-arrow{position:relative;top:3px;display:inline-block;width:15px;height:15px;transform:rotate(0deg);padding:0px;margin:0px;margin-right:5px;transition:transform 500ms cubic-bezier(0.1, 0.41, 0, 0.99)}.lces-accordion .lces-acc-section.lces-acc-open .lces-acc-title .lces-acc-arrow{transform:rotate(90deg)}.lces-accordion .lces-acc-section .lces-acc-title .lces-acc-arrow svg{margin:0px}.lces-accordion .lces-acc-section .lces-acc-contents>div{padding:10px}.lces-accordion .lces-acc-section .lces-acc-contents{overflow:hidden;height:0px;transition:height 500ms cubic-bezier(0.1, 0.41, 0, 0.99)}.lces-accordion .lces-acc-section.lces-acc-open .lces-acc-contents{overflow:auto}\n", document.getElementsByClassName("lces-themify-styles")[0]);
+lcesAppendCSS("lces-core-styles", ".abs-fill,.lces-togglebox::before,.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner,.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner::before,.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner .lces-togglebox-text{position:absolute;top:0px;left:0px;bottom:0px;right:0px}.lces-themify{font-family:Arial}br2{position:relative;display:block;padding:0px;margin:0px;height:10px}.lces-themify hr{border-top:0px;border-style:solid;opacity:0.75}.lces-themify a{font-weight:normal;text-decoration:none}.lces-themify label{font-weight:bold}@font-face{font-family:\"CODE\";src:url(http://b-fuze.github.io/lces/main-css/codebold.otf)}@font-face{font-family:\"Lato\";src:url(http://b-fuze.github.io/lces/main-css/lato-reg.ttf)}@font-face{font-family:\"Righteous\";src:url(http://b-fuze.github.io/lces/main-css/righteous.ttf)}@font-face{font-family:\"Couture\";src:url(http://b-fuze.github.io/lces/main-css/couture-bld.otf)}.lces-themify h1,.lces-themify h2,.lces-themify h3,.lces-themify h4,.lces-themify h5,.lces-themify h6{margin:0px;margin-bottom:10px;font-family:Lato;font-weight:normal}.lces-themify h1{font-size:2.25em}.lces-themify h2{font-size:2em}.lces-themify h3{font-size:1.75em}.lces-themify h4{font-size:1.5em}.lces-themify h5{font-size:1.25em}.lces-themify h6{font-size:1.125em}.lces-themify .lc-i{font-style:italic}.lces-themify .lc-b{font-weight:bold}.lces-themify .lc-centertext{text-align:center}.lces-themify .lc-indent{margin-left:15px;margin-right:15px}.lces-themify .lc-inlineblock{display:inline-block}.lces-text-quote{display:block;background:rgba(0,0,0,0.25);padding:7px 10px;margin:5px 0px}.lces-scrollbar-screen{position:fixed;z-index:99999999999;top:0px;left:0px;width:100%;height:100%;display:none}.lces-scrollbar-screen.lces-sb-screen-visible{display:block}.lces-scrollbars-visible *:hover>.lces-scrollbar-trough,.lces-scrollbars-visible .lces-scrollbar-trough.active{opacity:0.75}.lces-scrollbars-visible .lces-scrollbar-trough{opacity:0.5}.lces-scrollbar{position:absolute;width:100%}.lces-scrollbar-trough{position:absolute;top:0px;bottom:0px;width:6px;background:rgba(0,0,0,0.075);opacity:0;transition:opacity 200ms ease-out, width 200ms ease-out}.lces-scrollbar-trough:hover,.lces-scrollbar-trough.active{width:9px}.lces-scrollbar-trough.lc-sbright{right:0px}.lces-scrollbar-trough.lc-sbleft{left:0px}lces-placeholder{display:none}.lcescontrol{position:relative;opacity:1;transition:opacity 200ms ease-out}.lcescontrol[disabled]{opacity:0.5;cursor:default !important}.lcescontrol[disabled] *{pointer-events:none;cursor:default !important}.lcescontrol .lcescontrolclick{position:absolute;left:0px;top:0px;right:0px;bottom:0px;z-index:1000;display:none}.lces-themify *::-webkit-input-placeholder,.lces-themify *:-moz-placeholder,.lces-themify *::-moz-placeholder,.lces-themify *:-ms-input-placeholder{color:#BFBFBF;font-style:italic;font-weight:normal}.lces-numberfield::-webkit-input-placeholder{font-style:normal}.lces-numberfield:-moz-placeholder{font-style:normal}.lces-numberfield::-moz-placeholder{font-style:normal}.lces-numberfield:-ms-input-placeholder{font-style:normal}input.lces[type=\"text\"],input.lces[type=\"password\"]{vertical-align:middle}input.lces[type=\"text\"],input.lces[type=\"password\"],textarea.lces{padding:3px;min-width:150px;height:auto;outline:0px;border:2px solid #000;border-radius:3px;color:#262626;background-color:#fff;font-size:14px;font-family:\"Trebuchet MS\";resize:none}input.lces[type=\"text\"]:disabled,input.lces[type=\"password\"]:disabled{background-color:#F2F2F2}.numberfield-container{position:relative;display:inline-block}input.lces.lces-numberfield{font-size:14px;font-weight:bold;text-align:center;border-right-width:16px;border-top-right-radius:4px;border-bottom-right-radius:4px}.numberfield-container .arrow{width:16px;height:50%;position:absolute;right:0px;cursor:pointer;background:transparent}.numberfield-container .arrow.active{background:rgba(0,0,0,0.1)}.numberfield-container .arrow svg{position:absolute;top:0px;right:0px;bottom:0px;left:0px;margin:auto auto;opacity:0.85;transition:opacity 200ms ease-out}.numberfield-container .arrow:hover svg{opacity:1}.numberfield-container .arrow.top{top:0px;border-top-right-radius:4px}.numberfield-container .arrow.bottom{bottom:0px;border-bottom-right-radius:4px}.lces-slider{position:relative;top:-3px;vertical-align:middle;display:inline-block;border:2px solid #000;border-radius:5px;height:28px;width:138px;overflow:hidden;background:#fff;line-height:normal}.lces-slider-min,.lces-slider-max,.lces-slider-value{position:absolute;top:4px;font-family:Righteous;font-size:16px;color:#D9D9D9}.lces-slider-min{left:5px}.lces-slider-max{right:5px}.lces-slider-value{right:0px;left:0px;text-align:center;color:#f00;opacity:0.25}.lces-slider-scrubbar{position:absolute;top:0px;right:0px;bottom:0px;left:0px}.lces-slider-scrubber{position:absolute;top:1px;left:0px;margin:0px 0px 0px 1px;width:15px;height:26px;border-radius:3.5px;background:#000;opacity:0.75;transition:opacity 250ms ease-out}.lces-slider.animated .lces-slider-scrubber{transition:opacity 250ms ease-out,left 150ms cubic-bezier(0.1, 0.41, 0, 0.99)}.lces-slider-scrubbar:hover .lces-slider-scrubber,.lces-slider.scrubbing .lces-slider-scrubber{opacity:1}#lces-colorchoosermodalcontainer{position:fixed;z-index:999999999;top:0px;left:0px;right:0px;bottom:0px;transform:translateX(-100%);-webkit-transform:translateX(-100%);transition:transform 0ms linear 250ms}#lces-colorchoosermodalcontainer.visible{transition:transform 0ms linear 0ms;transform:translateX(0px);-webkit-transform:translateX(0px)}.lces-colorchooser{position:relative;z-index:5;top:-3px;vertical-align:middle;display:inline-block}.lces-colorchooser .lces-cc-display{display:inline-block;height:26px;width:46px;border-radius:4px;border:2px solid #000}.lces-colorchooser .lces-cc-color{margin:4px;width:38px;height:18px;border-radius:1px;background:#000;cursor:pointer}.lces-colorchooser-modal{position:absolute;z-index:20000000;top:0px;left:0px;margin:5px 0px 0px 0px;border-radius:5px;background:rgba(255,255,255,0.95);overflow:hidden;box-shadow:0px 2px 5px rgba(0,0,0,0.25);opacity:0;transform-origin:0% 0%;transform:scale(0.85);transition:transform 150ms cubic-bezier(0.31, 0.26, 0.1, 0.92),opacity 150ms cubic-bezier(0.31, 0.26, 0.1, 0.92)}.lces-colorchooser-modal.flipped{margin:0px;transform-origin:0% 100%}.lces-colorchooser-modal.visible{opacity:1;transform:scale(1)}.lces-colorchooser-modal .lces-cc-section{padding:15px}.lces-colorchooser-modal .lces-cc-section.lces-cc-controls{padding-top:0px;padding-bottom:0px;background:#F2F2F2}.lces-colorchooser-modal .lces-cc-wheel{position:relative;width:180px;height:180px;border-radius:100%;background-color:#F2F2F2;background-size:100%}.lces-colorchooser-modal .lces-cc-wheel-value{position:absolute;left:0px;top:0px;width:100%;height:100%;border-radius:100%;background:#000;opacity:0}.lces-colorchooser-modal .lces-cc-cursor{position:absolute;width:10px;height:10px;border-radius:100%;background:#fff;border:1px solid #000}.lces-colorchooser-modal .lces-cc-row{overflow:auto}.lces-colorchooser-modal .lces-cc-label{float:left;display:block;width:16px;font-family:Couture;font-size:25px;color:#808080;background:#e5e5e5;padding:10px 7px 5px 7px;cursor:default;margin-right:10px}.lces-colorchooser-modal .lces-slider{margin-top:7px;border-width:1px;outline:0px !important}.lces-file *{cursor:pointer !important}.lces-file input[type=\"file\"]{position:absolute;margin:0px;width:100%;height:100%;opacity:0;z-index:5;cursor:pointer !important}.lces-file{position:relative;display:block;padding:0px 33px 0px 0px;height:36px;width:123px;border-radius:3px;background-color:#000;font-family:Arial;font-weight:bold;font-size:14px;cursor:pointer !important}.lces-file>div{position:absolute;top:0px;left:0px;right:33px;bottom:0px}.lces-file>div>div{display:table;width:100%;height:100%}.lces-file>div>div>div{display:table-cell;vertical-align:middle}.lces-file>div>div>div>div{text-align:center;color:#fff}.lces-file>aside{position:absolute;right:0px;top:0px;bottom:0px;padding:8px;border-top-right-radius:3px;border-bottom-right-radius:3px;background:rgba(0,0,0,0.25);transition:background 200ms ease-out}.lces-file:hover>aside{background:rgba(0,0,0,0.15)}.lces-file:active>aside{background:rgba(0,0,0,0.5)}.lces-themify button{position:relative;font-family:Arial;font-size:14px;font-weight:bold;outline:0px;border-radius:3px;margin:0px 10px 10px 0px;padding:5px 10px;border:0px;color:#fff;background:#000;cursor:pointer}.lces-themify button:before,.lces-file:after{content:\"\";position:absolute;top:0px;left:0px;width:100%;height:100%;border-radius:3px;background:rgba(255,255,255,0);transition:background 100ms ease-out}.lces-themify button:hover:before,.lces-file:hover:after{background:rgba(255,255,255,0.2)}.lces-themify button:active:before,.lces-file:active:after{background:rgba(0,0,0,0.075);transition:background 0ms ease-out !important}.lcesradio{position:relative;top:1px;width:12px;height:11px;margin:2px;display:inline-block}.lcesradio .radiobuttoncolor{fill:#000}.lcesradio svg path:last-child{opacity:0;transition:opacity 150ms ease-out}.lcesradio[checked] svg path:last-child{opacity:1}.lcescheckbox{position:relative;vertical-align:middle;width:14px;height:14px;margin:2px;display:inline-block}.lcescheckbox .checkboxcolor{fill:#000}.lcescheckbox svg path:last-child{opacity:0;transition:opacity 150ms ease-out}.lcescheckbox[checked] svg path:last-child{opacity:1}.lces-togglebox{display:inline-block;position:relative;width:68px;height:34px;border-radius:5px;overflow:hidden;user-select:none;-webkit-user-select:none;-moz-user-select:none}.lces-togglebox::before{content:\"\";z-index:6;border-radius:5px;opacity:1;background:rgba(0,0,0,0.15);transition:opacity 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92)}.lces-togglebox.checked::before{opacity:0}.lces-togglebox.checked .lces-togglebox-handle{-webkit-transform:translateX(34px);-moz-transform:translateX(34px);-ms-transform:translateX(34px);-o-transform:translateX(34px);transform:translateX(34px)}.lces-togglebox,.lces-togglebox *{cursor:default !important}.lces-togglebox .lces-togglebox-handle{position:absolute;z-index:10;left:0px;top:0px;-webkit-transform:translateX(0px);-moz-transform:translateX(0px);-ms-transform:translateX(0px);-o-transform:translateX(0px);transform:translateX(0px);height:100%;width:34px;transition:-webkit-transform 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92) , -moz-transform 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92) , -ms-transform 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92) , -o-transform 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92) , transform 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92)}.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner{margin:2px;z-index:10;border-radius:4px;overflow:hidden}.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner::before{content:\"\";z-index:5;border-radius:4px;background:#fff;opacity:1}.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner .lces-togglebox-text{z-index:10;bottom:auto;line-height:30px;text-align:center;font-size:10px}.lces-dropdown-screen{position:fixed;z-index:9999999999;top:0px;right:0px;bottom:0px;left:0px;transform:translate3d(-100%, 0px, 0px)}.lces-dropdown-screen.visible{transform:translate3d(0px, 0px, 0px)}.lces-dropdown-screen .lcesdropdown{position:absolute;top:0px;left:0px;right:auto;bottom:auto;margin:0px;border-color:transparent !important;background:transparent !important}.lces-dropdown-screen .lcesdropdown .lcesselected,.lces-dropdown-screen .lcesdropdown .lcesdropdown-arrow{opacity:0 !important}.lcesdropdown{position:relative;vertical-align:middle;top:-3px;margin:0px;display:inline-block;min-width:98px;padding:3px;border:2px solid #000;border-width:2px 27px 2px 2px;border-radius:3px;text-align:left;font-size:14px;font-weight:bold;line-height:1.2;background:#fff;cursor:default}.lcesdropdown .lcesdropdown-arrow{position:absolute;top:0px;bottom:0px;margin:auto 0px;right:-18px;height:6px;width:10px}.lcesdropdown .lcesdropdown-arrow svg{position:absolute;transform:scaleY(1.2)}.lcesdropdown .lcesoptions{position:absolute;z-index:600000;top:100%;left:-2px;right:-27px;border:0px solid #000;border-width:2px;border-bottom-right-radius:3px;border-bottom-left-radius:3px;font-weight:bold;background:#fff;box-shadow:0px 2px 3px rgba(0,0,0,0.2);transform-origin:50% 0%;transform:scale(0.9);opacity:0;transition:transform 200ms cubic-bezier(0.31, 0.26, 0.1, 0.92),opacity 200ms cubic-bezier(0.31, 0.26, 0.1, 0.92)}.lcesdropdown.visible .lcesoptions{opacity:1;transform:scale(1)}.lcesdropdown.flipped .lcesoptions{transform-origin:50% 100%;top:auto;bottom:100%;border-radius:0px;border-top-right-radius:3px;border-top-left-radius:3px}.lcesoption{position:relative;padding:3px;margin-bottom:1px;background:transparent;color:#484848;transition:background-color 200ms ease-out}.lcesoption:after{position:absolute;content:\"\";top:100%;left:2px;right:2px;height:1px;background:#000;opacity:0.5}.lcesoption:hover,.lcesoption[lces-selected]{background:rgba(0,0,0,0.05)}.lcesoption:last-child{margin-bottom:0px}.lcesoption:last-child:after{height:0px}.lces-themify table{border-spacing:0px;font-family:Arial}table.lces thead th{position:relative;border:0px;border-top:3px solid #000;border-bottom:3px solid #000;padding:7px 10px;font-size:13px}table.lces thead th:before{position:absolute;content:\"\";left:0px;top:10%;bottom:10%;width:1px;background:#000}table.lces thead th:first-child:before{width:0px}table.lces tr{padding:0px;margin:0px;border:0px;background:#fff}table.lces tr td{border:0px;padding:10px}.lces-window{position:fixed;z-index:1000000;top:0px;left:0px;opacity:0;color:#484848;line-height:1.6;transition:opacity 250ms ease-out}.lces-window[visible]{opacity:1}.lces-window[window-invisible]{margin-left:-9999999%}.lces-window>div{padding:0px}.lces-window>div>div{background:#fff;overflow:hidden;border-radius:4px;box-shadow:0px 2px 5px rgba(0,0,0,0.25)}.lces-window .lces-window-title{padding:15px 10px;font-family:Arial;font-size:14px;font-weight:bold;color:#000;background:rgba(0,0,0,0.1);cursor:default}.lces-window .lces-window-contents{padding:25px 20px 30px 20px}.lces-window .lces-window-buttonpanel{padding:10px;text-align:right;background:rgba(0,0,0,0.1)}.lces-window .lces-window-buttonpanel button{margin-bottom:0px}.lces-window .lces-window-buttonpanel button:last-child,.lces-window .lces-window-buttonpanel div:last-child button{margin:0px}.lces-notification{border-radius:3px;position:static;width:300px;box-shadow:0px 2px 3px rgba(0,0,0,0.2);cursor:default}.lces-notification[visible]{opacity:0.95}.lces-notification>div{padding:0px;margin:4px 0px;border:1px solid #000;border-radius:3px;background:#fff;overflow:hidden;transition:height 400ms cubic-bezier(0.31, 0.26, 0.1, 0.92)}.lces-window.lces-notification>div>div{background:rgba(0,0,0,0.025);box-shadow:none}.notification-alignment.notifi-relative .lces-notification>div{margin:0px !important}.notification-alignment{position:fixed;z-index:1000000}.notification-alignment.notifi-relative{position:static !important}.notifi-top{top:5px}.notifi-bottom{bottom:5px}.notifi-middle{top:45%}.notifi-right{right:5px;text-align:right}.notifi-left{left:5px}.notifi-center{margin-right:auto;margin-left:auto;left:0px;right:0px;text-align:center;width:0px}.notifi-center .lces-window.lces-notification{transform:translate(-50%)}.notifi-center .lces-notification{margin-right:auto;margin-left:auto}.lces-accordion{display:block;margin:0px 0px 10px 0px}.lces-accordion .lces-acc-section{display:block;border:1px solid rgba(0,0,0,0.25);border-radius:3px;overflow:hidden;margin:0px 0px 5px 0px}.lces-accordion .lces-acc-section .lces-acc-title{display:block;padding:5px;font-weight:bold;font-size:13px;background:rgba(0,0,0,0.25);border:0px;border-bottom:0px solid rgba(0,0,0,0.05);cursor:pointer}.lces-accordion .lces-acc-section.lces-acc-open .lces-acc-title{border-bottom-width:1px}.lces-accordion .lces-acc-section .lces-acc-title .lces-acc-arrow{position:relative;top:3px;display:inline-block;width:15px;height:15px;transform:rotate(0deg);padding:0px;margin:0px;margin-right:5px;transition:transform 500ms cubic-bezier(0.1, 0.41, 0, 0.99)}.lces-accordion .lces-acc-section.lces-acc-open .lces-acc-title .lces-acc-arrow{transform:rotate(90deg)}.lces-accordion .lces-acc-section .lces-acc-title .lces-acc-arrow svg{margin:0px}.lces-accordion .lces-acc-section .lces-acc-contents>div{padding:10px}.lces-accordion .lces-acc-section .lces-acc-contents{overflow:hidden;height:0px;transition:height 500ms cubic-bezier(0.1, 0.41, 0, 0.99)}.lces-accordion .lces-acc-section.lces-acc-open .lces-acc-contents{overflow:auto}\n", document.getElementsByClassName("lces-themify-styles")[0]);
+lcesAppendCSS("lces-responsive-styles", ".abs-fill,.lces-togglebox::before,.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner,.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner::before,.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner .lces-togglebox-text{position:absolute;top:0px;left:0px;bottom:0px;right:0px}.lces-themify{font-family:Arial}br2{position:relative;display:block;padding:0px;margin:0px;height:10px}.lces-themify hr{border-top:0px;border-style:solid;opacity:0.75}.lces-themify a{font-weight:normal;text-decoration:none}.lces-themify label{font-weight:bold}@font-face{font-family:\"CODE\";src:url(http://b-fuze.github.io/lces/main-css/codebold.otf)}@font-face{font-family:\"Lato\";src:url(http://b-fuze.github.io/lces/main-css/lato-reg.ttf)}@font-face{font-family:\"Righteous\";src:url(http://b-fuze.github.io/lces/main-css/righteous.ttf)}@font-face{font-family:\"Couture\";src:url(http://b-fuze.github.io/lces/main-css/couture-bld.otf)}.lces-themify h1,.lces-themify h2,.lces-themify h3,.lces-themify h4,.lces-themify h5,.lces-themify h6{margin:0px;margin-bottom:10px;font-family:Lato;font-weight:normal}.lces-themify h1{font-size:2.25em}.lces-themify h2{font-size:2em}.lces-themify h3{font-size:1.75em}.lces-themify h4{font-size:1.5em}.lces-themify h5{font-size:1.25em}.lces-themify h6{font-size:1.125em}.lces-themify .lc-i{font-style:italic}.lces-themify .lc-b{font-weight:bold}.lces-themify .lc-centertext{text-align:center}.lces-themify .lc-indent{margin-left:15px;margin-right:15px}.lces-themify .lc-inlineblock{display:inline-block}.lces-text-quote{display:block;background:rgba(0,0,0,0.25);padding:7px 10px;margin:5px 0px}.lces-scrollbar-screen{position:fixed;z-index:99999999999;top:0px;left:0px;width:100%;height:100%;display:none}.lces-scrollbar-screen.lces-sb-screen-visible{display:block}.lces-scrollbars-visible *:hover>.lces-scrollbar-trough,.lces-scrollbars-visible .lces-scrollbar-trough.active{opacity:0.75}.lces-scrollbars-visible .lces-scrollbar-trough{opacity:0.5}.lces-scrollbar{position:absolute;width:100%}.lces-scrollbar-trough{position:absolute;top:0px;bottom:0px;width:6px;background:rgba(0,0,0,0.075);opacity:0;transition:opacity 200ms ease-out, width 200ms ease-out}.lces-scrollbar-trough:hover,.lces-scrollbar-trough.active{width:9px}.lces-scrollbar-trough.lc-sbright{right:0px}.lces-scrollbar-trough.lc-sbleft{left:0px}lces-placeholder{display:none}.lcescontrol{position:relative;opacity:1;transition:opacity 200ms ease-out}.lcescontrol[disabled]{opacity:0.5;cursor:default !important}.lcescontrol[disabled] *{pointer-events:none;cursor:default !important}.lcescontrol .lcescontrolclick{position:absolute;left:0px;top:0px;right:0px;bottom:0px;z-index:1000;display:none}.lces-themify *::-webkit-input-placeholder,.lces-themify *:-moz-placeholder,.lces-themify *::-moz-placeholder,.lces-themify *:-ms-input-placeholder{color:#BFBFBF;font-style:italic;font-weight:normal}.lces-numberfield::-webkit-input-placeholder{font-style:normal}.lces-numberfield:-moz-placeholder{font-style:normal}.lces-numberfield::-moz-placeholder{font-style:normal}.lces-numberfield:-ms-input-placeholder{font-style:normal}input.lces[type=\"text\"],input.lces[type=\"password\"]{vertical-align:middle}input.lces[type=\"text\"],input.lces[type=\"password\"],textarea.lces{padding:3px;min-width:150px;height:auto;outline:0px;border:2px solid #000;border-radius:3px;color:#262626;background-color:#fff;font-size:14px;font-family:\"Trebuchet MS\";resize:none}input.lces[type=\"text\"]:disabled,input.lces[type=\"password\"]:disabled{background-color:#F2F2F2}.numberfield-container{position:relative;display:inline-block}input.lces.lces-numberfield{font-size:14px;font-weight:bold;text-align:center;border-right-width:16px;border-top-right-radius:4px;border-bottom-right-radius:4px}.numberfield-container .arrow{width:16px;height:50%;position:absolute;right:0px;cursor:pointer;background:transparent}.numberfield-container .arrow.active{background:rgba(0,0,0,0.1)}.numberfield-container .arrow svg{position:absolute;top:0px;right:0px;bottom:0px;left:0px;margin:auto auto;opacity:0.85;transition:opacity 200ms ease-out}.numberfield-container .arrow:hover svg{opacity:1}.numberfield-container .arrow.top{top:0px;border-top-right-radius:4px}.numberfield-container .arrow.bottom{bottom:0px;border-bottom-right-radius:4px}.lces-slider{position:relative;top:-3px;vertical-align:middle;display:inline-block;border:2px solid #000;border-radius:5px;height:28px;width:138px;overflow:hidden;background:#fff;line-height:normal}.lces-slider-min,.lces-slider-max,.lces-slider-value{position:absolute;top:4px;font-family:Righteous;font-size:16px;color:#D9D9D9}.lces-slider-min{left:5px}.lces-slider-max{right:5px}.lces-slider-value{right:0px;left:0px;text-align:center;color:#f00;opacity:0.25}.lces-slider-scrubbar{position:absolute;top:0px;right:0px;bottom:0px;left:0px}.lces-slider-scrubber{position:absolute;top:1px;left:0px;margin:0px 0px 0px 1px;width:15px;height:26px;border-radius:3.5px;background:#000;opacity:0.75;transition:opacity 250ms ease-out}.lces-slider.animated .lces-slider-scrubber{transition:opacity 250ms ease-out,left 150ms cubic-bezier(0.1, 0.41, 0, 0.99)}.lces-slider-scrubbar:hover .lces-slider-scrubber,.lces-slider.scrubbing .lces-slider-scrubber{opacity:1}#lces-colorchoosermodalcontainer{position:fixed;z-index:999999999;top:0px;left:0px;right:0px;bottom:0px;transform:translateX(-100%);-webkit-transform:translateX(-100%);transition:transform 0ms linear 250ms}#lces-colorchoosermodalcontainer.visible{transition:transform 0ms linear 0ms;transform:translateX(0px);-webkit-transform:translateX(0px)}.lces-colorchooser{position:relative;z-index:5;top:-3px;vertical-align:middle;display:inline-block}.lces-colorchooser .lces-cc-display{display:inline-block;height:26px;width:46px;border-radius:4px;border:2px solid #000}.lces-colorchooser .lces-cc-color{margin:4px;width:38px;height:18px;border-radius:1px;background:#000;cursor:pointer}.lces-colorchooser-modal{position:absolute;z-index:20000000;top:0px;left:0px;margin:5px 0px 0px 0px;border-radius:5px;background:rgba(255,255,255,0.95);overflow:hidden;box-shadow:0px 2px 5px rgba(0,0,0,0.25);opacity:0;transform-origin:0% 0%;transform:scale(0.85);transition:transform 150ms cubic-bezier(0.31, 0.26, 0.1, 0.92),opacity 150ms cubic-bezier(0.31, 0.26, 0.1, 0.92)}.lces-colorchooser-modal.flipped{margin:0px;transform-origin:0% 100%}.lces-colorchooser-modal.visible{opacity:1;transform:scale(1)}.lces-colorchooser-modal .lces-cc-section{padding:15px}.lces-colorchooser-modal .lces-cc-section.lces-cc-controls{padding-top:0px;padding-bottom:0px;background:#F2F2F2}.lces-colorchooser-modal .lces-cc-wheel{position:relative;width:180px;height:180px;border-radius:100%;background-color:#F2F2F2;background-size:100%}.lces-colorchooser-modal .lces-cc-wheel-value{position:absolute;left:0px;top:0px;width:100%;height:100%;border-radius:100%;background:#000;opacity:0}.lces-colorchooser-modal .lces-cc-cursor{position:absolute;width:10px;height:10px;border-radius:100%;background:#fff;border:1px solid #000}.lces-colorchooser-modal .lces-cc-row{overflow:auto}.lces-colorchooser-modal .lces-cc-label{float:left;display:block;width:16px;font-family:Couture;font-size:25px;color:#808080;background:#e5e5e5;padding:10px 7px 5px 7px;cursor:default;margin-right:10px}.lces-colorchooser-modal .lces-slider{margin-top:7px;border-width:1px;outline:0px !important}.lces-file *{cursor:pointer !important}.lces-file input[type=\"file\"]{position:absolute;margin:0px;width:100%;height:100%;opacity:0;z-index:5;cursor:pointer !important}.lces-file{position:relative;display:block;padding:0px 33px 0px 0px;height:36px;width:123px;border-radius:3px;background-color:#000;font-family:Arial;font-weight:bold;font-size:14px;cursor:pointer !important}.lces-file>div{position:absolute;top:0px;left:0px;right:33px;bottom:0px}.lces-file>div>div{display:table;width:100%;height:100%}.lces-file>div>div>div{display:table-cell;vertical-align:middle}.lces-file>div>div>div>div{text-align:center;color:#fff}.lces-file>aside{position:absolute;right:0px;top:0px;bottom:0px;padding:8px;border-top-right-radius:3px;border-bottom-right-radius:3px;background:rgba(0,0,0,0.25);transition:background 200ms ease-out}.lces-file:hover>aside{background:rgba(0,0,0,0.15)}.lces-file:active>aside{background:rgba(0,0,0,0.5)}.lces-themify button{position:relative;font-family:Arial;font-size:14px;font-weight:bold;outline:0px;border-radius:3px;margin:0px 10px 10px 0px;padding:5px 10px;border:0px;color:#fff;background:#000;cursor:pointer}.lces-themify button:before,.lces-file:after{content:\"\";position:absolute;top:0px;left:0px;width:100%;height:100%;border-radius:3px;background:rgba(255,255,255,0);transition:background 100ms ease-out}.lces-themify button:hover:before,.lces-file:hover:after{background:rgba(255,255,255,0.2)}.lces-themify button:active:before,.lces-file:active:after{background:rgba(0,0,0,0.075);transition:background 0ms ease-out !important}.lcesradio{position:relative;top:1px;width:12px;height:11px;margin:2px;display:inline-block}.lcesradio .radiobuttoncolor{fill:#000}.lcesradio svg path:last-child{opacity:0;transition:opacity 150ms ease-out}.lcesradio[checked] svg path:last-child{opacity:1}.lcescheckbox{position:relative;vertical-align:middle;width:14px;height:14px;margin:2px;display:inline-block}.lcescheckbox .checkboxcolor{fill:#000}.lcescheckbox svg path:last-child{opacity:0;transition:opacity 150ms ease-out}.lcescheckbox[checked] svg path:last-child{opacity:1}.lces-togglebox{display:inline-block;position:relative;width:68px;height:34px;border-radius:5px;overflow:hidden;user-select:none;-webkit-user-select:none;-moz-user-select:none}.lces-togglebox::before{content:\"\";z-index:6;border-radius:5px;opacity:1;background:rgba(0,0,0,0.15);transition:opacity 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92)}.lces-togglebox.checked::before{opacity:0}.lces-togglebox.checked .lces-togglebox-handle{-webkit-transform:translateX(34px);-moz-transform:translateX(34px);-ms-transform:translateX(34px);-o-transform:translateX(34px);transform:translateX(34px)}.lces-togglebox,.lces-togglebox *{cursor:default !important}.lces-togglebox .lces-togglebox-handle{position:absolute;z-index:10;left:0px;top:0px;-webkit-transform:translateX(0px);-moz-transform:translateX(0px);-ms-transform:translateX(0px);-o-transform:translateX(0px);transform:translateX(0px);height:100%;width:34px;transition:-webkit-transform 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92) , -moz-transform 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92) , -ms-transform 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92) , -o-transform 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92) , transform 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92)}.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner{margin:2px;z-index:10;border-radius:4px;overflow:hidden}.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner::before{content:\"\";z-index:5;border-radius:4px;background:#fff;opacity:1}.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner .lces-togglebox-text{z-index:10;bottom:auto;line-height:30px;text-align:center;font-size:10px}.lces-dropdown-screen{position:fixed;z-index:9999999999;top:0px;right:0px;bottom:0px;left:0px;transform:translate3d(-100%, 0px, 0px)}.lces-dropdown-screen.visible{transform:translate3d(0px, 0px, 0px)}.lces-dropdown-screen .lcesdropdown{position:absolute;top:0px;left:0px;right:auto;bottom:auto;margin:0px;border-color:transparent !important;background:transparent !important}.lces-dropdown-screen .lcesdropdown .lcesselected,.lces-dropdown-screen .lcesdropdown .lcesdropdown-arrow{opacity:0 !important}.lcesdropdown{position:relative;vertical-align:middle;top:-3px;margin:0px;display:inline-block;min-width:98px;padding:3px;border:2px solid #000;border-width:2px 27px 2px 2px;border-radius:3px;text-align:left;font-size:14px;font-weight:bold;line-height:1.2;background:#fff;cursor:default}.lcesdropdown .lcesdropdown-arrow{position:absolute;top:0px;bottom:0px;margin:auto 0px;right:-18px;height:6px;width:10px}.lcesdropdown .lcesdropdown-arrow svg{position:absolute;transform:scaleY(1.2)}.lcesdropdown .lcesoptions{position:absolute;z-index:600000;top:100%;left:-2px;right:-27px;border:0px solid #000;border-width:2px;border-bottom-right-radius:3px;border-bottom-left-radius:3px;font-weight:bold;background:#fff;box-shadow:0px 2px 3px rgba(0,0,0,0.2);transform-origin:50% 0%;transform:scale(0.9);opacity:0;transition:transform 200ms cubic-bezier(0.31, 0.26, 0.1, 0.92),opacity 200ms cubic-bezier(0.31, 0.26, 0.1, 0.92)}.lcesdropdown.visible .lcesoptions{opacity:1;transform:scale(1)}.lcesdropdown.flipped .lcesoptions{transform-origin:50% 100%;top:auto;bottom:100%;border-radius:0px;border-top-right-radius:3px;border-top-left-radius:3px}.lcesoption{position:relative;padding:3px;margin-bottom:1px;background:transparent;color:#484848;transition:background-color 200ms ease-out}.lcesoption:after{position:absolute;content:\"\";top:100%;left:2px;right:2px;height:1px;background:#000;opacity:0.5}.lcesoption:hover,.lcesoption[lces-selected]{background:rgba(0,0,0,0.05)}.lcesoption:last-child{margin-bottom:0px}.lcesoption:last-child:after{height:0px}.lces-themify table{border-spacing:0px;font-family:Arial}table.lces thead th{position:relative;border:0px;border-top:3px solid #000;border-bottom:3px solid #000;padding:7px 10px;font-size:13px}table.lces thead th:before{position:absolute;content:\"\";left:0px;top:10%;bottom:10%;width:1px;background:#000}table.lces thead th:first-child:before{width:0px}table.lces tr{padding:0px;margin:0px;border:0px;background:#fff}table.lces tr td{border:0px;padding:10px}.lces-window{position:fixed;z-index:1000000;top:0px;left:0px;opacity:0;color:#484848;line-height:1.6;transition:opacity 250ms ease-out}.lces-window[visible]{opacity:1}.lces-window[window-invisible]{margin-left:-9999999%}.lces-window>div{padding:0px}.lces-window>div>div{background:#fff;overflow:hidden;border-radius:4px;box-shadow:0px 2px 5px rgba(0,0,0,0.25)}.lces-window .lces-window-title{padding:15px 10px;font-family:Arial;font-size:14px;font-weight:bold;color:#000;background:rgba(0,0,0,0.1);cursor:default}.lces-window .lces-window-contents{padding:25px 20px 30px 20px}.lces-window .lces-window-buttonpanel{padding:10px;text-align:right;background:rgba(0,0,0,0.1)}.lces-window .lces-window-buttonpanel button{margin-bottom:0px}.lces-window .lces-window-buttonpanel button:last-child,.lces-window .lces-window-buttonpanel div:last-child button{margin:0px}.lces-notification{border-radius:3px;position:static;width:300px;box-shadow:0px 2px 3px rgba(0,0,0,0.2);cursor:default}.lces-notification[visible]{opacity:0.95}.lces-notification>div{padding:0px;margin:4px 0px;border:1px solid #000;border-radius:3px;background:#fff;overflow:hidden;transition:height 400ms cubic-bezier(0.31, 0.26, 0.1, 0.92)}.lces-window.lces-notification>div>div{background:rgba(0,0,0,0.025);box-shadow:none}.notification-alignment.notifi-relative .lces-notification>div{margin:0px !important}.notification-alignment{position:fixed;z-index:1000000}.notification-alignment.notifi-relative{position:static !important}.notifi-top{top:5px}.notifi-bottom{bottom:5px}.notifi-middle{top:45%}.notifi-right{right:5px;text-align:right}.notifi-left{left:5px}.notifi-center{margin-right:auto;margin-left:auto;left:0px;right:0px;text-align:center;width:0px}.notifi-center .lces-window.lces-notification{transform:translate(-50%)}.notifi-center .lces-notification{margin-right:auto;margin-left:auto}.lces-accordion{display:block;margin:0px 0px 10px 0px}.lces-accordion .lces-acc-section{display:block;border:1px solid rgba(0,0,0,0.25);border-radius:3px;overflow:hidden;margin:0px 0px 5px 0px}.lces-accordion .lces-acc-section .lces-acc-title{display:block;padding:5px;font-weight:bold;font-size:13px;background:rgba(0,0,0,0.25);border:0px;border-bottom:0px solid rgba(0,0,0,0.05);cursor:pointer}.lces-accordion .lces-acc-section.lces-acc-open .lces-acc-title{border-bottom-width:1px}.lces-accordion .lces-acc-section .lces-acc-title .lces-acc-arrow{position:relative;top:3px;display:inline-block;width:15px;height:15px;transform:rotate(0deg);padding:0px;margin:0px;margin-right:5px;transition:transform 500ms cubic-bezier(0.1, 0.41, 0, 0.99)}.lces-accordion .lces-acc-section.lces-acc-open .lces-acc-title .lces-acc-arrow{transform:rotate(90deg)}.lces-accordion .lces-acc-section .lces-acc-title .lces-acc-arrow svg{margin:0px}.lces-accordion .lces-acc-section .lces-acc-contents>div{padding:10px}.lces-accordion .lces-acc-section .lces-acc-contents{overflow:hidden;height:0px;transition:height 500ms cubic-bezier(0.1, 0.41, 0, 0.99)}.lces-accordion .lces-acc-section.lces-acc-open .lces-acc-contents{overflow:auto}\n", document.getElementsByClassName("lces-themify-styles")[0]);
 
 if (lces.appendColorize !== false)
   lcesAppendCSS("lces-themify-styles lces-ui-colorize-src", ".lcesoption:after, .lces-file, .lces-themify button, table.lces thead th:before, .lces-slider-scrubber,\n.lces-togglebox, .lces-togglebox .lces-togglebox-handle .lces-togglebox-inner, .lces-scrollbar {\n  background-color: #800070;\n}\n.lces-acc-arrow svg, .checkboxsvg .checkboxcolor, .radiobuttonsvg .radionbuttoncolor, .genreremovesvg .genreremovecolor {\n  fill: #800070;\n}\n.lcesoption:hover, .lcesoption[lces-selected], table.lces tr {\n  background-color: rgba(128, 0, 112, 0.125);\n}\nhr.lces, input.lces[type=\"text\"], input.lces[type=\"password\"], textarea.lces, .lcesdropdown, .lcesdropdown .lcesoptions, table.lces thead th, .lces-slider, .lces-colorchooser .lces-cc-display, .lces-notification>div {\n  border-color: #800070;\n}\n.lces-accordion .lces-acc-section .lces-acc-title, .lces-window .lces-window-title, .lces-window .lces-window-buttonpanel {\n  background-color: rgba(128, 0, 112, 0.1);\n}\n.lces-themify a, .lces-themify h1, .lces-themify h2, .lces-themify h3, .lces-themify h4, .lces-themify h5, .lces-themify h6, .lcesdropdown, table.lces tr, .lces-user-text-color, .lces-window .lces-window-title,\n.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner .lces-togglebox-text {\n  color: #800070;\n}\n.lces-accordion .lces-acc-section {\n  border-color: rgba(128, 0, 112, 0.5);\n}\ntable.lces tr[checker] {\n  background-color: rgba(128, 0, 112, 0.02);\n}\ninput.lces[type=\"text\"]:focus, input.lces[type=\"password\"]:focus, .lces-togglebox:focus {\n  box-shadow: 0px 0px 3px rgba(128, 0, 112, 0.5);\n  outline: none !important;\n}\n");
@@ -6373,8 +6369,8 @@ lces._WidgetInit = function() {
   // lces.initTagLoad is for loading lcWidgets from the DOM produced from the main HTML response from the server.
   // EDIT: Should be moved to lces.widget.js as it has nothing to do with the core LCES functions.
   lces.initTagLoad = function() {
-    var widgets  = jSh("[lces-widget]"); // Elements with lces-widget attribute
-    var widgets2 = jSh("lces-widget");   // lces-widget elements
+    var widgets  = jSh("[lces-name]"); // Elements with lces-widget attribute
+    var widgets2 = jSh("lces-widget"); // lces-widget elements
     
     // Combine the results
     widgets = widgets.concat(widgets2);
@@ -6384,7 +6380,7 @@ lces._WidgetInit = function() {
       var widget = widgets[i];
       var type   = "";
       
-      if (widget.tagName.toLowerCase() !== "lces-widget") {
+      if (widget.tagName !== "LCES-WIDGET") {
         var probableType = widget.getAttribute("lces-widget");
         var widgetName   = widget.getAttribute("lces-name");
         var widgetClass  = widget.getAttribute("lces-class");
@@ -6812,10 +6808,10 @@ lces.rc[3] = function() {
         var cRect = scrollbar.scrollContent.getBoundingClientRect();
         var tRect = dest.getBoundingClientRect();
         
-        var cMid = (cRect.top + cRect.bottom) / 2;
-        var tMid = (tRect.top + tRect.bottom) / 2;
+        var cMid = ((cRect.top + cRect.bottom) / 2);
+        var tMid = ((tRect.top + tRect.bottom) / 2);
         
-        contentScrolled = Math.min(Math.max(tMid - cMid, 0), physicalScrollMax);
+        contentScrolled = Math.min(Math.max(contentScrolled + (tMid - cMid), 0), physicalScrollMax);
         scrollbar.scrollContent.scrollTop = contentScrolled;
         
         if (oldScroll !== contentScrolled) {
@@ -7245,107 +7241,91 @@ lces.rc[3] = function() {
     });
   }
 
-  lces.dynText.lexer = function(c, index, string, lexTypes) {
-    // Did we finish?
-    if (!c) {
-      if (this.tempToken)
-        this.pushToken();
+  lces.dynText.lexer = function(source /* c, index, string, lexTypes */) {
+    var lexTypes = this.lexerTypes;
+    
+    for (var cIndex=0,cMaxL=source.length; cIndex<cMaxL; cIndex++) {
+      var c = source[cIndex];
       
-      return false;
-    }
-    
-    
-    if (this.tempToken !== null) {
-      // Check if it's a property
-      if (this.tokenType === "property") {
-        if (c === "}") {
-          if (this.tempToken)
-            this.pushToken();
-          
-          this.tokenType = "text";
-          this.tempToken = null;
-          
-          return true;
-          
-        } else if (lexTypes.invalidPropChar(c)) {
-          if (!this.forgiving) {
-            var stringOff = index > 10 ? index - 5 : 0;
-            var stringEnd = index + 5;
-            var cursorOff = index - stringOff;
-            var string = string.substr(stringOff, stringEnd).replace("\n", " ");
-          
-            this.tokens  = "Invalid property character \"" + c + "\" at character index " + index +  " \n\n";
-            this.tokens += "\"" + string + "\" \n";
-            this.tokens += " " + (new Array(cursorOff < 0 ? 0 : cursorOff)).join(" ") + " ^";
+      if (this.tempToken !== null) {
+        // Check if it's a property
+        if (this.tokenType === "property") {
+          if (c === "}") {
+            if (this.tempToken)
+              this.pushToken();
             
-            return false;
-          } else {
-            // Just make it a text token and move on
             this.tokenType = "text";
+            this.tempToken = null;
             
-            return true;
+          } else if (lexTypes.invalidPropChar(c)) {
+            if (!this.forgiving) {
+              var stringOff = cIndex > 10 ? cIndex - 5 : 0;
+              var stringEnd = cIndex + 5;
+              var cursorOff = cIndex - stringOff;
+              var string = source.substr(stringOff, stringEnd).replace("\n", " ");
+            
+              this.tokens  = "Invalid property character \"" + c + "\" at character index " + cIndex +  " \n\n";
+              this.tokens += "\"" + source + "\" \n";
+              this.tokens += " " + jSh.nChars(" ", cursorOff < 0 ? 0 : cursorOff) + " ^";
+              
+              return false;
+            } else {
+              // Just make it a text token and move on
+              this.tokenType = "text";
+            }
+          } else {
+            this.tempToken += c;
           }
-        } else {
-          this.tempToken += c;
           
-          return true;
+          
+        // It's just text
+        } else {
+          // Escaping a character?
+          if (c === "\\") {
+            cIndex += 1;
+            this.tempToken += source[cIndex + 1];
+            
+          // Start of a property? Opening/Closing Bracket?
+        } else if (c === "{" || (c === "[" || c === "]") && this.allowTags) {
+            if (this.tempToken)
+              this.pushToken();
+            
+            this.tempToken = null;
+            
+            cIndex -= 1;
+          } else {
+            this.tempToken += c;
+          }
         }
         
-        
-      // It's just text
+        // There's no active token
       } else {
-        // Escaping a character?
-        if (c === "\\") {
-          this.charIndex += 1;
-          this.tempToken += string[index + 1];
-          
-          return true;
-        
-        // Start of a property? Opening/Closing Bracket?
-      } else if (c === "{" || (c === "[" || c === "]") && this.allowTags) {
-          if (this.tempToken)
-            this.pushToken();
-          
+        if (c === "{") {
+          this.tokenType = "property";
+          this.tempToken = "";
+        } else if (c === "[" || c === "]") {
+          this.tokenType = c === "[" ? "open" : "close";
           this.tempToken = null;
           
-          this.charIndex -= 1;
-          return true;
-        } else {
-          this.tempToken += c;
+          if (this.tokenType === "open" && source[cIndex + 1] === "/") {
+            cIndex += 1;
+            this.tokenType = "closed";
+          }
           
-          return true;
+          this.pushToken();
+        } else {
+          this.tokenType = "text";
+          this.tempToken = c;
         }
-      }
-      
-      
-      // There's no active token
-    } else {
-      if (c === "{") {
-        this.tokenType = "property";
-        this.tempToken = "";
-        
-        return true;
-      } else if (c === "[" || c === "]") {
-        this.tokenType = c === "[" ? "open" : "close";
-        this.tempToken = null;
-        
-        if (this.tokenType === "open" && string[index + 1] === "/") {
-          this.charIndex += 1;
-          this.tokenType  = "closed";
-        }
-        
-        this.pushToken();
-        
-        return true;
-      } else {
-        this.tokenType = "text";
-        this.tempToken = c;
-        
-        return true;
       }
     }
+    
+    // Is there a last token?
+    if (this.tempToken)
+      this.pushToken();
+    
+    return false;
   }
-
 
   // lces.dynText.processTokens(token, index, tokens)
   //
@@ -7606,12 +7586,16 @@ lces.rc[3] = function() {
         // Is it dynText'ivated?
         if (!curCtx.states[mainProp].dynTextContent) {
           curCtx.addStateListener(mainProp, function(value) {
-            if (!curCtx.states[mainProp].contentProps)
+            var contentProps = curCtx.states[mainProp].contentProps;
+            
+            if (!contentProps)
               return;
             
-            curCtx.states[mainProp].contentProps.forEach(function(i) {
-              i.element.innerHTML = lces.dynText.onContentChange(curCtx, i);
-            });
+            for (var i=0,l=contentProps.length; i<l; i++) {
+              var prop = contentProps[i];
+              
+              prop.element.innerHTML = lces.dynText.onContentChange(curCtx, prop);
+            }
             
             // Trigger dynProp change event
             component.triggerEvent("dynpropchange", {property: this.name});
@@ -7619,12 +7603,14 @@ lces.rc[3] = function() {
           
           // For 'special' instances
           curCtx.addStateListener(mainProp, function(value) {
-            if (!curCtx.states[mainProp].dynamicProps || jSh.type(cb) !== "function")
+            var dynamicProps = curCtx.states[mainProp].dynamicProps;
+            
+            if (!dynamicProps || typeof cb !== "function")
               return;
             
-            curCtx.states[mainProp].dynamicProps.forEach(function(i) {
-              lces.dynText.onDynamicChange(propBase, i);
-            });
+            for (var i=0,l=dynamicProps.length; i<l; i++) {
+              lces.dynText.onDynamicChange(propBase, dynamicProps[i]);
+            }
             
             // Trigger dynProp change event
             component.triggerEvent("dynpropchange", {property: this.name});
@@ -7683,9 +7669,11 @@ lces.rc[3] = function() {
               
               if (!propBase.states[i.name].dynTextParam)
                 propBase.addStateListener(i.name, function(value) {
-                  propBase.dynText.paramProps.forEach(function(k) {
-                    k.element.update(lces.dynText.onParamChange(propBase, k));
-                  });
+                  var paramProps = propBase.dynText.paramProps;
+                  
+                  for (var k=0,l=paramProps.length; k<l; k++) {
+                    paramProps[k].element.update(lces.dynText.onParamChange(propBase, paramProps[k]));
+                  }
                 });
               
               propBase.states[i.name].dynTextParam = true;
@@ -7699,10 +7687,11 @@ lces.rc[3] = function() {
       
       if (entity.children.length) {
         var CREBinded = CRE.bind(this);
+        var children  = entity.children;
         
-        entity.children.forEach(function(i) {
-          CREBinded(i);
-        });
+        for (var i=0,l=children.length; i<l; i++) {
+          CREBinded(children[i]);
+        }
       }
     }
     
@@ -7725,9 +7714,11 @@ lces.rc[3] = function() {
     this.entities.element = main;
     
     // Loop entities
-    this.entities.children.forEach(function(i, ind, arr) {
-      dynText.createRenderedEntities(i, cb);
-    });
+    var children = this.entities.children;
+    
+    for (var i=0,l=children.length; i<l; i++) {
+      dynText.createRenderedEntities(children[i], cb);
+    }
     
     return main;
   }
@@ -7761,18 +7752,16 @@ lces.rc[3] = function() {
     this.contentProps = [];
     this.paramProps   = [];
     
+    // Lexical analysis
+    this.lexer(s);
     
-    while (this.lexer(s[this.charIndex], this.charIndex, s, this.lexerTypes)) {
-      this.charIndex += 1;
-    }
-    
-    if (jSh.type(this.tokens) === "string")
+    if (typeof this.tokens === "string")
       throw Error(this.tokens);
     
     // Generate entities
     var entities = this.formatSyntax();
     
-    if (jSh.type(entities) === "string")
+    if (typeof entities === "string")
       throw Error(entities);
     
     // Render output
@@ -8159,13 +8148,13 @@ lces.rc[4] = function() {
     
     return template.build(options);
   }
-
+  
   // Template add initiation function method
   lces.template.addInit = function(func) {
     if (typeof func === "function")
       this.__initFuncs.push(func);
   }
-
+  
   // Template remove initiation function method
   lces.template.removeInit = function(func) {
     var index = this.__initFuncs.indexOf(func);
@@ -8173,7 +8162,897 @@ lces.rc[4] = function() {
     if (index !== -1)
       this.__initFuncs.splice(index, 1);
   }
-
+  
+  lces.template.tokenTypes = {
+    GROUP: 0, // Parens
+    REFERENCE: 1, // Variable reference
+    PRIMITIVE: 2, // String or number
+    MODIFIER: 3, // Addition, subtraction, etc
+    COMPARISON: 4 // Equality or greater/less than
+  };
+  
+  lces.template.expressionLexer = function(source, options) {
+    var tokenTypes = lces.template.tokenTypes;
+    
+    var mainTokens = [];
+    var tokens     = mainTokens;
+    
+    mainTokens.map   = {};
+    mainTokens.depth = [];
+    mainTokens.refs  = [];
+    
+    var isIdentifierStart = /[a-zA-Z_$]/;
+    var isIdentifier      = /[a-zA-Z_\d\.\s$]/;
+    var isNumberStart     = /\d/;
+    var isNumber          = /[\d\.]/;
+    var isCondOperator    = /[=<>!]/;
+    var isGLTOperator     = /[><]/; // Greater/Less Than
+    var isMutOperator     = /[*\-+\/%]/;
+    var isUnaryOperator   = /[!-]/;
+    var isStringStart     = /["']/;
+    
+    var char = "";
+    var curGroup = null;
+    var curToken = null;
+    var curTokenContent = null;
+    var inString = false;
+    var strQuote = '"';
+    var inIdentifier = false;
+    var finishIdentifierName = false;
+    var negated = false;
+    
+    function getLastTokenType() {
+      var lastToken = tokens[tokens.length - 1];
+      
+      return (lastToken || {}).type;
+    }
+    
+    function checkValidValueToken(type, i) {
+      var lastToken = tokens[tokens.length - 1];
+      
+      if (lastToken instanceof Object) {
+        var lastTokenType = lastToken.type;
+        
+        // Confirm valid token order
+        switch (lastTokenType) {
+          case tokenTypes.PRIMITIVE:
+          case tokenTypes.GROUP:
+          case tokenTypes.REFERENCE:
+            throw new SyntaxError("LCES Template Expression: Unexpected " + type + " at col " + i);
+            break;
+        }
+      }
+    }
+    
+    function checkValidOperatorToken(type, i) {
+      var lastToken = tokens[tokens.length - 1];
+      
+      if (lastToken instanceof Object) {
+        var lastTokenType = lastToken.type;
+        
+        // Confirm valid token order
+        switch (lastTokenType) {
+          case tokenTypes.MODIFIER:
+          case tokenTypes.COMPARISON:
+            throw new SyntaxError("LCES Template Expression: Unexpected " + type + " at col " + i);
+            break;
+        }
+      } else {
+        throw new SyntaxError("LCES Template Expression: Unexpected " + type + " at col " + i);
+      }
+    }
+    
+    // Token ID for reference purposes
+    var curTokenID = 0;
+    var curDepth   = -1;
+    
+    for (var i=0,l=source.length; i<l; i++) {
+      char = source[i];
+      
+      if (!inString) {
+        if (char === " ") {
+          // Do nothing in whitespace
+        } else if (isIdentifierStart.test(char)) {
+          if (options.noReference)
+            throw new SyntaxError("LCES Template Expression: Reference variables disabled in expression. At col " + i);
+          
+          checkValidValueToken("identifier", i);
+          
+          // Add identifier
+          curToken = [];
+          curTokenContent = "";
+          finishIdentifierName = false;
+          
+          while (isIdentifier.test(char) && char) {
+            if (char !== "." && char !== " ") {
+              if (finishIdentifierName)
+                throw new SyntaxError("LCES Template Expression: Unexpected token \"" + char + "\" at col " + i + " expected \".\"");
+              
+              inIdentifier = false;
+              curTokenContent += char;
+            } else if (char === " ") {
+              finishIdentifierName = true;
+              
+              curToken.push(curTokenContent);
+              curTokenContent = "";
+            } else {
+              if (!finishIdentifierName) {
+                curToken.push(curTokenContent);
+                curTokenContent = "";
+              }
+              
+              inIdentifier = true;
+              finishIdentifierName = false;
+            }
+            
+            i++;
+            char = source[i];
+          }
+          
+          if (inIdentifier)
+            throw new SyntaxError("LCES Template Expression: Unexpected token \"" + char + "\" at col " + i + " expected identifier");
+          
+          if (curTokenContent)
+            curToken.push(curTokenContent);
+          
+          // `a.b` in `a.b.c`
+          var lastIndex = curToken.length - 1;
+          var ctxPath   = curToken.slice(0, lastIndex);
+          var varName   = curToken[lastIndex];
+          
+          var newReference = {
+            id: curTokenID,
+            type: tokenTypes.REFERENCE,
+            name: curToken,
+            nameStr: curToken.join("."),
+            varName: varName,
+            context: ctxPath,
+            contextStr: ctxPath.join("."),
+            value: null,
+            negated: negated
+          };
+          
+          tokens.push(newReference);
+          mainTokens.refs.push(newReference);
+          curToken = null;
+          curTokenContent = null;
+          mainTokens.map[curTokenID] = newReference;
+          
+          curTokenID++;
+          
+          // Go back to previous char, since we're now on a char that's not
+          // part of the identifier
+          if (char)
+            i--;
+          
+          negated = false;
+        } else if (isNumberStart.test(char)) {
+          if (options.noNumbers)
+            throw new SyntaxError("LCES Template Expression: Number primitives disabled in expression. At col " + i);
+          
+          checkValidValueToken("number", i);
+          
+          curTokenContent = "";
+          var passedDecimalPoint = false;
+          var numbersAfterDecimal = false;
+          
+          while (isNumber.test(char)) {
+            if (char === ".") {
+              if (passedDecimalPoint) {
+                throw new SyntaxError("LCES Template Expression: Unexpected token \"" + char + "\" at col " + i);
+              } else {
+                passedDecimalPoint = true;
+              }
+            } else if (passedDecimalPoint) {
+              // Make sure no erronous trailing periods
+              numbersAfterDecimal = true;
+            }
+            
+            curTokenContent += char;
+            
+            i++;
+            char = source[i];
+          }
+          
+          if (passedDecimalPoint && !numbersAfterDecimal)
+            throw new SyntaxError("LCES Template Expression: Unexpected token \"" + char + "\" at col " + i + " expected decimal numbers");
+          
+          var tokenValue = parseFloat(curTokenContent);
+          
+          if (negated) {
+            tokenValue *= -1;
+          }
+          
+          tokens.push({
+            id: curTokenID,
+            type: tokenTypes.PRIMITIVE,
+            value: tokenValue
+          });
+          curToken = null;
+          curTokenContent = null;
+          
+          curTokenID++;
+          
+          // Go back to previous char, since we're now on a char that's not
+          // part of the number
+          if (char)
+            i--;
+          
+          negated = false;
+        } else if (isStringStart.test(char)) {
+          if (options.noStrings)
+            throw new SyntaxError("LCES Template Expression: String primitives disabled in expression. At col " + i);
+          
+          checkValidValueToken("string", i);
+          
+          inString = true;
+          strQuote = char;
+          
+          curToken = [];
+          curTokenContent = "";
+          negated = false;
+        } else if (char === "(") {
+          checkValidValueToken("open paren", i);
+          
+          curGroup = {
+            id: curTokenID,
+            type: tokenTypes.GROUP,
+            value: [], // Tokens stored here
+            negated: negated
+          };
+          
+          mainTokens.map[curTokenID] = curGroup;
+          curTokenID++;
+          curDepth++;
+          
+          tokens.push(curGroup);
+          curGroup.value.parent = tokens;
+          
+          // Add to depth array
+          var curDepthArray = mainTokens.depth[curDepth];
+          
+          if (!curDepthArray) {
+            curDepthArray = [];
+            mainTokens.depth[curDepth] = curDepthArray;
+          }
+          
+          curDepthArray.push(curGroup);
+          
+          tokens = curGroup.value;
+          negated = false;
+        } else if (char === ")") {
+          checkValidOperatorToken("close paren", i); // Make sure no weird tokens ending it
+          
+          if (!tokens.parent || tokens.length === 1) {
+            throw new SyntaxError("LCES Template Expression: Unexpected closing paren \"" + char + "\" at col " + i);
+          } else {
+            tokens = tokens.parent;
+          }
+          
+          curDepth--;
+        } else if (isUnaryOperator.test(char) &&
+                  (getLastTokenType() === tokenTypes.MODIFIER ||
+                   getLastTokenType() === tokenTypes.COMPARISON ||
+                   curTokenID === 0)) {
+          negated = true;
+        } else if (isMutOperator.test(char)) {
+          if (options.noArithmetic)
+            throw new SyntaxError("LCES Template Expression: Arithmetic operators disabled in expression. At col " + i);
+          
+          checkValidOperatorToken(char, i);
+          
+          tokens.push({
+            id: curTokenID,
+            type: tokenTypes.MODIFIER,
+            value: char
+          });
+          
+          curTokenID++;
+          
+          curToken = null;
+          curTokenContent = null;
+        } else if (isCondOperator.test(char)) {
+          if (options.noCompare)
+            throw new SyntaxError("LCES Template Expression: Comparison operators disabled in expression. At col " + i);
+          
+          checkValidOperatorToken(char, i);
+          
+          var next   = source[i + 1];
+          var curCol = i;
+          
+          if (isGLTOperator.test(char) && next === "=") {
+            tokens.push({
+              id: curTokenID,
+              type: tokenTypes.COMPARISON,
+              value: char + "=",
+              col: curCol
+            });
+            
+            i++;
+          } else {
+            var extraChars = "";
+            
+            if (char === "=" || char === "!") {
+              var next  = source[i + 1];
+              var next2 = source[i + 2];
+              
+              if (next !== "=")
+                throw new SyntaxError("LCES Template Expression: Unexpected token \"" + next + "\" at col " + i + " expected \"=\"");
+              
+              if (next2 === "=") {
+                extraChars += "=";
+                i++;
+              }
+              
+              extraChars += "=";
+              i++;
+            }
+            
+            tokens.push({
+              id: curTokenID,
+              type: tokenTypes.COMPARISON,
+              value: char + extraChars,
+              col: curCol
+            });
+          }
+          
+          curToken = null;
+          curTokenContent = null;
+          
+          curTokenID++;
+        } else {
+          throw new SyntaxError("LCES Template Expression: Illegal character \"" + char + "\" at col " + i);
+        }
+      } else {
+        if (char === "\\") {
+          // Skip over next char
+          i += 1;
+          
+          curTokenContent += source[i];
+        } else if (char === strQuote) {
+          tokens.push({
+            id: curTokenID,
+            type: tokenTypes.PRIMITIVE,
+            value: curTokenContent
+          });
+          
+          curToken = null;
+          curTokenContent = null;
+          
+          curTokenID++;
+          inString = false;
+        } else {
+          curTokenContent += char;
+        }
+      }
+    }
+    
+    if (tokens !== mainTokens) {
+      throw new SyntaxError("LCES Template Expression: Unterminated parens in: `" + source + "`");
+    } else if (inString) {
+      throw new SyntaxError("LCES Template Expression: Unterminated string literal in: `" + source + "`");
+    }
+    
+    checkValidOperatorToken("termination of input", i); // Make sure no weird tokens ending it
+    
+    return mainTokens;
+  }
+  
+  lces.template.processTokens = function(tokens) {
+    var tree  = [];
+    var depth = tokens.depth;
+    var tokenTypes = lces.template.tokenTypes;
+    
+    var currentTokens = null;
+    var compareTree   = [];
+    var compareMap    = {};
+    
+    compareTree.tokenMap   = tokens.map;
+    compareTree.groupMap   = {};
+    compareTree.references = []; // Variable references
+    compareTree.rawValue   = false;
+    
+    var overallTokenCount = 0;
+    
+    // Check for comparisons
+    for (var i=depth.length-1; i>=-1; i--) {
+      var groupDepth = depth[i];
+      var newDepth   = [];
+      
+      compareTree.push(newDepth);
+      
+      if (!groupDepth) {
+        // i must be -1, Reached the first group, ground zero i.e. not in a parens anymore
+        groupDepth = [{
+          value: tokens
+        }];
+      }
+      
+      for (var j=groupDepth.length-1; j>=0; j--) {
+        var group    = groupDepth[j];
+        var gTokens  = group.value;
+        var newGroup = {
+          sides: [[], []],
+          operator: null,
+          value: 0, // During evaluation phases
+          negated: group.negated
+        };
+        
+        if ("id" in group) {
+          newGroup.id = group.id;
+          compareMap[group.id] = newGroup;
+        } else {
+          newGroup.id = "zero";
+        }
+        
+        newDepth.push(newGroup);
+        
+        var lhs = newGroup.sides[0];
+        var rhs = newGroup.sides[1];
+        
+        var onRightSide     = false;
+        var compareOperator = null;
+        
+        for (var k=0,l=gTokens.length; k<l; k++) {
+          var token         = gTokens[k];
+          var tokenIsString = false;
+          var tokenType     = token.type;
+          var valueType     = typeof token.value;
+          
+          overallTokenCount++;
+          
+          if (tokenType === tokenTypes.COMPARISON) {
+            if (onRightSide)
+              throw new SyntaxError("LCES Template Expression: Unexpected token \"" + token.value + "\" at col " + token.col + ", multiple adjacent comparison operators aren't allowed");
+            
+            onRightSide     = true;
+            compareOperator = token.value;
+          } else {
+            switch (tokenType) {
+              case tokenTypes.PRIMITIVE:
+                if (valueType === "string")
+                  tokenIsString = true;
+                break;
+              case tokenTypes.REFERENCE:
+                compareTree.references.push(token);
+                break;
+            }
+            
+            if (onRightSide) {
+              rhs.push(token);
+              
+              if (tokenIsString)
+                rhs.string = true;
+            } else {
+              lhs.push(token);
+              
+              if (tokenIsString)
+                lhs.string = true;
+            }
+          }
+        }
+        
+        if (compareOperator)
+          newGroup.operator = compareOperator;
+      }
+      
+      newDepth.reverse();
+    }
+    
+    function opRank(char) {
+      return ["-", "+", "*", "%", "/"].indexOf(char);
+    }
+    
+    // Order and convert tokens to operations
+    for (var i=0,l=compareTree.length; i<l; i++) {
+      var curDepth = compareTree[i];
+      
+      for (var j=0,l2=curDepth.length; j<l2; j++) {
+        var curGroup = curDepth[j];
+        var sides    = curGroup.sides;
+        
+        var lhs = [];
+        var rhs = [];
+        
+        for (var k=0; k<sides.length; k++) {
+          var side = sides[k];
+          
+          var add = [];
+          var subtract = [];
+          var special = []; // Multiplication, division, modulo...
+          var lastOperation = "+";
+          var oldLastOperation = lastOperation;
+          var olderLastOperation = lastOperation;
+          var lastSign = 1;
+          var lastSpecial = null;
+          var curSpecial = null;
+          var lastToken = null;
+          var lastValueToken = null;
+          
+          function determineGroup(op) {
+            switch (op) {
+              case "+":
+                return add;
+                break;
+              case "-":
+                return subtract;
+                break;
+              default:
+                return lastSpecial;
+                break;
+            }
+          }
+          
+          for (var ii=0,l3=side.length; ii<l3; ii++) {
+            var token     = side[ii];
+            var nextToken = side[ii + 1];
+            
+            switch (token.type) {
+              case tokenTypes.GROUP:
+              case tokenTypes.REFERENCE:
+              case tokenTypes.PRIMITIVE:
+                // Not sure what to do here...
+                if (lastOperation === "*" ||
+                    lastOperation === "/" ||
+                    lastOperation === "%") {
+                  if (!nextToken || opRank(lastOperation) >= opRank(nextToken.value)) {
+                    if (token.type === tokenTypes.PRIMITIVE)
+                      lastSpecial.push(token.value);
+                    else
+                      lastSpecial.push({id: token.id, type: token.type, LCESValueType: true}); // Group or reference
+                    
+                    lastValueToken = null;
+                  } else {
+                    lastValueToken = token;
+                  }
+                } else if (lastOperation === "+" ||
+                           lastOperation === "-") {
+                  var array = lastOperation === "+" ? add : subtract;
+                  
+                  if (!nextToken || opRank(lastOperation) >= opRank(nextToken.value) || nextToken.value === "+") {
+                    if (token.type === tokenTypes.PRIMITIVE)
+                      array.push(token.value);
+                    else
+                      array.push({id: token.id, type: token.type, LCESValueType: true}); // Group or reference
+                    
+                    lastValueToken = null;
+                  } else {
+                    lastValueToken = token;
+                  }
+                  
+                } else {
+                  lastValueToken = token;
+                }
+                
+                break;
+              case tokenTypes.MODIFIER:
+                olderLastOperation = oldLastOperation;
+                oldLastOperation = lastOperation;
+                lastOperation = token.value;
+                
+                if (lastOperation === "-") {
+                  lastSign = -1;
+                } else if (lastOperation === "+") {
+                  lastSign = 1;
+                } else if (lastOperation === "*" ||
+                           lastOperation === "/" ||
+                           lastOperation === "%") {
+                  var prevOpHigher = opRank(oldLastOperation) > opRank(lastOperation);
+                  
+                  if ((lastOperation === oldLastOperation ||
+                      prevOpHigher)) {
+                    if (lastValueToken) {
+                      var opGroup = determineGroup(oldLastOperation);
+                      
+                      if (lastValueToken.type === tokenTypes.PRIMITIVE)
+                        opGroup.push(lastValueToken.value);
+                      else
+                        opGroup.push({id: lastValueToken.id, type: lastValueToken.type}); // Group or reference
+                      
+                      lastValueToken = null;
+                    }
+                    
+                    if (prevOpHigher && lastOperation !== "+" && lastOperation !== "-") {
+                      var lastSpecial = [lastOperation, lastSign, lastSpecial];
+                      var mergedWithLastSpecial = true;
+                    } else {
+                      var mergedWithLastSpecial = false;
+                    }
+                  } else {
+                    var lastSpecial = [lastOperation, lastSign];
+                    
+                    if (!prevOpHigher && lastValueToken) {
+                      if (lastValueToken.type === tokenTypes.PRIMITIVE)
+                        lastSpecial.push(lastValueToken.value);
+                      else
+                        lastSpecial.push({id: lastValueToken.id, type: lastValueToken.type}); // Group or reference
+                      lastValueToken = null;
+                    }
+                    
+                    var mergedWithLastSpecial = false;
+                  }
+                  
+                  if (mergedWithLastSpecial) {
+                    special[special.length - 1] = lastSpecial;
+                  } else if (lastOperation !== oldLastOperation) {
+                    special.push(lastSpecial);
+                  }
+                  
+                  lastSign = 1; // Since any following operations will likely be merged with this one
+                }
+                
+                break;
+            }
+            
+            lastToken = token;
+          }
+          
+          sides[k] = {
+            add: add,
+            subtract: subtract,
+            special: special
+          };
+        }
+      }
+    }
+    
+    if (overallTokenCount === 1 && compareTree.references.length)
+      compareTree.rawValue = true;
+    
+    // compareTree.reverse(); // No need to reverse
+    return compareTree;
+  }
+  
+  // parseExpression(String expr[, Object options])
+  //
+  // expr: String: Non-empty string of expression
+  // options: Optional. Object: Options to observe over the parsing phase
+  //
+  // Example `options`: (default values)
+  //  {
+  //    noStrings: false,
+  //    noNumbers: false,
+  //    noCompare: false, // Comparison operators: ===, !==, >, <, <=, etc
+  //    noArithmetic: false,
+  //    noReference: false
+  //  }
+  //
+  // Description: Parses expressions whilst observing options provided (if any)
+  //              and a structured tree that is fit evaluation in the Expression
+  //              Evaluator. @see `lces.template.evaluateExpression()`
+  lces.template.parseExpression = function(expr, options) {
+    if (typeof expr !== "string" || !expr.trim())
+      throw new Error("LCES Expression must be a valid non-empty string");
+    
+    // Parse and tokenize expression
+    var tokens = lces.template.expressionLexer(expr, options || {});
+    
+    // Group and organize tokens in tree/operation order
+    var compiledTokens = lces.template.processTokens(tokens);
+    
+    return compiledTokens;
+  }
+  
+  lces.template.evaluateExpression = function(compiledExpr, context, cache) {
+    var tokenTypes    = lces.template.tokenTypes;
+    var tokenMap      = compiledExpr.tokenMap;
+    var groupValueMap = {};
+    var rawValue      = compiledExpr.rawValue;
+    
+    if (!context) {
+      context = {};
+    }
+    
+    if (!cache) {
+      cache = {};
+    }
+    
+    // Return variable reference values from {context}, e.g. `a.b` in: a.b * 5
+    function loadReferenceValue(reference) {
+      var ctxStr  = reference.contextStr;
+      var varName = reference.varName;
+      var negated = reference.negated;
+      
+      if (!ctxStr) {
+        var value = context[varName];
+        
+        if (negated) {
+          switch (typeof value) {
+            case "number":
+              return value * -1;
+              break;
+            default:
+              return !value;
+          }
+        } else {
+          return value;
+        }
+      }
+      
+      var ctx      = reference.context;
+      var path     = reference.name;
+      var pathStr  = reference.nameStr;
+      var cacheCtx = cache[ctxStr];
+      
+      if (cacheCtx) {
+        return cacheCtx[varName];
+      }
+      
+      var lastObject = context;
+      
+      for (var i=0,l=ctx.length; i<l; i++) {
+        try {
+          lastObject = lastObject[ctx];
+        } catch (e) {
+          throw new ReferenceError("LCES Expression Eval: Context object lacks sufficient depth");
+        }
+      }
+      
+      cache[ctxStr] = lastObject;
+      var value = lastObject[varName];
+      
+      if (negated) {
+        switch (typeof value) {
+          case "number":
+            return value * -1;
+            break;
+          default:
+            return !value;
+        }
+      } else {
+        return value;
+      }
+    }
+    
+    // Evaluate * % / multiplication, modulo, division
+    function evalSpecial(special) {
+      var out  = null;
+      var op   = special[0];
+      var sign = special[1];
+      
+      for (var i=2,l=special.length; i<l; i++) {
+        var value     = special[i];
+        var realValue = 0;
+        
+        if (isNaN(value)) {
+          if (value instanceof Array) {
+            realValue = evalSpecial(value);
+          } else if (value.type === tokenTypes.GROUP) {
+            realValue = groupValueMap[value.id];
+          } else {
+            // It's a reference...
+            realValue = loadReferenceValue(tokenMap[value.id]);
+          }
+        } else {
+          realValue = value;
+        }
+        
+        if (out !== null) {
+          switch (op) {
+            case "*":
+              out *= realValue;
+              break;
+            case "%":
+              out %= realValue;
+              break;
+            case "/":
+              out /= realValue;
+              break;
+          }
+        } else {
+          out = realValue;
+        }
+      }
+      
+      return out * sign;
+    }
+    
+    for (var i=0,l=compiledExpr.length; i<l; i++) {
+      var depth = compiledExpr[i];
+      
+      for (var j=0,l2=depth.length; j<l2; j++) {
+        var group = depth[j];
+        
+        var outValue  = []; // Store value for each side
+        var operator  = group.operator;
+        var sideCount = operator ? 2 : 1;
+        
+        for (var k=0; k<sideCount; k++) {
+          var curSide = group.sides[k];
+          
+          if (curSide.string)
+            var curValue = "";
+          else
+            var curValue = 0;
+          
+          var add      = curSide.add;
+          var subtract = curSide.subtract;
+          var special  = curSide.special;
+          
+          for (var ii=0,l3=add.length; ii<l3; ii++) {
+            var curTokenValue = add[ii];
+            
+            if (curTokenValue.LCESValueType) {
+              if (curTokenValue.type === tokenTypes.GROUP) {
+                curTokenValue = groupValueMap[curTokenValue.id];
+              } else {
+                // It's a reference...
+                curTokenValue = loadReferenceValue(tokenMap[curTokenValue.id]);
+              }
+            }
+            
+            if (!rawValue)
+              curValue += curTokenValue;
+            else
+              outValue = curTokenValue;
+          }
+          
+          for (var ii=0,l3=subtract.length; ii<l3; ii++) {
+            var curTokenValue = subtract[ii];
+            
+            if (curTokenValue.LCESValueType) {
+              if (curTokenValue.type === tokenTypes.GROUP) {
+                curTokenValue = groupValueMap[curTokenValue.id];
+              } else {
+                // It's a reference...
+                curTokenValue = loadReferenceValue(tokenMap[curTokenValue.id]);
+              }
+            }
+            
+            curValue -= curTokenValue;
+          }
+          
+          for (var ii=0,l3=special.length; ii<l3; ii++) {
+            curValue += evalSpecial(special[ii]);
+          }
+          
+          if (!rawValue)
+            outValue.push(curValue);
+        }
+        
+        if (operator) {
+          switch (operator) {
+            case "==":
+              group.value = outValue[0] == outValue[1];
+              break;
+            case "===":
+              group.value = outValue[0] === outValue[1];
+              break;
+            case "!=":
+              group.value = outValue[0] != outValue[1];
+              break;
+            case "!==":
+              group.value = outValue[0] !== outValue[1];
+              break;
+            case ">=":
+              group.value = outValue[0] >= outValue[1];
+              break;
+            case "<=":
+              group.value = outValue[0] <= outValue[1];
+              break;
+            case ">":
+              group.value = outValue[0] > outValue[1];
+              break;
+            case "<":
+              group.value = outValue[0] < outValue[1];
+              break;
+          }
+        } else {
+          group.value = curValue;
+        }
+        
+        groupValueMap[group.id] = group.value;
+      }
+    }
+    
+    if (!rawValue)
+      return groupValueMap["zero"];
+    else {
+      groupValueMap["zero"] = outValue;
+      return outValue;
+    }
+  }
+  
   // LCES Template Building method. Builds every LCES template constructor
   lces.template.build = function build(options) {
     
@@ -8326,74 +9205,94 @@ lces.rc[4] = function() {
   jSh.MockupElementMethods = {
     // Conversion/Copying functions
     construct: function(deep, clone, dynContext) {
-      var that   = this;
-      var newElm = clone ? jSh.MockupElement(this.tagName) : jSh.e(this.tagName.toLowerCase());
-      var nsElm  = newElm.nsElm;
+      var that     = this;
+      var notLogic = !(!clone && this.__lclogic);
+      var newElm   = clone ? jSh.MockupElement(this.tagName) : jSh.e(this.tagName.toLowerCase());
+      var nsElm    = newElm.nsElm;
       
       // Disallow tags in the dynText compiling
       if (dynContext)
         dynContext.dynText.allowTags = false;
       
-      // Set the attributes
-      var checkNSAttr = /^ns:[^:]+:[^]*$/i;
-      
-      Object.getOwnPropertyNames(this.attributes).forEach(function(i) {
-        var isNS = checkNSAttr.test(i);
+      // Make sure if we're conceiving it's not an lclogic element
+      if (notLogic) {
+        // Set the attributes
+        var checkNSAttr   = /^ns:[^:]+:[^]*$/i;
+        var attributeList = Object.getOwnPropertyNames(this.attributes);
         
-        var nsURI, nsAttr, oldI = i;
-        
-        if (isNS) {
-          nsURI = i.replace(/^ns:[^:]+:([^]*)$/i, "$1");
-          nsAttr = i.replace(/^ns:([^:]+):[^]*$/i, "$1");
+        for (var i=0,l=attributeList.length; i<l; i++) {
+          var curAttr = attributeList[i];
+          var isNS    = checkNSAttr.test(curAttr);
           
-          i = nsAttr;
+          var nsURI, nsAttr, oldAttrForm = curAttr;
+          
+          if (isNS) {
+            nsURI  = curAttr.replace(/^ns:[^:]+:([^]*)$/i, "$1");
+            nsAttr = curAttr.replace(/^ns:([^:]+):[^]*$/i, "$1");
+            
+            curAttr = nsAttr;
+          }
+          
+          if (dynContext) {
+            var dynAttr = dynContext.dynText.compile(this.attributes[oldAttrForm], function(s) {
+              if (!isNS)
+                newElm.setAttribute(curAttr, s);
+              else
+                newElm.setAttributeNS(nsURI ? nsURI : null, nsAttr, s);
+            });
+            
+            if (!dynAttr) {
+              if (!isNS)
+                newElm.setAttribute(curAttr, this.attributes[curAttr]);
+              else
+                newElm.setAttributeNS(nsURI ? nsURI : null, nsAttr, this.attributes[oldAttrForm]);
+            }
+          } else {
+            if (!isNS)
+              newElm.setAttribute(curAttr, this.attributes[curAttr]);
+            else
+              newElm.setAttributeNS(nsURI ? nsURI : null, nsAttr, this.attributes[oldAttrForm]);
+          }
+        }
+        
+        // Add event listeners
+        var eventList = Object.getOwnPropertyNames(this.__events);
+        
+        for (var i=eventList.length-1; i>=0; i--) {
+          var evtName = eventList[i];
+          var evt     = that.__events[evtName];
+          var cb, bubble;
+          
+          for (var j=0; j<evt.length; j+=2) {
+            cb     = evt[j];
+            bubble = evt[j + 1];
+            
+            newElm.addEventListener(evtName, cb, bubble);
+          }
         }
         
         if (dynContext) {
-          var dynAttr = dynContext.dynText.compile(that.attributes[oldI], function(s) {
-            if (!isNS)
-              newElm.setAttribute(i, s);
-            else
-              newElm.setAttributeNS(nsURI ? nsURI : null, nsAttr, s);
-          });
-          
-          if (!dynAttr) {
-            if (!isNS)
-              newElm.setAttribute(i, that.attributes[i]);
-            else
-              newElm.setAttributeNS(nsURI ? nsURI : null, nsAttr, that.attributes[oldI]);
+          newElm.lces = {
+            ctx: dynContext
           }
-        } else {
-          if (!isNS)
-            newElm.setAttribute(i, that.attributes[i]);
-          else
-            newElm.setAttributeNS(nsURI ? nsURI : null, nsAttr, that.attributes[oldI]);
         }
-      });
-      
-      // Add event listeners
-      Object.getOwnPropertyNames(this.__events).forEach(function(i) {
-        var cb, bubble;
-        var evt = that.__events[i];
-        
-        for (var j=0; j<evt.length; j+=2) {
-          cb     = evt[j];
-          bubble = evt[j + 1];
-          
-          newElm.addEventListener(i, cb, bubble);
-        }
-      });
+      }
       
       // TODO: This is probably overly redundant
       if (this.getAttribute("style"))
         newElm.setAttribute("style", this.getAttribute("style"));
         
       // Check innerHTML and textContent
-      if (dynContext) {
+      if (dynContext && !this.__lclogic) {
         dynContext.dynText.element = newElm;
         
         // Remove the innerHTML/textContent from the exclusion array
-        jSh.spliceItem(jSh.MockupElementOnlyProps, "innerHTML", "_innerHTML", "textContent", "_textContent");
+        jSh.extendObj(jSh.MockupElementOnlyPropsMap, { // FIXME: This is applied globally, which is stupid
+          "innerHTML": 0,
+          "_innerHTML": 0,
+          "textContent": 0,
+          "_textContent": 0
+        });
         
         if (this._textContent) {
           var textNode = jSh.c("span", undf, this._textContent);
@@ -8404,52 +9303,75 @@ lces.rc[4] = function() {
           
           newElm.appendChild(textNode);
           
-          jSh.pushItems(jSh.MockupElementOnlyProps, "textContent", "_textContent");
+          jSh.extendObj(jSh.MockupElementOnlyPropsMap, {
+            "textContent": 1,
+            "_textContent": 1
+          });
         } else if (this._innerHTML) {
           dynContext.dynText.allowTags = true;
           
           var c = dynContext.dynText.compile(this._innerHTML);
           
-          jSh.pushItems(jSh.MockupElementOnlyProps, "innerHTML", "_innerHTML");
+          jSh.extendObj(jSh.MockupElementOnlyPropsMap, {
+            "innerHTML": 1,
+            "_innerHTML": 1
+          });
         }
         
         dynContext.dynText.allowTags = false;
         dynContext.dynText.element   = null;
       }
       
-      // Add own properties from initial MockupElement
-      // TODO: Optimize this!!!!
-      var newProps = Object.getOwnPropertyNames(this).filter(function(i) {return jSh.MockupElementOnlyProps.indexOf(i) === -1;});
-      
-      for (var i=0,l=newProps.length; i<l; i++) {
-        var prop = newProps[i];
+      if (notLogic) {
+        // Add own properties from initial MockupElement
+        var jShMUpOnlyProps = jSh.MockupElementOnlyPropsMap;
+        var newPropNames    = Object.getOwnPropertyNames(this);
         
-        if (dynContext && jSh.type(that[prop]) === "string") {
-          var dyn = dynContext.dynText.compile(that[prop] + "", function(s) {
-            newElm[prop] = s;
-          });
+        for (var i=0,l=newPropNames.length; i<l; i++) {
+          let newPropName = newPropNames[i];
           
-          if (!dyn)
-            newElm[prop] = that[prop];
-        } else if (that[prop])
-          newElm[prop] = that[prop];
-      }
-      
-      // Finally add the classNames if any
-      if (this.className) {
-        if (!nsElm)
-          newElm.className = this.className;
-        else
-          newElm.setAttribute("class", this.className);
+          if (!jShMUpOnlyProps[newPropName]) {
+            let propValue = that[newPropName];
+            
+            if (dynContext && typeof propValue === "string") {
+              let dyn = dynContext.dynText.compile(propValue + "", function(s) {
+                newElm[newPropName] = s;
+              });
+              
+              if (!dyn)
+                newElm[newPropName] = propValue;
+            } else if (propValue)
+              newElm[newPropName] = propValue;
+          }
+        }
+        
+        // Finally add the classNames if any
+        if (this.className) {
+          if (!nsElm)
+            newElm.className = this.className;
+          else
+            newElm.setAttribute("class", this.className);
+        }
       }
       
       // If deep is true, then traverse all the children
       if (deep) {
-        var method = clone ? "cloneNode" : "conceive";
+        var childNodes = this.childNodes;
         
-        this.childNodes.forEach(function(i) {
-          newElm.appendChild(i[method](true, dynContext));
-        });
+        if (clone) {
+          for (var i=0,l=childNodes.length; i<l; i++) {
+            newElm.appendChild(childNodes[i].cloneNode(true, dynContext));
+          }
+        } else {
+          if (notLogic) {
+            for (var i=0,l=childNodes.length; i<l; i++) {
+              newElm.appendChild(childNodes[i].conceive(true, dynContext));
+            }
+          } else {
+            var logicMarker = document.createComment("  LCES LOGIC - " + this.__lclogic + (this.__lcexprStr ? ": " + this.__lcexprStr : "") + "  ");
+            this.__lcinit(logicMarker, newElm, childNodes, dynContext);
+          }
+        }
       }
       
       if (!clone && this.tagName.toLowerCase() === "lces-placeholder") {
@@ -8460,7 +9382,10 @@ lces.rc[4] = function() {
       }
       
       // End
-      return jSh(newElm);
+      if (notLogic)
+        return jSh(newElm, null, true);
+      else
+        return logicMarker;
     },
     
     // Return a full fledged DOM Node
@@ -8542,12 +9467,14 @@ lces.rc[4] = function() {
     traverse: function(e, cb) {
       var that = this;
       
-      e.childNodes.forEach(function(i) {
-        cb(i);
+      var children = e.childNodes;
+      
+      for (var i=0,l=children.length; i<l; i++) {
+        var child = children[i];
         
-        if (i.childNodes[0])
-          that.traverse(i, cb);
-      });
+        if (child.childNodes[0])
+          this.traverse(child, cb);
+      }
     },
     
     // Query selectors
@@ -8665,23 +9592,30 @@ lces.rc[4] = function() {
 
   jSh.MockupElementClassList = {
     manipulateClass: function(classn, add) {
-      if (!add && classn === undf) { // Remove all classnames
-        this.classes = [];
-        
-      } else if (jSh.type(classn) && classn.trim()) {
+      if (!add && classn === undefined) { // Remove all classnames
+        this.classes     = [];
+        this.classlookup = {};
+      } else if (typeof classn === "string" && classn.trim()) {
         var classes    = classn.split(/\s+/);
         var classArray = this.classes;
+        var classObj   = this.classlookup;
         
-        classes.forEach(function(i) {
-          var exists = classArray.indexOf(i);
+        for (var i=classes.length-1; i>=0; i--) {
+          var curClass = classes[i];
+          var exists   = !!classObj[curClass];
           
-          if (add && exists === -1 || !add && exists !== -1) {
-            if (add)
-              classArray.push(i);
-            else
-              classArray.splice(exists, 1);
+          if (add && !exists || !add && exists) {
+            if (add) {
+              classArray.push(curClass);
+              classObj[curClass] = true;
+            } else {
+              var curIndex = classArray.indexOf(curClass);
+              
+              classArray.splice(curIndex, 1);
+              classObj[curClass] = false;
+            }
           }
-        });
+        }
       }
     },
     add: function(classn) {
@@ -8691,7 +9625,7 @@ lces.rc[4] = function() {
       this.manipulateClass(classn, false);
     },
     contains: function(classn) {
-      return this.classes.indexOf(classn) !== -1;
+      return !!this.classlookup[classn];
     },
     toggle: function(classn) {
       if (this.contains(classn))
@@ -8700,7 +9634,7 @@ lces.rc[4] = function() {
         this.add(classn);
     }
   };
-
+  
   // Array of properties to NOT copy to the real element
   jSh.MockupElementOnlyProps = [];
   jSh.MockupElementOnlyProps = jSh.MockupElementOnlyProps.concat(Object.getOwnPropertyNames(jSh.MockupElementMethods));
@@ -8709,9 +9643,16 @@ lces.rc[4] = function() {
     "__events", "attributes", "jSh", "parentNode",
     "previousSibling", "nextSibling", "getChild",
     "on", "__privParentNode", "__apch", "__rmch",
-    "nodeType", "className"
+    "nodeType", "className",
+    
+    // For LCES logic mockup elements
+    "__lclogic"
   ]);
-
+  
+  // Assign to object for faster hash lookup
+  jSh.MockupElementOnlyPropsMap = {};
+  jSh.MockupElementOnlyProps.forEach(p => (jSh.MockupElementOnlyPropsMap[p] = 1));
+  
   // Elements that CANNOT contain children
   jSh.MockupElementsBarren = ["img", "input", "link", "meta"];
 
@@ -8838,7 +9779,7 @@ lces.rc[4] = function() {
     
     // Add classList functionality
     Object.defineProperty(this, "classList", {
-      value: jSh.extendObj({classes: [], element: this}, jSh.MockupElementClassList),
+      value: jSh.extendObj({classes: [], classlookup: {}, element: this}, jSh.MockupElementClassList),
       enumerable: true,
       configurable: false,
       writable: false
@@ -8868,7 +9809,6 @@ lces.rc[4] = function() {
   }
 
   jSh.MockupElement.prototype.constructor = jSh.MockupElement;
-
 
   // MockupText, similar to document.createTextNode
   jSh.__MockupTextConceive = function(d, dynContext) {
@@ -8939,6 +9879,328 @@ lces.rc[4] = function() {
     return jSh.MockupText(text);
   }
   
+  // LCES Templating Logic Elements
+  jSh.m = {};
+  
+  lces.template.initIf = function(marker, newElm, childNodes, dynContext) {
+    // var anchor    = document.createComment();
+    var children   = [];
+    var logicNodes = [];
+    var refCache   = {};
+    var exprCache  = {};
+    var expr       = this.__lcexpr;
+    var refs       = expr.references;
+    var visible    = false;
+    
+    for (var i=0,l=childNodes.length; i<l; i++) {
+      var newChild = childNodes[i].conceive(true, dynContext);
+      children.push(newChild);
+      
+      if (newChild.LCESTrigger)
+        logicNodes.push(newChild);
+    }
+    
+    function trigger(change) {
+      if (!marker.parentNode)
+        return false;
+      
+      var result = !!lces.template.evaluateExpression(expr, dynContext, exprCache);
+      
+      if (result !== visible || change) {
+        if (result) {
+          var frag = jSh.docFrag();
+          
+          for (var i=0,l=children.length; i<l; i++) {
+            frag.appendChild(children[i]);
+          }
+          
+          if (marker.nextSibling) {
+            marker.parentNode.insertBefore(frag, marker.nextSibling);
+          } else {
+            marker.parentNode.appendChild(frag);
+          }
+          
+          // Trigger logic nodes
+          for (var i=0,l=logicNodes.length; i<l; i++) {
+            logicNodes[i].LCESInvisible(false);
+          }
+        } else {
+          var parent = marker.parentNode;
+          
+          if (children[0].parentNode) {
+            for (var i=0,l=children.length; i<l; i++) {
+              var child = children[i];
+              
+              // Check if logic is to be removed
+              if (child.LCESInvisible) {
+                child.LCESInvisible(true);
+              }
+              
+              parent.removeChild(child);
+            }
+          }
+        }
+        
+        visible = result;
+      }
+    }
+    
+    function invisible(notvisible) {
+      if (!notvisible) {
+        trigger(true);
+      } else {
+        if (visible) {
+          var parent = marker.parentNode;
+          
+          for (var i=0,l=children.length; i<l; i++) {
+            var child = children[i];
+            
+            if (child.LCESInvisible) {
+              child.LCESInvisible(false);
+            }
+            
+            parent.removeChild(child);
+          }
+        }
+      }
+    }
+    
+    marker.LCESTrigger = trigger;
+    marker.LCESInvisible = invisible;
+    
+    for (var i=0,l=refs.length; i<l; i++) {
+      var ref     = refs[i];
+      var ctxStr  = ref.ctxStr;
+      var pathStr = ref.nameStr;
+      
+      if (!refCache[pathStr]) {
+        if (!ctxStr) {
+            dynContext.addStateListener(pathStr, trigger);
+            refCache[pathStr] = dynContext;
+        } else {
+          var varName = ref.varName;
+          
+          if (refCache[ctxStr]) {
+            refCache[ctxStr].addStateListener(varName, trigger);
+          } else {
+            var ctxPath = ref.context;
+            var curObj  = dynContext;
+            
+            for (var j=0,l2=ctxPath.length; j<l2; j++) {
+              curObj = curObj[ctxPath[j]];
+              refCache[ctxPath.slice(0, j + 1).join(".")] = curObj;
+            }
+            
+            curObj.addStateListener(varName, trigger);
+            refCache[pathStr] = curObj;
+          }
+        }
+      }
+    }
+    
+    setTimeout(function() {
+      trigger(); // It's showtime baby!
+    }, 0);
+  }
+  
+  // jSh.m.if
+  //
+  // Will show elements if `condition` is true, will remove otherwise
+  jSh.m.if = function(condition, onChange, child) {
+    var element = jSh.cm("lces-template-if", null, null, child);
+    
+    element.__lclogic   = "if";
+    element.__lcinit    = lces.template.initIf;
+    element.__lcexpr    = lces.template.parseExpression(condition);
+    element.__lcexprStr = condition;
+    
+    return element;
+  }
+  
+  lces.template.initArray = function() {
+    
+  }
+  
+  // jSh.m.array
+  //
+  // Loops an array
+  jSh.m.array = function(iterate, itemIdentifier, indexIdentifier, onAdd, onRemove) {
+    var element = jSh.cm("lces-template-array");
+    
+    element.__lclogic     = "array";
+    element.__lcitemName  = jSh.strOp(itemIdentifier, null) || "_item";
+    element.__lcindexName = jSh.strOp(indexIdentifier, null) || "_i";
+    element.__lcinit      = lces.template.initArray;
+    element.__lcexpr      = lces.template.parseExpression(iterate, {
+      noStrings: true,
+      noNumbers: true,
+      noCompare: true,
+      noArithmetic: true
+    });
+    element.__lcexprStr = iterate;
+    
+    return element;
+  }
+  
+  lces.template.initTimes = function(marker, newElm, childNodes, dynContext) {
+    // var anchor    = document.createComment();
+    var children  = [];
+    var refCache  = {};
+    var exprCache = {};
+    var expr      = this.__lcexpr;
+    var refs      = expr.references;
+    var count     = 0;
+    var rendering = false;
+    var countName = this.__lccountName;
+    var initTimes = false;
+    
+    function trigger(change) {
+      if (!marker.parentNode || rendering)
+        return;
+      
+      rendering = true;
+      var result = parseInt(lces.template.evaluateExpression(expr, dynContext, exprCache));
+      
+      if (result !== count) {
+        if (result > count) {
+          var frag = jSh.docFrag();
+          var diff = result - count;
+          var last = children[children.length - 1];
+          
+          for (var i=0; i<diff; i++) {
+            for (var j=0,l=childNodes.length; j<l; j++) {
+              dynContext[countName] = i + 1;
+              var child = childNodes[j].conceive(true, dynContext);
+              
+              frag.appendChild(child);
+              children.push(child);
+            }
+          }
+          
+          var lastNode = count !== 0 ? last : marker;
+          
+          if (lastNode.nextSibling) {
+            marker.parentNode.insertBefore(frag, lastNode.nextSibling);
+          } else {
+            marker.parentNode.appendChild(frag);
+          }
+        } else {
+          var parent     = marker.parentNode;
+          var start      = (childNodes.length * result);
+          var childCount = children.length;
+          
+          if (start >= 0 && childCount) {
+            for (var i=start; i<childCount; i++) {
+              parent.removeChild(children[i]);
+            }
+          }
+          
+          children = children.slice(0, start);
+        }
+        
+        count = result;
+      }
+      
+      rendering = false;
+      initTimes = true;
+    }
+    
+    function invisible(notvisible) {
+      if (!notvisible) { // Visible
+        if (!initTimes)  {
+          trigger();
+        } else {
+          var parent = marker.parentNode;
+          var frag   = jSh.docFrag();
+          
+          for (var i=0,l=children.length; i<l; i++) {
+            var child = children[i];
+            
+            frag.appendChild(child);
+            
+            if (child.LCESInvisible) {
+              child.LCESInvisible(false);
+            }
+          }
+          
+          if (marker.nextSibling) {
+            parent.insertBefore(frag, marker.nextSibling);
+          } else {
+            parent.appendChild(frag);
+          }
+        }
+      } else {
+        var parent = marker.parentNode;
+        
+        for (var i=0,l=children.length; i<l; i++) {
+          var child = children[i];
+          
+          if (child.LCESInvisible) {
+            child.LCESInvisible(true);
+          }
+          
+          parent.removeChild(child);
+        }
+      }
+    }
+    
+    marker.LCESTrigger  = trigger;
+    marker.LCESInvisible = invisible;
+    
+    for (var i=0,l=refs.length; i<l; i++) {
+      var ref     = refs[i];
+      var ctxStr  = ref.ctxStr;
+      var pathStr = ref.nameStr;
+      
+      if (!refCache[pathStr]) {
+        if (!ctxStr) {
+            dynContext.addStateListener(pathStr, trigger);
+            refCache[pathStr] = dynContext;
+        } else {
+          var varName = ref.varName;
+          
+          if (refCache[ctxStr]) {
+            refCache[ctxStr].addStateListener(varName, trigger);
+          } else {
+            var ctxPath = ref.context;
+            var curObj  = dynContext;
+            
+            for (var j=0,l2=ctxPath.length; j<l2; j++) {
+              curObj = curObj[ctxPath[j]];
+              refCache[ctxPath.slice(0, j + 1).join(".")] = curObj;
+            }
+            
+            curObj.addStateListener(varName, trigger);
+            refCache[pathStr] = curObj;
+          }
+        }
+      }
+    }
+    
+    setTimeout(function() {
+      trigger(); // It's showtime baby!
+    }, 0);
+  }
+  
+  // jSh.m.times
+  //
+  // Renders the elements any number of times
+  jSh.m.times = function(count, countIdentifier, child, onAdd, onRemove) {
+    var element = jSh.cm("lces-template-times", null, null, child);
+    
+    element.__lclogic     = "times";
+    element.__lccountName = jSh.strOp(countIdentifier, null) || "_c";
+    element.__lccurCount  = 0;
+    element.__lcinit      = lces.template.initTimes;
+    element.__lcexpr      = lces.template.parseExpression(count, {
+      noStrings: true,
+      noCompare: true
+    });
+    element.__lcexprStr = count;
+    
+    return element;
+  }
+  
   // LCES Templating Placeholder element
   
   // Placeholder method for replacing it with a real node or MockupElement
@@ -8986,18 +10248,21 @@ lces.rc[4] = function() {
     
     this.type = "LCES Placeholder Widget";
     
-    this.replace = lces.template.__placeHolderReplace;
-    this.substitute = lces.template.__placeHolderSubstitute;
-    this.element.replace = lces.template.__placeHolderReplace.bind(this);
-    this.element.substitute = lces.template.__placeHolderSubstitute.bind(this);
+    this.element.replace = this.replace.bind(this);
+    this.element.substitute = this.substitute.bind(this);
     
     this.addStateListener("phName", function(phName) {
       that.element.setAttribute("ph-name", phName);
     });
   }
-
+  
   jSh.inherit(lcPlaceholder, lcWidget);
-
+  
+  jSh.extendObj(lcPlaceholder.prototype, {
+    replace: lces.template.__placeHolderReplace,
+    substitute: lces.template.__placeHolderSubstitute
+  });
+  
   // Create DOM placeholder element
   jSh.ph = function(phName) {
     var widget = new lcPlaceholder(jSh.c("lces-placeholder"));

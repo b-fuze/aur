@@ -93,7 +93,7 @@ function AURStyleImport(url, enabled) {
   jSh("head")[0].appendChild(styleElement);
 }
 
-jSh.inherit(AURStyleImport, lces.type());
+jSh.inherit(AURStyleImport, lces.types.component);
 
 function onChange() {
   renderStyles();

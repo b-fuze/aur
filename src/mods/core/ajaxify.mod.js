@@ -16,6 +16,9 @@ model.curRequest = null;
 model.cachedPages = [];
 model.inPopstate = false;
 
+// User configurable
+model.scrollToTop = true;
+
 // Ignoring attribute
 var ignoreAnchorAttr = "data-aur-ajaxify-ignore";
 
@@ -386,7 +389,8 @@ function engine(url, cache) {
         }, "New AJAX'fy page", urlPath);
       
       // Scroll to top
-      scrollTo(0, 0);
+      if (model.scrollToTop)
+        scrollTo(0, 0);
       
       // Loaded stage
       for (var i=0,l=onLoad.length; i<l; i++) {

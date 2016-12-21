@@ -6,6 +6,24 @@ AUR_AUTHORS = ["Mike32 (b-fuze)"];
 AUR_RESTART = false;
 AUR_INTERFACE = "auto";
 
+var tabModules = {};
+var modTab;
+
+reg.interface = {
+  focusModule(modName) {
+    var mod = tabModules[modName];
+    
+    if (mod) {
+      modTab.selected = true;
+      mod.component.visible = true;
+      
+      setTimeout(function() {
+        modTab.scrollbar.scrollTo(mod.dom);
+      }, 10);
+    }
+  }
+};
+
 AUR.onLoaded(true, "aur-ui", "aur-settings", "aur-styles", function() {
   var ui    = AUR.import("aur-ui");
   var sett  = AUR.import("aur-settings");
@@ -60,7 +78,7 @@ AUR.onLoaded(true, "aur-ui", "aur-settings", "aur-styles", function() {
   var gen = prefs.registerTab("general", "General");
   
   // Add Modules and Settings Tab
-  var modTab  = pModules.registerTab("modules", "Modules");
+  modTab  = pModules.registerTab("modules", "Modules");
   var aurSett = pModules.registerTab("settings", "Settings");
   
   modTab.mainPage.classList.add("aur-ui-prefs-mod-page");
@@ -258,6 +276,12 @@ AUR.onLoaded(true, "aur-ui", "aur-settings", "aur-styles", function() {
           ])
         ])
       ]);
+      
+      // Add to `focusModule()` shortcut feature
+      tabModules[mod] = {
+        dom: details,
+        component: modRow
+      };
       
       // Create toggle element
       if (!core) {
