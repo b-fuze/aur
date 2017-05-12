@@ -10,12 +10,26 @@ var tabModules = {};
 var modTab;
 
 reg.interface = {
-  focusModule(modName) {
+  MOD_VIEW_DETAILS: 5,
+  MOD_VIEW_CONFIG: 6,
+  
+  focusModule(modName, view) {
     var mod = tabModules[modName];
     
     if (mod) {
       modTab.selected = true;
       mod.component.visible = true;
+      
+      if (typeof view === "number" && this.MOD_VIEW_DETAILS) {
+        switch (view) {
+          case this.MOD_VIEW_DETAILS:
+            mod.component.optionsVisible = false;
+            break;
+          case this.MOD_VIEW_CONFIG:
+            mod.component.optionsVisible = true;
+            break;
+        }
+      }
       
       setTimeout(function() {
         modTab.scrollbar.scrollTo(mod.dom);
@@ -93,7 +107,8 @@ AUR.onLoaded(true, "aur-ui", "aur-settings", "aur-styles", function() {
   settGroup.title = "Modules";
   
   settGroup.prop({
-    link: "aurSett.modErrorsVerbose"
+    link: "aurSett.modErrorsVerbose",
+    align: "right"
   });
   
   // -----------------------
@@ -176,7 +191,7 @@ AUR.onLoaded(true, "aur-ui", "aur-settings", "aur-styles", function() {
     });
   }
   
-  jSh.inherit(ModRow, lces.type());
+  jSh.inherit(ModRow, lces.types.component);
   
   // Enabled settings
   var enabledModsArr = [];
@@ -225,6 +240,9 @@ AUR.onLoaded(true, "aur-ui", "aur-settings", "aur-styles", function() {
     var core = modArr === coreModNames;
     
     modArr.forEach(function(mod) {
+      if (/\//.test(mod))
+        return; // It's a deepmod subfile
+      
       var modDetails = modMap[mod];
       var detailCount = 0;
       
@@ -241,7 +259,7 @@ AUR.onLoaded(true, "aur-ui", "aur-settings", "aur-styles", function() {
         ]),
         
         jSh.d(".aur-ui-prefs-mod-extras", undf, [
-          jSh.d(".aur-ui-prefs-mod-extras-info", undf, metaNames.filter(n => (modDetails[n] !== null)).map(function(meta) {
+          jSh.d(".aur-ui-prefs-mod-extras-info", undf, metaNames.filter(n => (modDetails[n] !== null && modDetails[n] !== undefined)).map(function(meta) {
               var extra = meta === "modCodename" ? {style: "font-family: mono;"} : {};
               
               if (meta !== "modCodename")
@@ -576,6 +594,11 @@ AUR.onLoaded(true, "aur-ui", "aur-settings", "aur-styles", function() {
     
     .aur-ui-tabpage .aur-ui-prefs-mod-list.lces .aur-ui-prefs-mod-extras .aur-ui-prefs-mod-extras-options {
       display: none;
+    }
+    
+    .aur-ui-tabpage .aur-ui-prefs-mod-list.lces .aur-ui-prefs-mod-extras .aur-ui-prefs-mod-extras-options > .aur-ui-prop {
+      position: relative;
+      z-index: 10;
     }
     
     .aur-ui-tabpage .aur-ui-prefs-mod-list.lces .aur-ui-prefs-mod-extras .aur-ui-prefs-mod-extras-options > .aur-ui-prop-group {

@@ -52,8 +52,8 @@ regs.interface = {
     sett.manifest();
   },
   
-  resetUser: function(name) {
-    
+  resetDefault: function(name) {
+    sett.resetGroup(name);
   },
   
   // LCES Setting Entry Constructor

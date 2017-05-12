@@ -351,6 +351,15 @@ function RegisterTab(name, title, options) {
     mainTab[disabled ? "removeAttribute" : "setAttribute"]("aur-tab-click", that.uid);
   });
   
+  this.setState("hidden", false);
+  this.addStateListener("hidden", function(visible) {
+    if (visible) {
+      mainTab.classList.add("aur-ui-tab-hidden");
+    } else {
+      mainTab.classList.remove("aur-ui-tab-hidden");
+    }
+  });
+  
   this.setState("window", null);
   this.addStateListener("window", function(win) {
     if (win instanceof RegisterWin || win instanceof RegisterGroup) {
@@ -558,7 +567,7 @@ function EmptyProp(name, width, options) {
   propCount++;
   
   // Options
-  width = numOp(width, 50);
+  width = numOp(width, 12);
   name  = jSh.type(name) === "string" && name ? name : "prop-" + propCount;
   
   var main  = new lcControl(jSh.d(".aur-ui-prop"));
@@ -646,7 +655,7 @@ function GroupProp(name, width, options) {
   var that = this;
   var options = jSh.type(options) === "object" ? options : {};
   
-  EmptyProp.call(this, name, 12, options);
+  EmptyProp.call(this, name, width, options);
   if (jSh.boolOp(options.groupIsolate, true))
     this.main.classList.add("aur-ui-prop-group");
   else
@@ -1390,14 +1399,14 @@ AUR.onLoaded(true, "aur-styles", "aur-settings", function() {
       
       cursor: pointer;
       opacity: 0.5;
-      transition: opacity 250ms ${smooth};
+      transition: opacity 250ms ${ smooth };
     }
     
     .aur-ui-win .lces-window-title .aur-ui-win-close path {
       fill: #B0B6BF;
       transform-origin: 50% 50%;
       transform: scale(0.8, 0.8);
-      transition: transform 250ms ${smooth};
+      transition: transform 250ms ${ smooth };
     }
     
     .aur-ui-win .lces-window-title .aur-ui-win-close:hover {
@@ -1424,7 +1433,7 @@ AUR.onLoaded(true, "aur-styles", "aur-settings", function() {
     }
     
     .aur-ui-win .aur-tabsvisible .aur-ui-tabpanel {
-      width: ${tabPanelWidth};
+      width: ${ tabPanelWidth };
       height: 100%;
       box-sizing: border-box;
       // padding-top: 20px;
@@ -1458,8 +1467,12 @@ AUR.onLoaded(true, "aur-styles", "aur-settings", function() {
       color: #858E99;
     }
     
+    .aur-ui-win .aur-ui-tabpanel .aur-ui-tab.aur-ui-tab-hidden {
+      display: none !important;
+    }
+    
     .aur-ui-win .aur-tabsvisible .aur-ui-tabpage {
-      margin-left: ${tabPanelWidth};
+      margin-left: ${ tabPanelWidth };
     }
     
     .aur-ui-tabpanel {
@@ -1506,7 +1519,7 @@ AUR.onLoaded(true, "aur-styles", "aur-settings", function() {
     }
     
     .aur-ui-prop-padd {
-      padding: 0px ${propHorzMargin} ${propVertMargin} ${propHorzMargin};
+      padding: 0px ${ propHorzMargin } ${ propVertMargin } ${ propHorzMargin };
     }
     
     .aur-ui-prop-group {
@@ -1515,7 +1528,7 @@ AUR.onLoaded(true, "aur-styles", "aur-settings", function() {
     }
     
     .aur-ui-prop.aur-ui-prop-group-blend {
-      display: block;
+      display: inline-block;
       padding: 0px;
       margin: 0px;
     }
@@ -1730,7 +1743,7 @@ AUR.onLoaded(true, "aur-styles", "aur-settings", function() {
       opacity: 0;
       font-size: 13px;
       
-      transition: opacity 250ms ${smooth}, transform 250ms ${smooth};
+      transition: opacity 250ms ${ smooth }, transform 250ms ${ smooth };
       cursor: default;
       pointer-events: none;
     }

@@ -9,6 +9,78 @@
   var miscList = [AUR_EMPTYMISC]; // Ditto
   var mixList  = coreList.concat(miscList);
   
+  var deepList      = [AUR_DEEPMODS];
+  var deepStructure = AUR_DEEPMODS_STRUCTURE; // { __parent: null };
+  
+  function linkDeepParents(obj, parent) {
+    var names = Object.getOwnPropertyNames(obj);
+    
+    if (parent) {
+      // A subdirectory
+      obj.__parent = parent;
+    } else {
+      // The root directory
+      obj.__subFilesInitialized = 0; // To know when `module` onLoads
+    }
+    
+    // Traverse into hieararchy
+    for (var i=0,l=names.length; i<l; i++) {
+      var name         = names[i];
+      var curDepthItem = obj[name];
+      
+      if (name !== "__parent" && jSh.type(curDepthItem) === "object" && !curDepthItem.__subFile) {
+        linkDeepParents(curDepthItem, obj);
+      }
+    }
+    
+    if (!parent) {
+      for (var i=0,l=names.length; i<l; i++) {
+        obj[names[i]].__loadedSubfiles = 0;
+      }
+    }
+  }
+  
+  // Link the __parent properties
+  linkDeepParents(deepStructure);
+  
+  // Example:
+  // var deepStructure = {
+  //   "aur-themify": {
+  //     // !!!!!!IMPORTANT!!!!!!
+  //     // "main.js" HAS NO PLACE HERE. If you want it, you can still: AUR.import("aur-themify"), or AUR.import("./main.js")
+  //     // !!!!!!IMPORTANT!!!!!!
+  //
+  //     "test.js": {
+  //       register: nameMap["aur-themify/test.js"].register,
+  //       name: "aur-themify/test.js"
+  //     },
+  //
+  //     "main": {
+  //       "header.js": {
+  //         register: nameMap["aur-themify/main/header.js"].register,
+  //         name: "aur-themify/main/header.js"
+  //       },
+  //       "content.js": {
+  //         register: nameMap["aur-themify/main/content.js"].register,
+  //         name: "aur-themify/main/content.js"
+  //       }
+  //     },
+  //
+  //     "episode": {
+  //       "player.js": {
+  //         register: nameMap["aur-themify/episode/player.js"].register,
+  //         name: "aur-themify/episode/player.js"
+  //       },
+  //
+  //       "comments.js": {
+  //         register: nameMap["aur-themify/episode/comments.js"].register,
+  //         name: "aur-themify/episode/comments.js"
+  //       }
+  //     }
+  //   },
+  //   __parent: null
+  // };
+  
   // Make globally accessible
   function getList(arr) {
     var list = {};
@@ -85,10 +157,12 @@
     })()
   });
   
-  var sett     = lces.user.settings;
-  var settDump = {};
+  var sett = lces.user && lces.user.settings;
   
-  sett.default = settDump;
+  if (sett) {
+    var settDump = {};
+    sett.default = settDump;
+  }
   
   // Imported module instance methods
   var instMethods = {
@@ -110,6 +184,7 @@
     }
   }
   
+  // TODO: This looks like it needs to be cleaned up
   // Module configuration methods
   var regsMethods = {
     sign: function(item, type) {
@@ -123,21 +198,21 @@
   
   // Module registering component constructor, instanced and returned from AUR.register(modName)
   function ModRegister(modName) {
-    lcComponent.call(this);
+    lces.types.group.call(this);
     var that = this;
     
     // Module interface default
-    this.setState("interfaceType", "literal");
+    this.interfaceType = "literal";
     this.interface = null;
     var settings   = null;
     
     var validITypes = ["auto", "literal"];
-    this.addStateCondition("interfaceType", function(itype) {
-      if (validITypes.indexOf(itype) === -1)
-        return false;
-      
-      return true;
-    });
+    // this.addStateCondition("interfaceType", function(itype) {
+    //   if (validITypes.indexOf(itype) === -1)
+    //     return false;
+    //
+    //   return true;
+    // });
     
     // Module name and version
     jSh.constProp(this, "modName", modName);
@@ -156,38 +231,198 @@
     this.addEvent("loaded"); // TODO: Check wtf this is for
   }
   
-  jSh.inherit(ModRegister, lcComponent);
+  jSh.inherit(ModRegister, lces.types.group);
   
-  // AUR.register(modName)
+  function DeepModRegister(modName, base) {
+    lces.types.component.call(this);
+    var that = this;
+    
+    // Module interface default
+    this.interfaceType = "literal";
+    this.interface = null;
+    jSh.constProp(this, "modName", base.modName);
+    
+    this.addEvent("moddisable");
+    this.addEvent("modenable");
+    this.addEvent("loaded");
+    
+    // Link to base
+    Object.defineProperty(this, "modDesc", {
+      configurable: false,
+      get: function() { return base.modDesc }
+    });
+    
+    Object.defineProperty(this, "modVersion", {
+      configurable: false,
+      get: function() { return base.modVersion }
+    });
+    
+    Object.defineProperty(this, "modAuthors", {
+      configurable: false,
+      get: function() { return base.modAuthors }
+    });
+    
+    Object.defineProperty(this, "ui", {
+      configurable: false,
+      get: function() { return base.ui }
+    });
+    
+    base.on("moddisable", function(e) {
+      that.triggerEvent("moddisable", e);
+    });
+    
+    base.on("modenable", function(e) {
+      that.triggerEvent("modenable", e);
+    });
+    
+    base.on("loaded", function(e) {
+      that.triggerEvent("loaded", e);
+    });
+  }
+  
+  jSh.inherit(DeepModRegister, lces.types.component);
+  
+  // AUR.__initializeModule(modName)
   //
   // modName: Required. Module name
   //
   // Description: Register a new module in the AUR module system.
-  AUR.register = function(modName, premInterface) {
+  AUR.__initializeModule = function(modName, premInterface) {
+    var shell = this;
+    
     // Check module name
     if (jSh.type(modName) !== "string" || modName.length === 0)
       return null;
     
-    // Construct new AUR module interface register
-    var modRegs = new ModRegister(modName);
-    modRegs.ui = nameMap[modName].ui;
-    modRegs.enabled = true;
+    var modObj       = nameMap[modName];
+    var isDeepMod    = /\//.test(modName);
+    var deepSplit    = modName.replace(/\/+/, "/").split("/");
+    var baseDeepName = isDeepMod ? deepSplit[0] : null;
+    var modRegs;
     
-    // Add to collection
-    modArray.push(modRegs);
+    if (!modObj.register) {
+      // Construct new AUR module interface register
+      modRegs = new ModRegister(baseDeepName || modName);
+      modRegs.ui = modObj.ui;
+      modRegs.enabled = true;
+      
+      // Add to collection
+      modArray.push(modRegs);
+      
+      // Append register to module Object
+      jSh.extendObj(modObj, {
+        register: modRegs
+      });
+      
+      // Set interface type from meta if provided
+      modRegs.interfaceType = modObj.modInterface;
+    } else {
+      modRegs = modObj.register;
+    }
     
-    // Append register to module Object
-    jSh.extendObj(nameMap[modName], {
-      register: modRegs
-    });
-    
-    // Set interface type from meta if provided
-    modRegs.interfaceType = nameMap[modName].modInterface;
+    if (isDeepMod && !(deepSplit.length === 2 && deepSplit[1] === "main.js")) {
+      var baseRegs = modRegs;
+      modRegs = new DeepModRegister(modName, modRegs);
+      
+      // Add subfile interfaceType
+      var subFileInterfaceType = (modObj.subFileMeta[modName].modInterface + "").trim().toLowerCase();
+      
+      switch (subFileInterfaceType) {
+        case "auto":
+        case "literal":
+          modRegs.interfaceType = subFileInterfaceType;
+          break;
+        default:
+          modRegs.interfaceType = "literal";
+      }
+      
+      var deepDepth = locateModuleComponent(null, deepSplit);
+      deepDepth.register = modRegs;
+      
+      modObj.subRegisters[modName] = modRegs;
+    }
     
     return modRegs;
   }
   
-  AUR.import = function(modName, ...args) {
+  // ModShell constructor
+  //
+  // Description: A thin shell encapsulating the module's `AUR` interface, to
+  // provide various functions like AUR DeepMod functionality, etc.
+  function ModShell(name, tree) {
+    jSh.constProp(this, "name", name);
+    jSh.constProp(this, "path", tree);
+  }
+  
+  ModShell.prototype = AUR;
+  Object.defineProperty(AUR, "constructor", {
+    enumerable: false,
+    configurable: false,
+    writable: false,
+    value: ModShell
+  });
+  
+  AUR.__relative = function(path) {
+    return new ModShell(path[0], path);
+  }
+  
+  function locateModuleComponent(curPath, destPath, name) {
+    if (destPath.length == 1) {
+      if (name) {
+        return destPath[0];
+      } else {
+        return deepStructure[destPath[0]];
+      }
+    }
+    
+    if (!curPath)
+      curPath = [];
+    
+    var curObject = deepStructure;
+    var firstPart = destPath[0];
+    
+    // Prepare for relative (non-absolute) path if necessary
+    if (firstPart === "." || firstPart === "..") {
+      for (var i=0,l=curPath.length; i<l; i++) {
+        curObject = curObject[curPath[i]];
+      }
+    }
+    // Prepare for an absolute path
+    else if (firstPart.trim() === "") {
+      curObject = curObject[curPath[0]];
+    }
+    
+    for (var i=0,l=destPath.length; i<l; i++) {
+      var curPathComponent = destPath[i];
+      
+      switch (curPathComponent) {
+        case "..":
+          curObject = curObject.__parent;
+          break;
+        case "":
+        case ".":
+          // Do nothing
+          break;
+        default:
+          if (i + 1 === l) {
+            curObject = curObject[curPathComponent + ".js"] || curObject[curPathComponent];
+          } else {
+            curObject = curObject[curPathComponent];
+          }
+      }
+      
+      if (!curObject)
+        throw new ReferenceError("No such AUR path, \"" + curPath.join("/") + destPath.join("/") + "\"");
+    }
+    
+    return name ? curObject.name : curObject;
+  }
+  
+  AUR.import = function(modNamePath, ...args) {
+    var shell        = this; // AUR ModShell
+    var modName      = locateModuleComponent(shell.path, modNamePath.replace(/\/+/g, "/").split("/"), true);
+    var isDeepImport = /\//.test(modNamePath);
+    
     var aurMod = nameMap[modName];
     
     // Check for loaded module
@@ -203,6 +438,10 @@
     }
     
     // Module exists and is loaded, reference register
+    if (isDeepImport) {
+      aurMod = locateModuleComponent(shell.path, modNamePath.replace(/\/+/g, "/").split("/"));
+    }
+    
     aurMod = aurMod.register;
       
     // Check if implements normal AUR interfacing procedures
@@ -241,6 +480,7 @@
   
   AUR.onLoaded = function() {
     var callback;
+    var shell   = this;
     var mods    = [];
     var prepend = false;
     
@@ -251,9 +491,15 @@
         
         callback = arg;
       } else {
-        if (jSh.type(arg) === "string" && mixList.indexOf(arg) !== -1)
-          mods.push(arg);
-        else if (typeof arg === "boolean")
+        if (jSh.type(arg) === "string") {
+          // Check if checking on a deep module subfile
+          if (/\//.test(arg)) {
+            arg = locateModuleComponent(shell.path, arg.replace(/\/+/g, "/").split("/"), true);
+          }
+          
+          if (mixList.indexOf(arg) !== -1)
+            mods.push(arg);
+        } else if (typeof arg === "boolean")
           prepend = arg;
       }
     });
@@ -286,7 +532,7 @@
   
   AUR.modProbe = {
     onToggle(mod, cb) {
-      if (!mod || typeof mod !== "string" || typeof cb !== "function" || !this.exists(mod))
+      if (!mod || typeof mod !== "string" || typeof cb !== "function" || /\//.test(mod) || !this.exists(mod))
         return false;
       
       var modName = mod.replace(/-/g, "") + "mod";
@@ -312,7 +558,7 @@
     },
     
     removeOnToggle(mod, cb) {
-      if (!mod || typeof mod !== "string" || typeof cb !== "function" || !this.exists(mod))
+      if (!mod || typeof mod !== "string" || typeof cb !== "function" || /\//.test(mod) || !this.exists(mod))
         return false;
       
       var modName = mod.replace(/-/g, "") + "mod";
@@ -328,7 +574,7 @@
     },
     
     enabled(mod) {
-      if (!this.exists(mod))
+      if (/\//.test(mod) || !this.exists(mod))
         return null;
       
       var modObj = nameMap[mod];
@@ -456,7 +702,19 @@
   
   AUR.__registerModule = function(modName, details, code) {
     var modSettName = modName.replace(/-/g, "") + "mod";
-    var settings = lces.user.settings;
+    var settings    = lces.user && lces.user.settings;
+    var isDeepFile  = /\//.test(modName);
+    var isDeepMain  = false;
+    var modBaseName = null;
+    var modObj;
+    
+    if (isDeepFile) {
+      var deepSplit = modName.split("/");
+      
+      modBaseName = deepSplit[0];
+      isDeepMain  = deepSplit.length === 2 && deepSplit[1] === "main.js";
+      modSettName = modBaseName.replace(/-/g, "") + "mod";
+    }
     
     var validMeta = {
       ui: null
@@ -477,60 +735,134 @@
       }
     }
     
-    validMeta["modCodename"] = modName;
+    validMeta["modCodename"] = modBaseName || modName;
     
     if (AURUserModSett[modSettName])
       var enabled = AURUserModSett[modSettName].enabled;
     else
       var enabled = validMeta["AUR_DEFAULT_DISABLED"] === true ? false : true;
     
-    // Create module object
-    var modObj = lces.new();
-    modObj.initEnabled = enabled;
-    modObj.setState("enabled", enabled);
-    
-    // Enabled state handler
-    modObj.addStateListener("enabled", function(enabled) {
-      // Check if the register exists
-      if (enabled) {
-        if (modObj.register) {
-          modObj.register.enabled = true;
-          modObj.register.triggerEvent("modenable", {});
-        }
-        // Was this thing enabled to begin with?
-        else if (!modObj.initEnabled) {
-          modObj.initEnabled = true;
-          AUR.sandbox(
-            code,
-            !settings.get("aurSett.modErrorsVerbose"),
-            function() {
-              AUR.__triggerLoaded(modName);
-            },
-            function(err) {
-              AUR.__triggerFailed(modName, err);
-            }
-          );
-          
-          // Update any settings
-          lces.user.settings.clearLate();
-        }
-      // Not enabled, or register doesn't exist
+    if (isDeepFile) {
+      var modRoot = locateModuleComponent(null, [modBaseName]);
+      
+      if (!modRoot.modObj) {
+        modObj = makeModObj();
+        modRoot.modObj = modObj;
+        modObj.subFileMeta = {};
       } else {
-        if (modObj.register) {
-          modObj.register.enabled = false;
-          modObj.register.triggerEvent("moddisable", {});
-        }
+        modObj = modRoot.modObj;
       }
-    });
+      
+      // Add subfile to modObj
+      nameMap[modName] = modObj;
+      modObj.code.push({
+        code: code,
+        modName: isDeepMain ? modBaseName : modName
+      });
+      
+      // Save subfile meta
+      modObj.subFileMeta[modName] = validMeta;
+      
+      // Add AUR_RUN_AT
+      code.run_at = deepStructure[modBaseName].__runAt;
+      
+      if (isDeepMain)
+        jSh.extendObj(modObj, validMeta);
+    } else {
+      // Not a deep module
+      modObj = makeModObj();
+    }
     
-    jSh.extendObj(modObj, validMeta);
-    nameMap[modName] = modObj;
+    function makeModObj() {
+      // Create module object
+      var modObj = lces.new();
+      modObj.initEnabled = enabled;
+      modObj.setState("enabled", enabled);
+      
+      if (isDeepFile) {
+        modObj.code = [];
+        modObj.subRegisters = {};
+      }
+      
+      // Enabled state handler
+      modObj.addStateListener("enabled", function(enabled) {
+        // Check if the register exists
+        if (enabled) {
+          if (modObj.register) {
+            modObj.register.enabled = true;
+            modObj.register.triggerEvent("modenable", {});
+          }
+          // Was this thing enabled to begin with?
+          else if (!modObj.initEnabled) {
+            modObj.initEnabled = true;
+            
+            // Check if doesn't have deepmod code
+            if (!modObj.code) {
+              AUR.sandbox(
+                code,
+                settings ? !settings.get("aurSett.modErrorsVerbose") : true,
+                function() {
+                  AUR.__triggerLoaded(modName);
+                },
+                function(err) {
+                  AUR.__triggerFailed(modName, err);
+                }
+              );
+            } else {
+              var lastModName;
+              
+              for (var i=0; i<modObj.code.length; i++) {
+                var curCode = modObj.code[i];
+                lastModName = curCode.modName;
+                
+                AUR.sandbox(
+                  curCode.code,
+                  settings ? !settings.get("aurSett.modErrorsVerbose") : true,
+                  function() {
+                    AUR.__triggerLoaded(curCode.modName);
+                  },
+                  function(err) {
+                    AUR.__triggerFailed(curCode.modName, err);
+                  }
+                );
+              }
+              
+              if (lastModName !== modBaseName)
+                AUR.__triggerLoaded(modBaseName);
+            }
+            
+            // Update any settings
+            if (lces.user)
+              lces.user.settings.clearLate();
+          }
+        // Not enabled, or register doesn't exist
+        } else {
+          if (modObj.register) {
+            modObj.register.enabled = false;
+            modObj.register.triggerEvent("moddisable", {});
+          }
+        }
+      });
+      
+      if (!isDeepFile)
+        jSh.extendObj(modObj, validMeta);
+      nameMap[modBaseName || modName] = modObj;
+      
+      return modObj;
+    }
     
     // Check if module's disabled
     if (enabled) {
       readyMods.push(code);
-      code.run_at = validMeta["modRun_at"] || "doc-end";
-      code.modName = modName;
+      
+      if (isDeepFile) {
+        code.modName  = isDeepMain ? modBaseName : modName;
+        code.deepRoot = deepStructure[modBaseName];
+        code.deepName = modBaseName;
+      } else {
+        code.modName = modName;
+        code.run_at  = validMeta["modRun_at"] || "doc-end";
+      }
     }
   }
   
@@ -562,7 +894,7 @@
   }
   
   AUR.__triggerFailed = function(modName, err) {
-    AUR.error(`Module ${name} failed to load - ${err}\n\n${err.stack}`);
+    AUR.error(`Module "${ modName }" failed to load - ${ err }\n\n${ err.stack }`);
   }
   
   // Invokable modules
@@ -593,6 +925,15 @@
           !verbose,
           function() {
             AUR.__triggerLoaded(modFunc.modName);
+            
+            // Check if deepmod subfile without a main.js
+            var modDeepRoot = modFunc.deepRoot;
+            if (modDeepRoot && !modDeepRoot.__hasMain) {
+              modDeepRoot.__loadedSubfiles += 1;
+              
+              if (modDeepRoot.__loadedSubfiles === modDeepRoot.__subFileCount)
+                AUR.__triggerLoaded(modFunc.deepName);
+            }
           },
           function(err) {
             AUR.__triggerFailed(modFunc.modName, err);

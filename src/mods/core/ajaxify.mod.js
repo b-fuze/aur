@@ -465,7 +465,10 @@ function engine(url, cache) {
   }
   
   model.curRequest = req;
-  req.send();
+  
+  // Make sure not dummy request
+  if (req.send)
+    req.send();
 }
 
 function stripHash(urlPath) {

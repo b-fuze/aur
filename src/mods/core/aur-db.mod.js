@@ -33,7 +33,7 @@ AUR.onLoaded("aur-ui-prefs", "aur-ui", "aur-ui-components", function() {
       fill: true
     }).addButton("Clear", function() {
       uiComp.confirm({
-        text: "Are you sure you want to clear the complete AUR-Database? You'll lose any settings and saved/cached data, and the effect won't be reversible.",
+        text: "Are you sure you want to clear the complete AUR-Database? You'll lose any settings and saved/cached data, and the effect is irreversible.",
         yes: function() {
          var namespaces = dbBuffer.__namespaces;
          

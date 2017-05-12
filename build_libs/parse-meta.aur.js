@@ -2,12 +2,24 @@ var jSh = require("./jShorts2");
 var console;
 
 // Builder meta parsing utlities
-exports.processMeta = function(src, modName, cons) {
+exports.processMeta = function(src, modName, cons, isDeepMod, isMain) {
   console = cons;
   var meta = getMeta(src);
   var regsBody = "";
   
   meta.identifiers.forEach(function(iden, i) {
+    if (isDeepMod && !isMain) {
+      switch (iden) {
+        case "AUR_NAME":
+        case "AUR_VERSION":
+        case "AUR_RUN_AT":
+        case "AUR_RESTART": {
+          return;
+          break;
+        }
+      }
+    }
+    
     var metaVal = meta[iden];
     var metaRep = "";
     
@@ -54,7 +66,7 @@ function getLiteralRepresentation(val, type) {
   return rep;
 }
 
-function getMeta(src, modName) {
+function getMeta(src) {
   var metaMap     = {};
   var identifiers = [];
   

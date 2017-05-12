@@ -215,9 +215,9 @@ lces.rc[0] = function() {
           merge(curProp, curExtProp);
         else if (dontReplaceArrays && jSh.type(curProp) === "array" && jSh.type(curExtProp) === "array")
           curProp.push.apply(curExtProp);
-        else if (dontReplaceValues && curProp === undf)
+        else if (dontReplaceValues && curProp === undefined)
           curObj[i] = curExtProp;
-        else if (!dontReplaceObjects || jSh.type(curProp) !== "object" && (!dontReplaceValues || curProp === undf))
+        else if (!dontReplaceObjects || jSh.type(curProp) !== "object" && (!dontReplaceValues || curProp === undefined))
           curObj[i] = curExtProp;
       });
     }
@@ -300,7 +300,7 @@ lces.rc[0] = function() {
 
   // Create HTML DOM Div elements with a flexible nesting system
   jSh.d = function node(className, text, child, attributes, properties, events) { // For creating an element
-    var nsElm, elmClassName; // For things like SVG... Ugggh. :|
+    var nsElm, elmClassName, isMockup, dynClass; // For things like SVG... Ugggh. :|
     
     if (!this.lcesElement) {
       // Check if we need to make an element with a custom namespace URI
@@ -321,6 +321,9 @@ lces.rc[0] = function() {
     } else {
       // Element is already provided
       var n = this.lcesElement;
+      
+      if (n.isjShMockup)
+        isMockup = true;
     }
     
     // Check if the args provided are all enclosed in an object
@@ -333,8 +336,14 @@ lces.rc[0] = function() {
       attributes   = args.attributes || args.attr;
       properties   = args.properties || args.prop || args.props;
       events       = args.events;
+      
+      if (isMockup)
+        dynClass = args.dynClass;
     } else {
       elmClassName = className;
+      
+      if (isMockup && attributes)
+        dynClass = attributes.dynClass;
     }
     
     // Check for an arguments availability and apply it if detected
@@ -370,7 +379,6 @@ lces.rc[0] = function() {
           attributes["class"] = elmClassName;
       }
     }
-    
     
     if (id)
       n.id = id[1];
@@ -440,6 +448,9 @@ lces.rc[0] = function() {
       }
     }
     
+    if (isMockup && dynClass instanceof Object)
+      n.dynClass = dynClass;
+    
     return jSh.shorten(n);
   };
 
@@ -471,7 +482,7 @@ lces.rc[0] = function() {
 
   // Create SVG with path nesting feature
   jSh.svg = function(classname, width, height, paths) {
-    return jSh.c("ns:svg:http://www.w3.org/2000/svg", classname, undf, paths, { // Attributes
+    return jSh.c("ns:svg:http://www.w3.org/2000/svg", classname, undefined, paths, { // Attributes
       "version": "1.1",
       "width": width,
       "height": height
@@ -480,7 +491,7 @@ lces.rc[0] = function() {
 
   // Create SVG path
   jSh.path = function(classname, points, style) {
-    return jSh.c("ns:path:http://www.w3.org/2000/svg", classname, undf, undf, {
+    return jSh.c("ns:path:http://www.w3.org/2000/svg", classname, undefined, undefined, {
       "ns:d:": points,
       "ns:style:": style || ""
     });
@@ -608,6 +619,11 @@ lces.rc[0] = function() {
       for (var i=0,l=children.length; i<l; i++) {
         this.__apch(children[i]);
       }
+      
+      if (children.length === 1)
+        return children[0];
+      else
+        return children;
     },
     
     removeChild: function() {
@@ -694,7 +710,7 @@ lces.rc[9] = function() {
     if (typeof css !== "string") {
       cssColorizeSrc = css;
       
-      css = css.lcesColorizeSrc;
+      css = css.lcesColorizeSrc || css.textContent;
     }
     
     var hexNum  = function(n) {return (parseInt(n, 16) < 17 ? "00".substr(n.length) : "") + n + (parseInt(n, 16) > 16 ? "00".substr(n.length) : "");};
@@ -827,10 +843,11 @@ lces.rc[2] = function() {
     // If noReference is on then it just appends null
     if (!lces.noReference)
       LCES.components.push(this);
-
+      
     this.states = {};
     this.extensionData = []; // Data for extensions
-
+    this._noAutoState = {}; // To prevent auto state converting LCES utility from converting normal properties to states
+    
     // Check if needs to add methods manually
     if (!(this instanceof lcComponent)) {
       jSh.extendObj(this, lcComponent.prototype);
@@ -904,7 +921,7 @@ lces.rc[2] = function() {
     if (!stateObj || !stateObj.flippedStateCall) {
       _setState(state, stateStatus, recurring);
       
-      var stateObj  = states[state];
+      stateObj = states[state];
       
       if (stateObj.oldStateStatus !== stateObj.stateStatus) {
         if (!statechange.states[state])
@@ -951,6 +968,7 @@ lces.rc[2] = function() {
           data: {},
           private: false, // If true then data links (lcGroup) can't change it.
           flippedStateCall: false,
+          profile: null,
           linkedStates: {} // {state: "state", func: func}
         };
         
@@ -959,7 +977,13 @@ lces.rc[2] = function() {
 
         Object.defineProperty(this, state, {configurable: true, set: function(stateStatus) { that.setState(state, stateStatus); }, get: function() { return that.getState(state); }});
       }
-
+      
+      // Check for profiling flag
+      var canProfile = stateObject.profile;
+      if (canProfile) {
+        console.time(canProfile);
+      }
+      
       var stateCond   = stateObject.conditions;
       var canContinue = true;
       
@@ -979,9 +1003,14 @@ lces.rc[2] = function() {
       // Set from proposedValue
       stateStatus = stateObject.proposedValue;
       
-      if (stateObject.stateStatus === stateStatus && !recurring)
+      if (stateObject.stateStatus === stateStatus && !recurring) {
+        if (canProfile) {
+          console.timeEnd(canProfile);
+        }
+        
         return false;
-
+      }
+      
       // If we're here then everything seems to be okay and we can move on.
       // Set the state.
       stateObject.oldStateStatus = stateObject.stateStatus;
@@ -996,7 +1025,12 @@ lces.rc[2] = function() {
         if (func)
           func.call(stateObject, stateStatus, recurring);
       }
-
+      
+      // Check for profiling flag
+      if (canProfile) {
+        console.timeEnd(canProfile);
+      }
+      
       return true;
     },
 
@@ -1018,7 +1052,7 @@ lces.rc[2] = function() {
       var stateObject = this.states[state];
       
       if (!stateObject) {
-        this.setState(state, undf);
+        this.setState(state, undefined);
         // console.warn(state + " doesn't exist"); // NOTICE: Removed for redundancy
         
         stateObject = this.states[state];
@@ -1109,9 +1143,9 @@ lces.rc[2] = function() {
           unlinkStates(state, linkedStates[i]);
       }
       
-      stateObj.component = undf;
+      stateObj.component = undefined;
       
-      this.states[state] = undf; // NOTICE: Used delete keyword FIX
+      this.states[state] = undefined; // NOTICE: Used delete keyword FIX
       delete this[state];        // TODO: FIX THIS
     },
     
@@ -1129,15 +1163,14 @@ lces.rc[2] = function() {
       var that = this;
       if (!this.states[state1])
         this.setState(state1, "");
-
+      
       if (!this.states[state2])
         this.setState(state2, "");
-
+      
       // First check if they're already linked.
       if (this.states[state1].linkedStates[state2] || this.states[state2].linkedStates[state1])
         this.unlinkStates(state1, state2);
-
-
+      
       function listener(state) {
         var callback = listener.callback;
         var state1   = listener.state1;
@@ -1180,8 +1213,8 @@ lces.rc[2] = function() {
 
       this.removeStateListener("statechange", stateObj1.linkedStates[state2]);
       
-      stateObj1.linkedStates[state2] = undf;
-      stateObj2.linkedStates[state1] = undf;
+      stateObj1.linkedStates[state2] = undefined;
+      stateObj2.linkedStates[state1] = undefined;
 
       return true;
     },
@@ -1189,12 +1222,12 @@ lces.rc[2] = function() {
     hardLinkStates: function(state1, state2) { // State1 will be considered nonexistant.. And if it exists it'll be deleted.
       if (!this.states[state2])
         throw ReferenceError("No such state");
-
+      
       if (this.states[state1])
         removeState(state1);
       
       var that = this;
-
+      
       this.states[state1] = this.states[state2];
       Object.defineProperty(this, state1, {configurable: true, set: function(stateStatus) { that.setState(state1, stateStatus); }, get: function() { return that.getState(state1); } });
     },
@@ -1205,7 +1238,6 @@ lces.rc[2] = function() {
       if (this.states[state2])
         this.removeState(state2);
       
-      
       this.setState(state2, null);
       
       // NOTICE: Object.create(o) isn't supported in IE8!!! But ofc, Idc.
@@ -1213,23 +1245,37 @@ lces.rc[2] = function() {
       var newStateObj = Object.create(this.states[state1]);
       this.states[state2] = newStateObj;
     },
-
+    
     extend: function(component) { // TODO: Check this, it might be useless
       var args = [];
       for (var i=1,l=arguments.length; i<l; i++) {
         args.push(arguments[i]);
       }
-
+      
       var data = {
         component: this
       };
       this.extensionData.push(data);
-
+      
       component.apply(this, args.concat([data, LCES.EXTENDED_COMPONENT]));
     },
-
+    
     dataSetState: function(state, stateStatus, recurring) {
       this._setState(state, stateStatus, recurring);
+    },
+    
+    profileState: function(state, profileName) {
+      var stateObj = this.states[state];
+      
+      if (!stateObj) {
+        throw new ReferenceError("LCESComponent.protoype.profileState: state `" + state + "` doesn't exist");
+      }
+      
+      if (typeof profileName !== "string" || !profileName) {
+        throw new TypeError("LCESComponent.protoype.profileState: profileName needs to be a populated string");
+      }
+      
+      stateObj.profile = profileName;
     },
     
     // Event system
@@ -1247,14 +1293,14 @@ lces.rc[2] = function() {
       if (!event || jSh.type(event) !== "string" || !this.events[event])
         return false;
       
-      this.events[event] = undf;
+      this.events[event] = undefined;
     },
     
     removeAllEvents: function() {
       var events = this.events;
       
       for (var i=0,l=events.length; i<l; i++) {
-        events[i] = undf;
+        events[i] = undefined;
       }
     },
     
@@ -1590,7 +1636,7 @@ lces.rc[2] = function() {
 
     var method = !args.method || args.method.toLowerCase().indexOf("get") != -1 ? "GET" : "POST";
 
-    xhr.open(method, (args.uri || args.url) + (method == "GET" ? (queryString ? "?" + queryString : "") : ""), args.async !== undf ? args.async : true);
+    xhr.open(method, (args.uri || args.url) + (method == "GET" ? (queryString ? "?" + queryString : "") : ""), args.async !== undefined ? args.async : true);
 
     if (args.form)
       xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
@@ -1605,7 +1651,7 @@ lces.rc[2] = function() {
         oldCookies.forEach(function(c) {document.cookie = c[0] + "=; expires=" + time + "; path=/"});
       }
       
-      xhr.send(method == "POST" ? queryString : undf);
+      xhr.send(method == "POST" ? queryString : undefined);
       
       if (args.cookies === false) { // Readd the cookies
         setTimeout(function(){ oldCookies.forEach(function(c) {document.cookie = c[0] + "=" + c[1] + "; expires=; path=/"}) }, 50);
@@ -1664,13 +1710,13 @@ lces.rc[2] = function() {
     
     var LCESName = component.LCESName;
     
-    LCESComponents[component.LCESID] = undf;
+    LCESComponents[component.LCESID] = undefined;
     component.removeAllGroupLinks();
     component.removeAllStates();
     component.removeAllEvents();
     
     if (LCESName && LCESComponents[LCESName] === component)
-      LCESComponents[LCESName] = undf;
+      LCESComponents[LCESName] = undefined;
   }
   
   // Initiation functions system
@@ -1812,8 +1858,8 @@ function lcesAppendCSS(className, css, before) {
 }
 
 // Will be amended by LCES builder
-lcesAppendCSS("lces-core-styles", ".abs-fill,.lces-togglebox::before,.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner,.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner::before,.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner .lces-togglebox-text{position:absolute;top:0px;left:0px;bottom:0px;right:0px}.lces-themify{font-family:Arial}br2{position:relative;display:block;padding:0px;margin:0px;height:10px}.lces-themify hr{border-top:0px;border-style:solid;opacity:0.75}.lces-themify a{font-weight:normal;text-decoration:none}.lces-themify label{font-weight:bold}@font-face{font-family:\"CODE\";src:url(http://b-fuze.github.io/lces/main-css/codebold.otf)}@font-face{font-family:\"Lato\";src:url(http://b-fuze.github.io/lces/main-css/lato-reg.ttf)}@font-face{font-family:\"Righteous\";src:url(http://b-fuze.github.io/lces/main-css/righteous.ttf)}@font-face{font-family:\"Couture\";src:url(http://b-fuze.github.io/lces/main-css/couture-bld.otf)}.lces-themify h1,.lces-themify h2,.lces-themify h3,.lces-themify h4,.lces-themify h5,.lces-themify h6{margin:0px;margin-bottom:10px;font-family:Lato;font-weight:normal}.lces-themify h1{font-size:2.25em}.lces-themify h2{font-size:2em}.lces-themify h3{font-size:1.75em}.lces-themify h4{font-size:1.5em}.lces-themify h5{font-size:1.25em}.lces-themify h6{font-size:1.125em}.lces-themify .lc-i{font-style:italic}.lces-themify .lc-b{font-weight:bold}.lces-themify .lc-centertext{text-align:center}.lces-themify .lc-indent{margin-left:15px;margin-right:15px}.lces-themify .lc-inlineblock{display:inline-block}.lces-text-quote{display:block;background:rgba(0,0,0,0.25);padding:7px 10px;margin:5px 0px}.lces-scrollbar-screen{position:fixed;z-index:99999999999;top:0px;left:0px;width:100%;height:100%;display:none}.lces-scrollbar-screen.lces-sb-screen-visible{display:block}.lces-scrollbars-visible *:hover>.lces-scrollbar-trough,.lces-scrollbars-visible .lces-scrollbar-trough.active{opacity:0.75}.lces-scrollbars-visible .lces-scrollbar-trough{opacity:0.5}.lces-scrollbar{position:absolute;width:100%}.lces-scrollbar-trough{position:absolute;top:0px;bottom:0px;width:6px;background:rgba(0,0,0,0.075);opacity:0;transition:opacity 200ms ease-out, width 200ms ease-out}.lces-scrollbar-trough:hover,.lces-scrollbar-trough.active{width:9px}.lces-scrollbar-trough.lc-sbright{right:0px}.lces-scrollbar-trough.lc-sbleft{left:0px}lces-placeholder{display:none}.lcescontrol{position:relative;opacity:1;transition:opacity 200ms ease-out}.lcescontrol[disabled]{opacity:0.5;cursor:default !important}.lcescontrol[disabled] *{pointer-events:none;cursor:default !important}.lcescontrol .lcescontrolclick{position:absolute;left:0px;top:0px;right:0px;bottom:0px;z-index:1000;display:none}.lces-themify *::-webkit-input-placeholder,.lces-themify *:-moz-placeholder,.lces-themify *::-moz-placeholder,.lces-themify *:-ms-input-placeholder{color:#BFBFBF;font-style:italic;font-weight:normal}.lces-numberfield::-webkit-input-placeholder{font-style:normal}.lces-numberfield:-moz-placeholder{font-style:normal}.lces-numberfield::-moz-placeholder{font-style:normal}.lces-numberfield:-ms-input-placeholder{font-style:normal}input.lces[type=\"text\"],input.lces[type=\"password\"]{vertical-align:middle}input.lces[type=\"text\"],input.lces[type=\"password\"],textarea.lces{padding:3px;min-width:150px;height:auto;outline:0px;border:2px solid #000;border-radius:3px;color:#262626;background-color:#fff;font-size:14px;font-family:\"Trebuchet MS\";resize:none}input.lces[type=\"text\"]:disabled,input.lces[type=\"password\"]:disabled{background-color:#F2F2F2}.numberfield-container{position:relative;display:inline-block}input.lces.lces-numberfield{font-size:14px;font-weight:bold;text-align:center;border-right-width:16px;border-top-right-radius:4px;border-bottom-right-radius:4px}.numberfield-container .arrow{width:16px;height:50%;position:absolute;right:0px;cursor:pointer;background:transparent}.numberfield-container .arrow.active{background:rgba(0,0,0,0.1)}.numberfield-container .arrow svg{position:absolute;top:0px;right:0px;bottom:0px;left:0px;margin:auto auto;opacity:0.85;transition:opacity 200ms ease-out}.numberfield-container .arrow:hover svg{opacity:1}.numberfield-container .arrow.top{top:0px;border-top-right-radius:4px}.numberfield-container .arrow.bottom{bottom:0px;border-bottom-right-radius:4px}.lces-slider{position:relative;top:-3px;vertical-align:middle;display:inline-block;border:2px solid #000;border-radius:5px;height:28px;width:138px;overflow:hidden;background:#fff;line-height:normal}.lces-slider-min,.lces-slider-max,.lces-slider-value{position:absolute;top:4px;font-family:Righteous;font-size:16px;color:#D9D9D9}.lces-slider-min{left:5px}.lces-slider-max{right:5px}.lces-slider-value{right:0px;left:0px;text-align:center;color:#f00;opacity:0.25}.lces-slider-scrubbar{position:absolute;top:0px;right:0px;bottom:0px;left:0px}.lces-slider-scrubber{position:absolute;top:1px;left:0px;margin:0px 0px 0px 1px;width:15px;height:26px;border-radius:3.5px;background:#000;opacity:0.75;transition:opacity 250ms ease-out}.lces-slider.animated .lces-slider-scrubber{transition:opacity 250ms ease-out,left 150ms cubic-bezier(0.1, 0.41, 0, 0.99)}.lces-slider-scrubbar:hover .lces-slider-scrubber,.lces-slider.scrubbing .lces-slider-scrubber{opacity:1}#lces-colorchoosermodalcontainer{position:fixed;z-index:999999999;top:0px;left:0px;right:0px;bottom:0px;transform:translateX(-100%);-webkit-transform:translateX(-100%);transition:transform 0ms linear 250ms}#lces-colorchoosermodalcontainer.visible{transition:transform 0ms linear 0ms;transform:translateX(0px);-webkit-transform:translateX(0px)}.lces-colorchooser{position:relative;z-index:5;top:-3px;vertical-align:middle;display:inline-block}.lces-colorchooser .lces-cc-display{display:inline-block;height:26px;width:46px;border-radius:4px;border:2px solid #000}.lces-colorchooser .lces-cc-color{margin:4px;width:38px;height:18px;border-radius:1px;background:#000;cursor:pointer}.lces-colorchooser-modal{position:absolute;z-index:20000000;top:0px;left:0px;margin:5px 0px 0px 0px;border-radius:5px;background:rgba(255,255,255,0.95);overflow:hidden;box-shadow:0px 2px 5px rgba(0,0,0,0.25);opacity:0;transform-origin:0% 0%;transform:scale(0.85);transition:transform 150ms cubic-bezier(0.31, 0.26, 0.1, 0.92),opacity 150ms cubic-bezier(0.31, 0.26, 0.1, 0.92)}.lces-colorchooser-modal.flipped{margin:0px;transform-origin:0% 100%}.lces-colorchooser-modal.visible{opacity:1;transform:scale(1)}.lces-colorchooser-modal .lces-cc-section{padding:15px}.lces-colorchooser-modal .lces-cc-section.lces-cc-controls{padding-top:0px;padding-bottom:0px;background:#F2F2F2}.lces-colorchooser-modal .lces-cc-wheel{position:relative;width:180px;height:180px;border-radius:100%;background-color:#F2F2F2;background-size:100%}.lces-colorchooser-modal .lces-cc-wheel-value{position:absolute;left:0px;top:0px;width:100%;height:100%;border-radius:100%;background:#000;opacity:0}.lces-colorchooser-modal .lces-cc-cursor{position:absolute;width:10px;height:10px;border-radius:100%;background:#fff;border:1px solid #000}.lces-colorchooser-modal .lces-cc-row{overflow:auto}.lces-colorchooser-modal .lces-cc-label{float:left;display:block;width:16px;font-family:Couture;font-size:25px;color:#808080;background:#e5e5e5;padding:10px 7px 5px 7px;cursor:default;margin-right:10px}.lces-colorchooser-modal .lces-slider{margin-top:7px;border-width:1px;outline:0px !important}.lces-file *{cursor:pointer !important}.lces-file input[type=\"file\"]{position:absolute;margin:0px;width:100%;height:100%;opacity:0;z-index:5;cursor:pointer !important}.lces-file{position:relative;display:block;padding:0px 33px 0px 0px;height:36px;width:123px;border-radius:3px;background-color:#000;font-family:Arial;font-weight:bold;font-size:14px;cursor:pointer !important}.lces-file>div{position:absolute;top:0px;left:0px;right:33px;bottom:0px}.lces-file>div>div{display:table;width:100%;height:100%}.lces-file>div>div>div{display:table-cell;vertical-align:middle}.lces-file>div>div>div>div{text-align:center;color:#fff}.lces-file>aside{position:absolute;right:0px;top:0px;bottom:0px;padding:8px;border-top-right-radius:3px;border-bottom-right-radius:3px;background:rgba(0,0,0,0.25);transition:background 200ms ease-out}.lces-file:hover>aside{background:rgba(0,0,0,0.15)}.lces-file:active>aside{background:rgba(0,0,0,0.5)}.lces-themify button{position:relative;font-family:Arial;font-size:14px;font-weight:bold;outline:0px;border-radius:3px;margin:0px 10px 10px 0px;padding:5px 10px;border:0px;color:#fff;background:#000;cursor:pointer}.lces-themify button:before,.lces-file:after{content:\"\";position:absolute;top:0px;left:0px;width:100%;height:100%;border-radius:3px;background:rgba(255,255,255,0);transition:background 100ms ease-out}.lces-themify button:hover:before,.lces-file:hover:after{background:rgba(255,255,255,0.2)}.lces-themify button:active:before,.lces-file:active:after{background:rgba(0,0,0,0.075);transition:background 0ms ease-out !important}.lcesradio{position:relative;top:1px;width:12px;height:11px;margin:2px;display:inline-block}.lcesradio .radiobuttoncolor{fill:#000}.lcesradio svg path:last-child{opacity:0;transition:opacity 150ms ease-out}.lcesradio[checked] svg path:last-child{opacity:1}.lcescheckbox{position:relative;vertical-align:middle;width:14px;height:14px;margin:2px;display:inline-block}.lcescheckbox .checkboxcolor{fill:#000}.lcescheckbox svg path:last-child{opacity:0;transition:opacity 150ms ease-out}.lcescheckbox[checked] svg path:last-child{opacity:1}.lces-togglebox{display:inline-block;position:relative;width:68px;height:34px;border-radius:5px;overflow:hidden;user-select:none;-webkit-user-select:none;-moz-user-select:none}.lces-togglebox::before{content:\"\";z-index:6;border-radius:5px;opacity:1;background:rgba(0,0,0,0.15);transition:opacity 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92)}.lces-togglebox.checked::before{opacity:0}.lces-togglebox.checked .lces-togglebox-handle{-webkit-transform:translateX(34px);-moz-transform:translateX(34px);-ms-transform:translateX(34px);-o-transform:translateX(34px);transform:translateX(34px)}.lces-togglebox,.lces-togglebox *{cursor:default !important}.lces-togglebox .lces-togglebox-handle{position:absolute;z-index:10;left:0px;top:0px;-webkit-transform:translateX(0px);-moz-transform:translateX(0px);-ms-transform:translateX(0px);-o-transform:translateX(0px);transform:translateX(0px);height:100%;width:34px;transition:-webkit-transform 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92) , -moz-transform 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92) , -ms-transform 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92) , -o-transform 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92) , transform 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92)}.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner{margin:2px;z-index:10;border-radius:4px;overflow:hidden}.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner::before{content:\"\";z-index:5;border-radius:4px;background:#fff;opacity:1}.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner .lces-togglebox-text{z-index:10;bottom:auto;line-height:30px;text-align:center;font-size:10px}.lces-dropdown-screen{position:fixed;z-index:9999999999;top:0px;right:0px;bottom:0px;left:0px;transform:translate3d(-100%, 0px, 0px)}.lces-dropdown-screen.visible{transform:translate3d(0px, 0px, 0px)}.lces-dropdown-screen .lcesdropdown{position:absolute;top:0px;left:0px;right:auto;bottom:auto;margin:0px;border-color:transparent !important;background:transparent !important}.lces-dropdown-screen .lcesdropdown .lcesselected,.lces-dropdown-screen .lcesdropdown .lcesdropdown-arrow{opacity:0 !important}.lcesdropdown{position:relative;vertical-align:middle;top:-3px;margin:0px;display:inline-block;min-width:98px;padding:3px;border:2px solid #000;border-width:2px 27px 2px 2px;border-radius:3px;text-align:left;font-size:14px;font-weight:bold;line-height:1.2;background:#fff;cursor:default}.lcesdropdown .lcesdropdown-arrow{position:absolute;top:0px;bottom:0px;margin:auto 0px;right:-18px;height:6px;width:10px}.lcesdropdown .lcesdropdown-arrow svg{position:absolute;transform:scaleY(1.2)}.lcesdropdown .lcesoptions{position:absolute;z-index:600000;top:100%;left:-2px;right:-27px;border:0px solid #000;border-width:2px;border-bottom-right-radius:3px;border-bottom-left-radius:3px;font-weight:bold;background:#fff;box-shadow:0px 2px 3px rgba(0,0,0,0.2);transform-origin:50% 0%;transform:scale(0.9);opacity:0;transition:transform 200ms cubic-bezier(0.31, 0.26, 0.1, 0.92),opacity 200ms cubic-bezier(0.31, 0.26, 0.1, 0.92)}.lcesdropdown.visible .lcesoptions{opacity:1;transform:scale(1)}.lcesdropdown.flipped .lcesoptions{transform-origin:50% 100%;top:auto;bottom:100%;border-radius:0px;border-top-right-radius:3px;border-top-left-radius:3px}.lcesoption{position:relative;padding:3px;margin-bottom:1px;background:transparent;color:#484848;transition:background-color 200ms ease-out}.lcesoption:after{position:absolute;content:\"\";top:100%;left:2px;right:2px;height:1px;background:#000;opacity:0.5}.lcesoption:hover,.lcesoption[lces-selected]{background:rgba(0,0,0,0.05)}.lcesoption:last-child{margin-bottom:0px}.lcesoption:last-child:after{height:0px}.lces-themify table{border-spacing:0px;font-family:Arial}table.lces thead th{position:relative;border:0px;border-top:3px solid #000;border-bottom:3px solid #000;padding:7px 10px;font-size:13px}table.lces thead th:before{position:absolute;content:\"\";left:0px;top:10%;bottom:10%;width:1px;background:#000}table.lces thead th:first-child:before{width:0px}table.lces tr{padding:0px;margin:0px;border:0px;background:#fff}table.lces tr td{border:0px;padding:10px}.lces-window{position:fixed;z-index:1000000;top:0px;left:0px;opacity:0;color:#484848;line-height:1.6;transition:opacity 250ms ease-out}.lces-window[visible]{opacity:1}.lces-window[window-invisible]{margin-left:-9999999%}.lces-window>div{padding:0px}.lces-window>div>div{background:#fff;overflow:hidden;border-radius:4px;box-shadow:0px 2px 5px rgba(0,0,0,0.25)}.lces-window .lces-window-title{padding:15px 10px;font-family:Arial;font-size:14px;font-weight:bold;color:#000;background:rgba(0,0,0,0.1);cursor:default}.lces-window .lces-window-contents{padding:25px 20px 30px 20px}.lces-window .lces-window-buttonpanel{padding:10px;text-align:right;background:rgba(0,0,0,0.1)}.lces-window .lces-window-buttonpanel button{margin-bottom:0px}.lces-window .lces-window-buttonpanel button:last-child,.lces-window .lces-window-buttonpanel div:last-child button{margin:0px}.lces-notification{border-radius:3px;position:static;width:300px;box-shadow:0px 2px 3px rgba(0,0,0,0.2);cursor:default}.lces-notification[visible]{opacity:0.95}.lces-notification>div{padding:0px;margin:4px 0px;border:1px solid #000;border-radius:3px;background:#fff;overflow:hidden;transition:height 400ms cubic-bezier(0.31, 0.26, 0.1, 0.92)}.lces-window.lces-notification>div>div{background:rgba(0,0,0,0.025);box-shadow:none}.notification-alignment.notifi-relative .lces-notification>div{margin:0px !important}.notification-alignment{position:fixed;z-index:1000000}.notification-alignment.notifi-relative{position:static !important}.notifi-top{top:5px}.notifi-bottom{bottom:5px}.notifi-middle{top:45%}.notifi-right{right:5px;text-align:right}.notifi-left{left:5px}.notifi-center{margin-right:auto;margin-left:auto;left:0px;right:0px;text-align:center;width:0px}.notifi-center .lces-window.lces-notification{transform:translate(-50%)}.notifi-center .lces-notification{margin-right:auto;margin-left:auto}.lces-accordion{display:block;margin:0px 0px 10px 0px}.lces-accordion .lces-acc-section{display:block;border:1px solid rgba(0,0,0,0.25);border-radius:3px;overflow:hidden;margin:0px 0px 5px 0px}.lces-accordion .lces-acc-section .lces-acc-title{display:block;padding:5px;font-weight:bold;font-size:13px;background:rgba(0,0,0,0.25);border:0px;border-bottom:0px solid rgba(0,0,0,0.05);cursor:pointer}.lces-accordion .lces-acc-section.lces-acc-open .lces-acc-title{border-bottom-width:1px}.lces-accordion .lces-acc-section .lces-acc-title .lces-acc-arrow{position:relative;top:3px;display:inline-block;width:15px;height:15px;transform:rotate(0deg);padding:0px;margin:0px;margin-right:5px;transition:transform 500ms cubic-bezier(0.1, 0.41, 0, 0.99)}.lces-accordion .lces-acc-section.lces-acc-open .lces-acc-title .lces-acc-arrow{transform:rotate(90deg)}.lces-accordion .lces-acc-section .lces-acc-title .lces-acc-arrow svg{margin:0px}.lces-accordion .lces-acc-section .lces-acc-contents>div{padding:10px}.lces-accordion .lces-acc-section .lces-acc-contents{overflow:hidden;height:0px;transition:height 500ms cubic-bezier(0.1, 0.41, 0, 0.99)}.lces-accordion .lces-acc-section.lces-acc-open .lces-acc-contents{overflow:auto}\n", document.getElementsByClassName("lces-themify-styles")[0]);
-lcesAppendCSS("lces-responsive-styles", ".abs-fill,.lces-togglebox::before,.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner,.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner::before,.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner .lces-togglebox-text{position:absolute;top:0px;left:0px;bottom:0px;right:0px}.lces-themify{font-family:Arial}br2{position:relative;display:block;padding:0px;margin:0px;height:10px}.lces-themify hr{border-top:0px;border-style:solid;opacity:0.75}.lces-themify a{font-weight:normal;text-decoration:none}.lces-themify label{font-weight:bold}@font-face{font-family:\"CODE\";src:url(http://b-fuze.github.io/lces/main-css/codebold.otf)}@font-face{font-family:\"Lato\";src:url(http://b-fuze.github.io/lces/main-css/lato-reg.ttf)}@font-face{font-family:\"Righteous\";src:url(http://b-fuze.github.io/lces/main-css/righteous.ttf)}@font-face{font-family:\"Couture\";src:url(http://b-fuze.github.io/lces/main-css/couture-bld.otf)}.lces-themify h1,.lces-themify h2,.lces-themify h3,.lces-themify h4,.lces-themify h5,.lces-themify h6{margin:0px;margin-bottom:10px;font-family:Lato;font-weight:normal}.lces-themify h1{font-size:2.25em}.lces-themify h2{font-size:2em}.lces-themify h3{font-size:1.75em}.lces-themify h4{font-size:1.5em}.lces-themify h5{font-size:1.25em}.lces-themify h6{font-size:1.125em}.lces-themify .lc-i{font-style:italic}.lces-themify .lc-b{font-weight:bold}.lces-themify .lc-centertext{text-align:center}.lces-themify .lc-indent{margin-left:15px;margin-right:15px}.lces-themify .lc-inlineblock{display:inline-block}.lces-text-quote{display:block;background:rgba(0,0,0,0.25);padding:7px 10px;margin:5px 0px}.lces-scrollbar-screen{position:fixed;z-index:99999999999;top:0px;left:0px;width:100%;height:100%;display:none}.lces-scrollbar-screen.lces-sb-screen-visible{display:block}.lces-scrollbars-visible *:hover>.lces-scrollbar-trough,.lces-scrollbars-visible .lces-scrollbar-trough.active{opacity:0.75}.lces-scrollbars-visible .lces-scrollbar-trough{opacity:0.5}.lces-scrollbar{position:absolute;width:100%}.lces-scrollbar-trough{position:absolute;top:0px;bottom:0px;width:6px;background:rgba(0,0,0,0.075);opacity:0;transition:opacity 200ms ease-out, width 200ms ease-out}.lces-scrollbar-trough:hover,.lces-scrollbar-trough.active{width:9px}.lces-scrollbar-trough.lc-sbright{right:0px}.lces-scrollbar-trough.lc-sbleft{left:0px}lces-placeholder{display:none}.lcescontrol{position:relative;opacity:1;transition:opacity 200ms ease-out}.lcescontrol[disabled]{opacity:0.5;cursor:default !important}.lcescontrol[disabled] *{pointer-events:none;cursor:default !important}.lcescontrol .lcescontrolclick{position:absolute;left:0px;top:0px;right:0px;bottom:0px;z-index:1000;display:none}.lces-themify *::-webkit-input-placeholder,.lces-themify *:-moz-placeholder,.lces-themify *::-moz-placeholder,.lces-themify *:-ms-input-placeholder{color:#BFBFBF;font-style:italic;font-weight:normal}.lces-numberfield::-webkit-input-placeholder{font-style:normal}.lces-numberfield:-moz-placeholder{font-style:normal}.lces-numberfield::-moz-placeholder{font-style:normal}.lces-numberfield:-ms-input-placeholder{font-style:normal}input.lces[type=\"text\"],input.lces[type=\"password\"]{vertical-align:middle}input.lces[type=\"text\"],input.lces[type=\"password\"],textarea.lces{padding:3px;min-width:150px;height:auto;outline:0px;border:2px solid #000;border-radius:3px;color:#262626;background-color:#fff;font-size:14px;font-family:\"Trebuchet MS\";resize:none}input.lces[type=\"text\"]:disabled,input.lces[type=\"password\"]:disabled{background-color:#F2F2F2}.numberfield-container{position:relative;display:inline-block}input.lces.lces-numberfield{font-size:14px;font-weight:bold;text-align:center;border-right-width:16px;border-top-right-radius:4px;border-bottom-right-radius:4px}.numberfield-container .arrow{width:16px;height:50%;position:absolute;right:0px;cursor:pointer;background:transparent}.numberfield-container .arrow.active{background:rgba(0,0,0,0.1)}.numberfield-container .arrow svg{position:absolute;top:0px;right:0px;bottom:0px;left:0px;margin:auto auto;opacity:0.85;transition:opacity 200ms ease-out}.numberfield-container .arrow:hover svg{opacity:1}.numberfield-container .arrow.top{top:0px;border-top-right-radius:4px}.numberfield-container .arrow.bottom{bottom:0px;border-bottom-right-radius:4px}.lces-slider{position:relative;top:-3px;vertical-align:middle;display:inline-block;border:2px solid #000;border-radius:5px;height:28px;width:138px;overflow:hidden;background:#fff;line-height:normal}.lces-slider-min,.lces-slider-max,.lces-slider-value{position:absolute;top:4px;font-family:Righteous;font-size:16px;color:#D9D9D9}.lces-slider-min{left:5px}.lces-slider-max{right:5px}.lces-slider-value{right:0px;left:0px;text-align:center;color:#f00;opacity:0.25}.lces-slider-scrubbar{position:absolute;top:0px;right:0px;bottom:0px;left:0px}.lces-slider-scrubber{position:absolute;top:1px;left:0px;margin:0px 0px 0px 1px;width:15px;height:26px;border-radius:3.5px;background:#000;opacity:0.75;transition:opacity 250ms ease-out}.lces-slider.animated .lces-slider-scrubber{transition:opacity 250ms ease-out,left 150ms cubic-bezier(0.1, 0.41, 0, 0.99)}.lces-slider-scrubbar:hover .lces-slider-scrubber,.lces-slider.scrubbing .lces-slider-scrubber{opacity:1}#lces-colorchoosermodalcontainer{position:fixed;z-index:999999999;top:0px;left:0px;right:0px;bottom:0px;transform:translateX(-100%);-webkit-transform:translateX(-100%);transition:transform 0ms linear 250ms}#lces-colorchoosermodalcontainer.visible{transition:transform 0ms linear 0ms;transform:translateX(0px);-webkit-transform:translateX(0px)}.lces-colorchooser{position:relative;z-index:5;top:-3px;vertical-align:middle;display:inline-block}.lces-colorchooser .lces-cc-display{display:inline-block;height:26px;width:46px;border-radius:4px;border:2px solid #000}.lces-colorchooser .lces-cc-color{margin:4px;width:38px;height:18px;border-radius:1px;background:#000;cursor:pointer}.lces-colorchooser-modal{position:absolute;z-index:20000000;top:0px;left:0px;margin:5px 0px 0px 0px;border-radius:5px;background:rgba(255,255,255,0.95);overflow:hidden;box-shadow:0px 2px 5px rgba(0,0,0,0.25);opacity:0;transform-origin:0% 0%;transform:scale(0.85);transition:transform 150ms cubic-bezier(0.31, 0.26, 0.1, 0.92),opacity 150ms cubic-bezier(0.31, 0.26, 0.1, 0.92)}.lces-colorchooser-modal.flipped{margin:0px;transform-origin:0% 100%}.lces-colorchooser-modal.visible{opacity:1;transform:scale(1)}.lces-colorchooser-modal .lces-cc-section{padding:15px}.lces-colorchooser-modal .lces-cc-section.lces-cc-controls{padding-top:0px;padding-bottom:0px;background:#F2F2F2}.lces-colorchooser-modal .lces-cc-wheel{position:relative;width:180px;height:180px;border-radius:100%;background-color:#F2F2F2;background-size:100%}.lces-colorchooser-modal .lces-cc-wheel-value{position:absolute;left:0px;top:0px;width:100%;height:100%;border-radius:100%;background:#000;opacity:0}.lces-colorchooser-modal .lces-cc-cursor{position:absolute;width:10px;height:10px;border-radius:100%;background:#fff;border:1px solid #000}.lces-colorchooser-modal .lces-cc-row{overflow:auto}.lces-colorchooser-modal .lces-cc-label{float:left;display:block;width:16px;font-family:Couture;font-size:25px;color:#808080;background:#e5e5e5;padding:10px 7px 5px 7px;cursor:default;margin-right:10px}.lces-colorchooser-modal .lces-slider{margin-top:7px;border-width:1px;outline:0px !important}.lces-file *{cursor:pointer !important}.lces-file input[type=\"file\"]{position:absolute;margin:0px;width:100%;height:100%;opacity:0;z-index:5;cursor:pointer !important}.lces-file{position:relative;display:block;padding:0px 33px 0px 0px;height:36px;width:123px;border-radius:3px;background-color:#000;font-family:Arial;font-weight:bold;font-size:14px;cursor:pointer !important}.lces-file>div{position:absolute;top:0px;left:0px;right:33px;bottom:0px}.lces-file>div>div{display:table;width:100%;height:100%}.lces-file>div>div>div{display:table-cell;vertical-align:middle}.lces-file>div>div>div>div{text-align:center;color:#fff}.lces-file>aside{position:absolute;right:0px;top:0px;bottom:0px;padding:8px;border-top-right-radius:3px;border-bottom-right-radius:3px;background:rgba(0,0,0,0.25);transition:background 200ms ease-out}.lces-file:hover>aside{background:rgba(0,0,0,0.15)}.lces-file:active>aside{background:rgba(0,0,0,0.5)}.lces-themify button{position:relative;font-family:Arial;font-size:14px;font-weight:bold;outline:0px;border-radius:3px;margin:0px 10px 10px 0px;padding:5px 10px;border:0px;color:#fff;background:#000;cursor:pointer}.lces-themify button:before,.lces-file:after{content:\"\";position:absolute;top:0px;left:0px;width:100%;height:100%;border-radius:3px;background:rgba(255,255,255,0);transition:background 100ms ease-out}.lces-themify button:hover:before,.lces-file:hover:after{background:rgba(255,255,255,0.2)}.lces-themify button:active:before,.lces-file:active:after{background:rgba(0,0,0,0.075);transition:background 0ms ease-out !important}.lcesradio{position:relative;top:1px;width:12px;height:11px;margin:2px;display:inline-block}.lcesradio .radiobuttoncolor{fill:#000}.lcesradio svg path:last-child{opacity:0;transition:opacity 150ms ease-out}.lcesradio[checked] svg path:last-child{opacity:1}.lcescheckbox{position:relative;vertical-align:middle;width:14px;height:14px;margin:2px;display:inline-block}.lcescheckbox .checkboxcolor{fill:#000}.lcescheckbox svg path:last-child{opacity:0;transition:opacity 150ms ease-out}.lcescheckbox[checked] svg path:last-child{opacity:1}.lces-togglebox{display:inline-block;position:relative;width:68px;height:34px;border-radius:5px;overflow:hidden;user-select:none;-webkit-user-select:none;-moz-user-select:none}.lces-togglebox::before{content:\"\";z-index:6;border-radius:5px;opacity:1;background:rgba(0,0,0,0.15);transition:opacity 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92)}.lces-togglebox.checked::before{opacity:0}.lces-togglebox.checked .lces-togglebox-handle{-webkit-transform:translateX(34px);-moz-transform:translateX(34px);-ms-transform:translateX(34px);-o-transform:translateX(34px);transform:translateX(34px)}.lces-togglebox,.lces-togglebox *{cursor:default !important}.lces-togglebox .lces-togglebox-handle{position:absolute;z-index:10;left:0px;top:0px;-webkit-transform:translateX(0px);-moz-transform:translateX(0px);-ms-transform:translateX(0px);-o-transform:translateX(0px);transform:translateX(0px);height:100%;width:34px;transition:-webkit-transform 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92) , -moz-transform 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92) , -ms-transform 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92) , -o-transform 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92) , transform 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92)}.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner{margin:2px;z-index:10;border-radius:4px;overflow:hidden}.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner::before{content:\"\";z-index:5;border-radius:4px;background:#fff;opacity:1}.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner .lces-togglebox-text{z-index:10;bottom:auto;line-height:30px;text-align:center;font-size:10px}.lces-dropdown-screen{position:fixed;z-index:9999999999;top:0px;right:0px;bottom:0px;left:0px;transform:translate3d(-100%, 0px, 0px)}.lces-dropdown-screen.visible{transform:translate3d(0px, 0px, 0px)}.lces-dropdown-screen .lcesdropdown{position:absolute;top:0px;left:0px;right:auto;bottom:auto;margin:0px;border-color:transparent !important;background:transparent !important}.lces-dropdown-screen .lcesdropdown .lcesselected,.lces-dropdown-screen .lcesdropdown .lcesdropdown-arrow{opacity:0 !important}.lcesdropdown{position:relative;vertical-align:middle;top:-3px;margin:0px;display:inline-block;min-width:98px;padding:3px;border:2px solid #000;border-width:2px 27px 2px 2px;border-radius:3px;text-align:left;font-size:14px;font-weight:bold;line-height:1.2;background:#fff;cursor:default}.lcesdropdown .lcesdropdown-arrow{position:absolute;top:0px;bottom:0px;margin:auto 0px;right:-18px;height:6px;width:10px}.lcesdropdown .lcesdropdown-arrow svg{position:absolute;transform:scaleY(1.2)}.lcesdropdown .lcesoptions{position:absolute;z-index:600000;top:100%;left:-2px;right:-27px;border:0px solid #000;border-width:2px;border-bottom-right-radius:3px;border-bottom-left-radius:3px;font-weight:bold;background:#fff;box-shadow:0px 2px 3px rgba(0,0,0,0.2);transform-origin:50% 0%;transform:scale(0.9);opacity:0;transition:transform 200ms cubic-bezier(0.31, 0.26, 0.1, 0.92),opacity 200ms cubic-bezier(0.31, 0.26, 0.1, 0.92)}.lcesdropdown.visible .lcesoptions{opacity:1;transform:scale(1)}.lcesdropdown.flipped .lcesoptions{transform-origin:50% 100%;top:auto;bottom:100%;border-radius:0px;border-top-right-radius:3px;border-top-left-radius:3px}.lcesoption{position:relative;padding:3px;margin-bottom:1px;background:transparent;color:#484848;transition:background-color 200ms ease-out}.lcesoption:after{position:absolute;content:\"\";top:100%;left:2px;right:2px;height:1px;background:#000;opacity:0.5}.lcesoption:hover,.lcesoption[lces-selected]{background:rgba(0,0,0,0.05)}.lcesoption:last-child{margin-bottom:0px}.lcesoption:last-child:after{height:0px}.lces-themify table{border-spacing:0px;font-family:Arial}table.lces thead th{position:relative;border:0px;border-top:3px solid #000;border-bottom:3px solid #000;padding:7px 10px;font-size:13px}table.lces thead th:before{position:absolute;content:\"\";left:0px;top:10%;bottom:10%;width:1px;background:#000}table.lces thead th:first-child:before{width:0px}table.lces tr{padding:0px;margin:0px;border:0px;background:#fff}table.lces tr td{border:0px;padding:10px}.lces-window{position:fixed;z-index:1000000;top:0px;left:0px;opacity:0;color:#484848;line-height:1.6;transition:opacity 250ms ease-out}.lces-window[visible]{opacity:1}.lces-window[window-invisible]{margin-left:-9999999%}.lces-window>div{padding:0px}.lces-window>div>div{background:#fff;overflow:hidden;border-radius:4px;box-shadow:0px 2px 5px rgba(0,0,0,0.25)}.lces-window .lces-window-title{padding:15px 10px;font-family:Arial;font-size:14px;font-weight:bold;color:#000;background:rgba(0,0,0,0.1);cursor:default}.lces-window .lces-window-contents{padding:25px 20px 30px 20px}.lces-window .lces-window-buttonpanel{padding:10px;text-align:right;background:rgba(0,0,0,0.1)}.lces-window .lces-window-buttonpanel button{margin-bottom:0px}.lces-window .lces-window-buttonpanel button:last-child,.lces-window .lces-window-buttonpanel div:last-child button{margin:0px}.lces-notification{border-radius:3px;position:static;width:300px;box-shadow:0px 2px 3px rgba(0,0,0,0.2);cursor:default}.lces-notification[visible]{opacity:0.95}.lces-notification>div{padding:0px;margin:4px 0px;border:1px solid #000;border-radius:3px;background:#fff;overflow:hidden;transition:height 400ms cubic-bezier(0.31, 0.26, 0.1, 0.92)}.lces-window.lces-notification>div>div{background:rgba(0,0,0,0.025);box-shadow:none}.notification-alignment.notifi-relative .lces-notification>div{margin:0px !important}.notification-alignment{position:fixed;z-index:1000000}.notification-alignment.notifi-relative{position:static !important}.notifi-top{top:5px}.notifi-bottom{bottom:5px}.notifi-middle{top:45%}.notifi-right{right:5px;text-align:right}.notifi-left{left:5px}.notifi-center{margin-right:auto;margin-left:auto;left:0px;right:0px;text-align:center;width:0px}.notifi-center .lces-window.lces-notification{transform:translate(-50%)}.notifi-center .lces-notification{margin-right:auto;margin-left:auto}.lces-accordion{display:block;margin:0px 0px 10px 0px}.lces-accordion .lces-acc-section{display:block;border:1px solid rgba(0,0,0,0.25);border-radius:3px;overflow:hidden;margin:0px 0px 5px 0px}.lces-accordion .lces-acc-section .lces-acc-title{display:block;padding:5px;font-weight:bold;font-size:13px;background:rgba(0,0,0,0.25);border:0px;border-bottom:0px solid rgba(0,0,0,0.05);cursor:pointer}.lces-accordion .lces-acc-section.lces-acc-open .lces-acc-title{border-bottom-width:1px}.lces-accordion .lces-acc-section .lces-acc-title .lces-acc-arrow{position:relative;top:3px;display:inline-block;width:15px;height:15px;transform:rotate(0deg);padding:0px;margin:0px;margin-right:5px;transition:transform 500ms cubic-bezier(0.1, 0.41, 0, 0.99)}.lces-accordion .lces-acc-section.lces-acc-open .lces-acc-title .lces-acc-arrow{transform:rotate(90deg)}.lces-accordion .lces-acc-section .lces-acc-title .lces-acc-arrow svg{margin:0px}.lces-accordion .lces-acc-section .lces-acc-contents>div{padding:10px}.lces-accordion .lces-acc-section .lces-acc-contents{overflow:hidden;height:0px;transition:height 500ms cubic-bezier(0.1, 0.41, 0, 0.99)}.lces-accordion .lces-acc-section.lces-acc-open .lces-acc-contents{overflow:auto}\n", document.getElementsByClassName("lces-themify-styles")[0]);
+lcesAppendCSS("lces-core-styles", ".abs-fill,.lces-togglebox::before,.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner,.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner::before,.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner .lces-togglebox-text{position:absolute;top:0px;left:0px;bottom:0px;right:0px}.lces-themify{font-family:Arial}br2{position:relative;display:block;padding:0px;margin:0px;height:10px}.lces-themify hr{border-top:0px;border-style:solid;opacity:0.75}.lces-themify a{font-weight:normal;text-decoration:none}.lces-themify label{font-weight:bold}@font-face{font-family:\"CODE\";src:url(https://b-fuze.github.io/lces/main-css/codebold.otf)}@font-face{font-family:\"Lato\";src:url(https://b-fuze.github.io/lces/main-css/lato-reg.ttf)}@font-face{font-family:\"Righteous\";src:url(https://b-fuze.github.io/lces/main-css/righteous.ttf)}@font-face{font-family:\"Couture\";src:url(https://b-fuze.github.io/lces/main-css/couture-bld.otf)}.lces-themify h1,.lces-themify h2,.lces-themify h3,.lces-themify h4,.lces-themify h5,.lces-themify h6{margin:0px;margin-bottom:10px;font-family:Lato;font-weight:normal}.lces-themify h1{font-size:2.25em}.lces-themify h2{font-size:2em}.lces-themify h3{font-size:1.75em}.lces-themify h4{font-size:1.5em}.lces-themify h5{font-size:1.25em}.lces-themify h6{font-size:1.125em}.lces-themify .lc-i{font-style:italic}.lces-themify .lc-b{font-weight:bold}.lces-themify .lc-centertext{text-align:center}.lces-themify .lc-indent{margin-left:15px;margin-right:15px}.lces-themify .lc-inlineblock{display:inline-block}.lces-text-quote{display:block;background:rgba(0,0,0,0.25);padding:7px 10px;margin:5px 0px}.lces-scrollbar-screen{position:fixed;z-index:99999999999;top:0px;left:0px;width:100%;height:100%;display:none}.lces-scrollbar-screen.lces-sb-screen-visible{display:block}.lces-scrollbars-visible *:hover>.lces-scrollbar-trough,.lces-scrollbars-visible .lces-scrollbar-trough.active{opacity:0.75}.lces-scrollbars-visible .lces-scrollbar-trough{opacity:0.5}.lces-scrollbar{position:absolute;width:100%}.lces-scrollbar-trough{position:absolute;top:0px;bottom:0px;width:6px;background:rgba(0,0,0,0.075);opacity:0;transition:opacity 200ms ease-out, width 200ms ease-out}.lces-scrollbar-trough:hover,.lces-scrollbar-trough.active{width:9px}.lces-scrollbar-trough.lc-sbright{right:0px}.lces-scrollbar-trough.lc-sbleft{left:0px}lces-placeholder{display:none}.lcescontrol{position:relative;opacity:1;transition:opacity 200ms ease-out}.lcescontrol[disabled]{opacity:0.5;cursor:default !important}.lcescontrol[disabled] *{pointer-events:none;cursor:default !important}.lcescontrol .lcescontrolclick{position:absolute;left:0px;top:0px;right:0px;bottom:0px;z-index:1000;display:none}.lces-themify *::-webkit-input-placeholder,.lces-themify *:-moz-placeholder,.lces-themify *::-moz-placeholder,.lces-themify *:-ms-input-placeholder{color:#BFBFBF;font-style:italic;font-weight:normal}.lces-numberfield::-webkit-input-placeholder{font-style:normal}.lces-numberfield:-moz-placeholder{font-style:normal}.lces-numberfield::-moz-placeholder{font-style:normal}.lces-numberfield:-ms-input-placeholder{font-style:normal}input.lces[type=\"text\"],input.lces[type=\"password\"]{vertical-align:middle}input.lces[type=\"text\"],input.lces[type=\"password\"],textarea.lces{padding:3px;min-width:150px;height:auto;outline:0px;border:2px solid #000;border-radius:3px;color:#262626;background-color:#fff;font-size:14px;font-family:\"Trebuchet MS\";resize:none}input.lces[type=\"text\"]:disabled,input.lces[type=\"password\"]:disabled{background-color:#F2F2F2}.numberfield-container{position:relative;display:inline-block}input.lces.lces-numberfield{font-size:14px;font-weight:bold;text-align:center;border-right-width:16px;border-top-right-radius:4px;border-bottom-right-radius:4px}.numberfield-container .arrow{width:16px;height:50%;position:absolute;right:0px;cursor:pointer;background:transparent}.numberfield-container .arrow.active{background:rgba(0,0,0,0.1)}.numberfield-container .arrow svg{position:absolute;top:0px;right:0px;bottom:0px;left:0px;margin:auto auto;opacity:0.85;transition:opacity 200ms ease-out}.numberfield-container .arrow:hover svg{opacity:1}.numberfield-container .arrow.top{top:0px;border-top-right-radius:4px}.numberfield-container .arrow.bottom{bottom:0px;border-bottom-right-radius:4px}.lces-slider{position:relative;top:-3px;vertical-align:middle;display:inline-block;border:2px solid #000;border-radius:5px;height:28px;width:138px;overflow:hidden;background:#fff;line-height:normal}.lces-slider-min,.lces-slider-max,.lces-slider-value{position:absolute;top:4px;font-family:Righteous;font-size:16px;color:#D9D9D9}.lces-slider-min{left:5px}.lces-slider-max{right:5px}.lces-slider-value{right:0px;left:0px;text-align:center;color:#f00;opacity:0.25}.lces-slider-scrubbar{position:absolute;top:0px;right:0px;bottom:0px;left:0px}.lces-slider-scrubber{position:absolute;top:1px;left:0px;margin:0px 0px 0px 1px;width:15px;height:26px;border-radius:3.5px;background:#000;opacity:0.75;transition:opacity 250ms ease-out}.lces-slider.animated .lces-slider-scrubber{transition:opacity 250ms ease-out,left 150ms cubic-bezier(0.1, 0.41, 0, 0.99)}.lces-slider-scrubbar:hover .lces-slider-scrubber,.lces-slider.scrubbing .lces-slider-scrubber{opacity:1}#lces-colorchoosermodalcontainer{position:fixed;z-index:999999999;top:0px;left:0px;right:0px;bottom:0px;transform:translateX(-100%);-webkit-transform:translateX(-100%);transition:transform 0ms linear 250ms}#lces-colorchoosermodalcontainer.visible{transition:transform 0ms linear 0ms;transform:translateX(0px);-webkit-transform:translateX(0px)}.lces-colorchooser{position:relative;z-index:5;top:-3px;vertical-align:middle;display:inline-block}.lces-colorchooser .lces-cc-display{display:inline-block;height:26px;width:46px;border-radius:4px;border:2px solid #000}.lces-colorchooser .lces-cc-color{margin:4px;width:38px;height:18px;border-radius:1px;background:#000;cursor:pointer}.lces-colorchooser-modal{position:absolute;z-index:20000000;top:0px;left:0px;margin:5px 0px 0px 0px;border-radius:5px;background:rgba(255,255,255,0.95);overflow:hidden;box-shadow:0px 2px 5px rgba(0,0,0,0.25);opacity:0;transform-origin:0% 0%;transform:scale(0.85);transition:transform 150ms cubic-bezier(0.31, 0.26, 0.1, 0.92),opacity 150ms cubic-bezier(0.31, 0.26, 0.1, 0.92)}.lces-colorchooser-modal.flipped{margin:0px;transform-origin:0% 100%}.lces-colorchooser-modal.visible{opacity:1;transform:scale(1)}.lces-colorchooser-modal .lces-cc-section{padding:15px}.lces-colorchooser-modal .lces-cc-section.lces-cc-controls{padding-top:0px;padding-bottom:0px;background:#F2F2F2}.lces-colorchooser-modal .lces-cc-wheel{position:relative;width:180px;height:180px;border-radius:100%;background-color:#F2F2F2;background-size:100%}.lces-colorchooser-modal .lces-cc-wheel-value{position:absolute;left:0px;top:0px;width:100%;height:100%;border-radius:100%;background:#000;opacity:0}.lces-colorchooser-modal .lces-cc-cursor{position:absolute;width:10px;height:10px;border-radius:100%;background:#fff;border:1px solid #000}.lces-colorchooser-modal .lces-cc-row{overflow:auto}.lces-colorchooser-modal .lces-cc-label{float:left;display:block;width:16px;font-family:Couture;font-size:25px;color:#808080;background:#e5e5e5;padding:10px 7px 5px 7px;cursor:default;margin-right:10px}.lces-colorchooser-modal .lces-slider{margin-top:7px;border-width:1px;outline:0px !important}.lces-file *{cursor:pointer !important}.lces-file input[type=\"file\"]{position:absolute;margin:0px;width:100%;height:100%;opacity:0;z-index:5;cursor:pointer !important}.lces-file{position:relative;display:block;padding:0px 33px 0px 0px;height:36px;width:123px;border-radius:3px;background-color:#000;font-family:Arial;font-weight:bold;font-size:14px;cursor:pointer !important}.lces-file>div{position:absolute;top:0px;left:0px;right:33px;bottom:0px}.lces-file>div>div{display:table;width:100%;height:100%}.lces-file>div>div>div{display:table-cell;vertical-align:middle}.lces-file>div>div>div>div{text-align:center;color:#fff}.lces-file>aside{position:absolute;right:0px;top:0px;bottom:0px;padding:8px;border-top-right-radius:3px;border-bottom-right-radius:3px;background:rgba(0,0,0,0.25);transition:background 200ms ease-out}.lces-file:hover>aside{background:rgba(0,0,0,0.15)}.lces-file:active>aside{background:rgba(0,0,0,0.5)}.lces-themify button{position:relative;font-family:Arial;font-size:14px;font-weight:bold;outline:0px;border-radius:3px;margin:0px 10px 10px 0px;padding:5px 10px;border:0px;color:#fff;background:#000;cursor:pointer}.lces-themify button:before,.lces-file:after{content:\"\";position:absolute;top:0px;left:0px;width:100%;height:100%;border-radius:3px;background:rgba(255,255,255,0);transition:background 100ms ease-out}.lces-themify button:hover:before,.lces-file:hover:after{background:rgba(255,255,255,0.2)}.lces-themify button:active:before,.lces-file:active:after{background:rgba(0,0,0,0.075);transition:background 0ms ease-out !important}.lcesradio{position:relative;top:1px;width:12px;height:11px;margin:2px;display:inline-block}.lcesradio .radiobuttoncolor{fill:#000}.lcesradio svg path:last-child{opacity:0;transition:opacity 150ms ease-out}.lcesradio[checked] svg path:last-child{opacity:1}.lcescheckbox{position:relative;vertical-align:middle;width:14px;height:14px;margin:2px;display:inline-block}.lcescheckbox .checkboxcolor{fill:#000}.lcescheckbox svg path:last-child{opacity:0;transition:opacity 150ms ease-out}.lcescheckbox[checked] svg path:last-child{opacity:1}.lces-togglebox{display:inline-block;position:relative;width:68px;height:34px;border-radius:5px;overflow:hidden;vertical-align:middle;user-select:none;-webkit-user-select:none;-moz-user-select:none}.lces-togglebox::before{content:\"\";z-index:6;border-radius:5px;opacity:1;background:rgba(0,0,0,0.15);transition:opacity 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92)}.lces-togglebox.checked::before{opacity:0}.lces-togglebox.checked .lces-togglebox-handle{-webkit-transform:translateX(34px);-moz-transform:translateX(34px);-ms-transform:translateX(34px);-o-transform:translateX(34px);transform:translateX(34px)}.lces-togglebox,.lces-togglebox *{cursor:default !important}.lces-togglebox .lces-togglebox-handle{position:absolute;z-index:10;left:0px;top:0px;-webkit-transform:translateX(0px);-moz-transform:translateX(0px);-ms-transform:translateX(0px);-o-transform:translateX(0px);transform:translateX(0px);height:100%;width:34px;transition:-webkit-transform 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92) , -moz-transform 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92) , -ms-transform 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92) , -o-transform 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92) , transform 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92)}.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner{margin:2px;z-index:10;border-radius:4px;overflow:hidden}.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner::before{content:\"\";z-index:5;border-radius:4px;background:#fff;opacity:1}.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner .lces-togglebox-text{z-index:10;bottom:auto;line-height:30px;text-align:center;font-size:10px}.lces-dropdown-screen{position:fixed;z-index:9999999999;top:0px;right:0px;bottom:0px;left:0px;transform:translate3d(-100%, 0px, 0px)}.lces-dropdown-screen.visible{transform:translate3d(0px, 0px, 0px)}.lces-dropdown-screen .lcesdropdown{position:absolute;top:0px;left:0px;right:auto;bottom:auto;margin:0px;border-color:transparent !important;background:transparent !important}.lces-dropdown-screen .lcesdropdown .lcesselected,.lces-dropdown-screen .lcesdropdown .lcesdropdown-arrow{opacity:0 !important}.lcesdropdown{position:relative;vertical-align:middle;top:-3px;margin:0px;display:inline-block;min-width:98px;padding:3px;border:2px solid #000;border-width:2px 27px 2px 2px;border-radius:3px;text-align:left;font-size:14px;font-weight:bold;line-height:1.2;background:#fff;cursor:default}.lcesdropdown .lcesdropdown-arrow{position:absolute;top:0px;bottom:0px;margin:auto 0px;right:-18px;height:6px;width:10px}.lcesdropdown .lcesdropdown-arrow svg{position:absolute;transform:scaleY(1.2)}.lcesdropdown .lcesoptions{position:absolute;z-index:600000;top:100%;left:-2px;right:-27px;border:0px solid #000;border-width:2px;border-bottom-right-radius:3px;border-bottom-left-radius:3px;font-weight:bold;background:#fff;box-shadow:0px 2px 3px rgba(0,0,0,0.2);transform-origin:50% 0%;transform:scale(0.9);opacity:0;transition:transform 200ms cubic-bezier(0.31, 0.26, 0.1, 0.92),opacity 200ms cubic-bezier(0.31, 0.26, 0.1, 0.92)}.lcesdropdown.visible .lcesoptions{opacity:1;transform:scale(1)}.lcesdropdown.flipped .lcesoptions{transform-origin:50% 100%;top:auto;bottom:100%;border-radius:0px;border-top-right-radius:3px;border-top-left-radius:3px}.lcesoption{position:relative;padding:3px;margin-bottom:1px;background:transparent;color:#484848;transition:background-color 200ms ease-out}.lcesoption:after{position:absolute;content:\"\";top:100%;left:2px;right:2px;height:1px;background:#000;opacity:0.5}.lcesoption:hover,.lcesoption[lces-selected]{background:rgba(0,0,0,0.05)}.lcesoption:last-child{margin-bottom:0px}.lcesoption:last-child:after{height:0px}.lces-themify table{border-spacing:0px;font-family:Arial}table.lces thead th{position:relative;border:0px;border-top:3px solid #000;border-bottom:3px solid #000;padding:7px 10px;font-size:13px}table.lces thead th:before{position:absolute;content:\"\";left:0px;top:10%;bottom:10%;width:1px;background:#000}table.lces thead th:first-child:before{width:0px}table.lces tr{padding:0px;margin:0px;border:0px;background:#fff}table.lces tr td{border:0px;padding:10px}.lces-window{position:fixed;z-index:1000000;top:0px;left:0px;opacity:0;color:#484848;line-height:1.6;transition:opacity 250ms ease-out}.lces-window[visible]{opacity:1}.lces-window[window-invisible]{margin-left:-9999999%}.lces-window>div{padding:0px}.lces-window>div>div{background:#fff;overflow:hidden;border-radius:4px;box-shadow:0px 2px 5px rgba(0,0,0,0.25)}.lces-window .lces-window-title{padding:15px 10px;font-family:Arial;font-size:14px;font-weight:bold;color:#000;background:rgba(0,0,0,0.1);cursor:default}.lces-window .lces-window-contents{padding:25px 20px 30px 20px}.lces-window .lces-window-buttonpanel{padding:10px;text-align:right;background:rgba(0,0,0,0.1)}.lces-window .lces-window-buttonpanel button{margin-bottom:0px}.lces-window .lces-window-buttonpanel button:last-child,.lces-window .lces-window-buttonpanel div:last-child button{margin:0px}.lces-notification{border-radius:3px;position:static;width:300px;box-shadow:0px 2px 3px rgba(0,0,0,0.2);cursor:default}.lces-notification[visible]{opacity:0.95}.lces-notification>div{padding:0px;margin:4px 0px;border:1px solid #000;border-radius:3px;background:#fff;overflow:hidden;transition:height 400ms cubic-bezier(0.31, 0.26, 0.1, 0.92)}.lces-window.lces-notification>div>div{background:rgba(0,0,0,0.025);box-shadow:none}.notification-alignment.notifi-relative .lces-notification>div{margin:0px !important}.notification-alignment{position:fixed;z-index:1000000}.notification-alignment.notifi-relative{position:static !important}.notifi-top{top:5px}.notifi-bottom{bottom:5px}.notifi-middle{top:45%}.notifi-right{right:5px;text-align:right}.notifi-left{left:5px}.notifi-center{margin-right:auto;margin-left:auto;left:0px;right:0px;text-align:center;width:0px}.notifi-center .lces-window.lces-notification{transform:translate(-50%)}.notifi-center .lces-notification{margin-right:auto;margin-left:auto}.lces-accordion{display:block;margin:0px 0px 10px 0px}.lces-accordion .lces-acc-section{display:block;border:1px solid rgba(0,0,0,0.25);border-radius:3px;overflow:hidden;margin:0px 0px 5px 0px}.lces-accordion .lces-acc-section .lces-acc-title{display:block;padding:5px;font-weight:bold;font-size:13px;background:rgba(0,0,0,0.25);border:0px;border-bottom:0px solid rgba(0,0,0,0.05);cursor:pointer}.lces-accordion .lces-acc-section.lces-acc-open .lces-acc-title{border-bottom-width:1px}.lces-accordion .lces-acc-section .lces-acc-title .lces-acc-arrow{position:relative;top:3px;display:inline-block;width:15px;height:15px;transform:rotate(0deg);padding:0px;margin:0px;margin-right:5px;transition:transform 500ms cubic-bezier(0.1, 0.41, 0, 0.99)}.lces-accordion .lces-acc-section.lces-acc-open .lces-acc-title .lces-acc-arrow{transform:rotate(90deg)}.lces-accordion .lces-acc-section .lces-acc-title .lces-acc-arrow svg{margin:0px}.lces-accordion .lces-acc-section .lces-acc-contents>div{padding:10px}.lces-accordion .lces-acc-section .lces-acc-contents{overflow:hidden;height:0px;transition:height 500ms cubic-bezier(0.1, 0.41, 0, 0.99)}.lces-accordion .lces-acc-section.lces-acc-open .lces-acc-contents{overflow:auto}\n", document.getElementsByClassName("lces-themify-styles")[0]);
+lcesAppendCSS("lces-responsive-styles", ".abs-fill,.lces-togglebox::before,.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner,.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner::before,.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner .lces-togglebox-text{position:absolute;top:0px;left:0px;bottom:0px;right:0px}.lces-themify{font-family:Arial}br2{position:relative;display:block;padding:0px;margin:0px;height:10px}.lces-themify hr{border-top:0px;border-style:solid;opacity:0.75}.lces-themify a{font-weight:normal;text-decoration:none}.lces-themify label{font-weight:bold}@font-face{font-family:\"CODE\";src:url(https://b-fuze.github.io/lces/main-css/codebold.otf)}@font-face{font-family:\"Lato\";src:url(https://b-fuze.github.io/lces/main-css/lato-reg.ttf)}@font-face{font-family:\"Righteous\";src:url(https://b-fuze.github.io/lces/main-css/righteous.ttf)}@font-face{font-family:\"Couture\";src:url(https://b-fuze.github.io/lces/main-css/couture-bld.otf)}.lces-themify h1,.lces-themify h2,.lces-themify h3,.lces-themify h4,.lces-themify h5,.lces-themify h6{margin:0px;margin-bottom:10px;font-family:Lato;font-weight:normal}.lces-themify h1{font-size:2.25em}.lces-themify h2{font-size:2em}.lces-themify h3{font-size:1.75em}.lces-themify h4{font-size:1.5em}.lces-themify h5{font-size:1.25em}.lces-themify h6{font-size:1.125em}.lces-themify .lc-i{font-style:italic}.lces-themify .lc-b{font-weight:bold}.lces-themify .lc-centertext{text-align:center}.lces-themify .lc-indent{margin-left:15px;margin-right:15px}.lces-themify .lc-inlineblock{display:inline-block}.lces-text-quote{display:block;background:rgba(0,0,0,0.25);padding:7px 10px;margin:5px 0px}.lces-scrollbar-screen{position:fixed;z-index:99999999999;top:0px;left:0px;width:100%;height:100%;display:none}.lces-scrollbar-screen.lces-sb-screen-visible{display:block}.lces-scrollbars-visible *:hover>.lces-scrollbar-trough,.lces-scrollbars-visible .lces-scrollbar-trough.active{opacity:0.75}.lces-scrollbars-visible .lces-scrollbar-trough{opacity:0.5}.lces-scrollbar{position:absolute;width:100%}.lces-scrollbar-trough{position:absolute;top:0px;bottom:0px;width:6px;background:rgba(0,0,0,0.075);opacity:0;transition:opacity 200ms ease-out, width 200ms ease-out}.lces-scrollbar-trough:hover,.lces-scrollbar-trough.active{width:9px}.lces-scrollbar-trough.lc-sbright{right:0px}.lces-scrollbar-trough.lc-sbleft{left:0px}lces-placeholder{display:none}.lcescontrol{position:relative;opacity:1;transition:opacity 200ms ease-out}.lcescontrol[disabled]{opacity:0.5;cursor:default !important}.lcescontrol[disabled] *{pointer-events:none;cursor:default !important}.lcescontrol .lcescontrolclick{position:absolute;left:0px;top:0px;right:0px;bottom:0px;z-index:1000;display:none}.lces-themify *::-webkit-input-placeholder,.lces-themify *:-moz-placeholder,.lces-themify *::-moz-placeholder,.lces-themify *:-ms-input-placeholder{color:#BFBFBF;font-style:italic;font-weight:normal}.lces-numberfield::-webkit-input-placeholder{font-style:normal}.lces-numberfield:-moz-placeholder{font-style:normal}.lces-numberfield::-moz-placeholder{font-style:normal}.lces-numberfield:-ms-input-placeholder{font-style:normal}input.lces[type=\"text\"],input.lces[type=\"password\"]{vertical-align:middle}input.lces[type=\"text\"],input.lces[type=\"password\"],textarea.lces{padding:3px;min-width:150px;height:auto;outline:0px;border:2px solid #000;border-radius:3px;color:#262626;background-color:#fff;font-size:14px;font-family:\"Trebuchet MS\";resize:none}input.lces[type=\"text\"]:disabled,input.lces[type=\"password\"]:disabled{background-color:#F2F2F2}.numberfield-container{position:relative;display:inline-block}input.lces.lces-numberfield{font-size:14px;font-weight:bold;text-align:center;border-right-width:16px;border-top-right-radius:4px;border-bottom-right-radius:4px}.numberfield-container .arrow{width:16px;height:50%;position:absolute;right:0px;cursor:pointer;background:transparent}.numberfield-container .arrow.active{background:rgba(0,0,0,0.1)}.numberfield-container .arrow svg{position:absolute;top:0px;right:0px;bottom:0px;left:0px;margin:auto auto;opacity:0.85;transition:opacity 200ms ease-out}.numberfield-container .arrow:hover svg{opacity:1}.numberfield-container .arrow.top{top:0px;border-top-right-radius:4px}.numberfield-container .arrow.bottom{bottom:0px;border-bottom-right-radius:4px}.lces-slider{position:relative;top:-3px;vertical-align:middle;display:inline-block;border:2px solid #000;border-radius:5px;height:28px;width:138px;overflow:hidden;background:#fff;line-height:normal}.lces-slider-min,.lces-slider-max,.lces-slider-value{position:absolute;top:4px;font-family:Righteous;font-size:16px;color:#D9D9D9}.lces-slider-min{left:5px}.lces-slider-max{right:5px}.lces-slider-value{right:0px;left:0px;text-align:center;color:#f00;opacity:0.25}.lces-slider-scrubbar{position:absolute;top:0px;right:0px;bottom:0px;left:0px}.lces-slider-scrubber{position:absolute;top:1px;left:0px;margin:0px 0px 0px 1px;width:15px;height:26px;border-radius:3.5px;background:#000;opacity:0.75;transition:opacity 250ms ease-out}.lces-slider.animated .lces-slider-scrubber{transition:opacity 250ms ease-out,left 150ms cubic-bezier(0.1, 0.41, 0, 0.99)}.lces-slider-scrubbar:hover .lces-slider-scrubber,.lces-slider.scrubbing .lces-slider-scrubber{opacity:1}#lces-colorchoosermodalcontainer{position:fixed;z-index:999999999;top:0px;left:0px;right:0px;bottom:0px;transform:translateX(-100%);-webkit-transform:translateX(-100%);transition:transform 0ms linear 250ms}#lces-colorchoosermodalcontainer.visible{transition:transform 0ms linear 0ms;transform:translateX(0px);-webkit-transform:translateX(0px)}.lces-colorchooser{position:relative;z-index:5;top:-3px;vertical-align:middle;display:inline-block}.lces-colorchooser .lces-cc-display{display:inline-block;height:26px;width:46px;border-radius:4px;border:2px solid #000}.lces-colorchooser .lces-cc-color{margin:4px;width:38px;height:18px;border-radius:1px;background:#000;cursor:pointer}.lces-colorchooser-modal{position:absolute;z-index:20000000;top:0px;left:0px;margin:5px 0px 0px 0px;border-radius:5px;background:rgba(255,255,255,0.95);overflow:hidden;box-shadow:0px 2px 5px rgba(0,0,0,0.25);opacity:0;transform-origin:0% 0%;transform:scale(0.85);transition:transform 150ms cubic-bezier(0.31, 0.26, 0.1, 0.92),opacity 150ms cubic-bezier(0.31, 0.26, 0.1, 0.92)}.lces-colorchooser-modal.flipped{margin:0px;transform-origin:0% 100%}.lces-colorchooser-modal.visible{opacity:1;transform:scale(1)}.lces-colorchooser-modal .lces-cc-section{padding:15px}.lces-colorchooser-modal .lces-cc-section.lces-cc-controls{padding-top:0px;padding-bottom:0px;background:#F2F2F2}.lces-colorchooser-modal .lces-cc-wheel{position:relative;width:180px;height:180px;border-radius:100%;background-color:#F2F2F2;background-size:100%}.lces-colorchooser-modal .lces-cc-wheel-value{position:absolute;left:0px;top:0px;width:100%;height:100%;border-radius:100%;background:#000;opacity:0}.lces-colorchooser-modal .lces-cc-cursor{position:absolute;width:10px;height:10px;border-radius:100%;background:#fff;border:1px solid #000}.lces-colorchooser-modal .lces-cc-row{overflow:auto}.lces-colorchooser-modal .lces-cc-label{float:left;display:block;width:16px;font-family:Couture;font-size:25px;color:#808080;background:#e5e5e5;padding:10px 7px 5px 7px;cursor:default;margin-right:10px}.lces-colorchooser-modal .lces-slider{margin-top:7px;border-width:1px;outline:0px !important}.lces-file *{cursor:pointer !important}.lces-file input[type=\"file\"]{position:absolute;margin:0px;width:100%;height:100%;opacity:0;z-index:5;cursor:pointer !important}.lces-file{position:relative;display:block;padding:0px 33px 0px 0px;height:36px;width:123px;border-radius:3px;background-color:#000;font-family:Arial;font-weight:bold;font-size:14px;cursor:pointer !important}.lces-file>div{position:absolute;top:0px;left:0px;right:33px;bottom:0px}.lces-file>div>div{display:table;width:100%;height:100%}.lces-file>div>div>div{display:table-cell;vertical-align:middle}.lces-file>div>div>div>div{text-align:center;color:#fff}.lces-file>aside{position:absolute;right:0px;top:0px;bottom:0px;padding:8px;border-top-right-radius:3px;border-bottom-right-radius:3px;background:rgba(0,0,0,0.25);transition:background 200ms ease-out}.lces-file:hover>aside{background:rgba(0,0,0,0.15)}.lces-file:active>aside{background:rgba(0,0,0,0.5)}.lces-themify button{position:relative;font-family:Arial;font-size:14px;font-weight:bold;outline:0px;border-radius:3px;margin:0px 10px 10px 0px;padding:5px 10px;border:0px;color:#fff;background:#000;cursor:pointer}.lces-themify button:before,.lces-file:after{content:\"\";position:absolute;top:0px;left:0px;width:100%;height:100%;border-radius:3px;background:rgba(255,255,255,0);transition:background 100ms ease-out}.lces-themify button:hover:before,.lces-file:hover:after{background:rgba(255,255,255,0.2)}.lces-themify button:active:before,.lces-file:active:after{background:rgba(0,0,0,0.075);transition:background 0ms ease-out !important}.lcesradio{position:relative;top:1px;width:12px;height:11px;margin:2px;display:inline-block}.lcesradio .radiobuttoncolor{fill:#000}.lcesradio svg path:last-child{opacity:0;transition:opacity 150ms ease-out}.lcesradio[checked] svg path:last-child{opacity:1}.lcescheckbox{position:relative;vertical-align:middle;width:14px;height:14px;margin:2px;display:inline-block}.lcescheckbox .checkboxcolor{fill:#000}.lcescheckbox svg path:last-child{opacity:0;transition:opacity 150ms ease-out}.lcescheckbox[checked] svg path:last-child{opacity:1}.lces-togglebox{display:inline-block;position:relative;width:68px;height:34px;border-radius:5px;overflow:hidden;vertical-align:middle;user-select:none;-webkit-user-select:none;-moz-user-select:none}.lces-togglebox::before{content:\"\";z-index:6;border-radius:5px;opacity:1;background:rgba(0,0,0,0.15);transition:opacity 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92)}.lces-togglebox.checked::before{opacity:0}.lces-togglebox.checked .lces-togglebox-handle{-webkit-transform:translateX(34px);-moz-transform:translateX(34px);-ms-transform:translateX(34px);-o-transform:translateX(34px);transform:translateX(34px)}.lces-togglebox,.lces-togglebox *{cursor:default !important}.lces-togglebox .lces-togglebox-handle{position:absolute;z-index:10;left:0px;top:0px;-webkit-transform:translateX(0px);-moz-transform:translateX(0px);-ms-transform:translateX(0px);-o-transform:translateX(0px);transform:translateX(0px);height:100%;width:34px;transition:-webkit-transform 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92) , -moz-transform 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92) , -ms-transform 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92) , -o-transform 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92) , transform 250ms cubic-bezier(0.31, 0.26, 0.1, 0.92)}.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner{margin:2px;z-index:10;border-radius:4px;overflow:hidden}.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner::before{content:\"\";z-index:5;border-radius:4px;background:#fff;opacity:1}.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner .lces-togglebox-text{z-index:10;bottom:auto;line-height:30px;text-align:center;font-size:10px}.lces-dropdown-screen{position:fixed;z-index:9999999999;top:0px;right:0px;bottom:0px;left:0px;transform:translate3d(-100%, 0px, 0px)}.lces-dropdown-screen.visible{transform:translate3d(0px, 0px, 0px)}.lces-dropdown-screen .lcesdropdown{position:absolute;top:0px;left:0px;right:auto;bottom:auto;margin:0px;border-color:transparent !important;background:transparent !important}.lces-dropdown-screen .lcesdropdown .lcesselected,.lces-dropdown-screen .lcesdropdown .lcesdropdown-arrow{opacity:0 !important}.lcesdropdown{position:relative;vertical-align:middle;top:-3px;margin:0px;display:inline-block;min-width:98px;padding:3px;border:2px solid #000;border-width:2px 27px 2px 2px;border-radius:3px;text-align:left;font-size:14px;font-weight:bold;line-height:1.2;background:#fff;cursor:default}.lcesdropdown .lcesdropdown-arrow{position:absolute;top:0px;bottom:0px;margin:auto 0px;right:-18px;height:6px;width:10px}.lcesdropdown .lcesdropdown-arrow svg{position:absolute;transform:scaleY(1.2)}.lcesdropdown .lcesoptions{position:absolute;z-index:600000;top:100%;left:-2px;right:-27px;border:0px solid #000;border-width:2px;border-bottom-right-radius:3px;border-bottom-left-radius:3px;font-weight:bold;background:#fff;box-shadow:0px 2px 3px rgba(0,0,0,0.2);transform-origin:50% 0%;transform:scale(0.9);opacity:0;transition:transform 200ms cubic-bezier(0.31, 0.26, 0.1, 0.92),opacity 200ms cubic-bezier(0.31, 0.26, 0.1, 0.92)}.lcesdropdown.visible .lcesoptions{opacity:1;transform:scale(1)}.lcesdropdown.flipped .lcesoptions{transform-origin:50% 100%;top:auto;bottom:100%;border-radius:0px;border-top-right-radius:3px;border-top-left-radius:3px}.lcesoption{position:relative;padding:3px;margin-bottom:1px;background:transparent;color:#484848;transition:background-color 200ms ease-out}.lcesoption:after{position:absolute;content:\"\";top:100%;left:2px;right:2px;height:1px;background:#000;opacity:0.5}.lcesoption:hover,.lcesoption[lces-selected]{background:rgba(0,0,0,0.05)}.lcesoption:last-child{margin-bottom:0px}.lcesoption:last-child:after{height:0px}.lces-themify table{border-spacing:0px;font-family:Arial}table.lces thead th{position:relative;border:0px;border-top:3px solid #000;border-bottom:3px solid #000;padding:7px 10px;font-size:13px}table.lces thead th:before{position:absolute;content:\"\";left:0px;top:10%;bottom:10%;width:1px;background:#000}table.lces thead th:first-child:before{width:0px}table.lces tr{padding:0px;margin:0px;border:0px;background:#fff}table.lces tr td{border:0px;padding:10px}.lces-window{position:fixed;z-index:1000000;top:0px;left:0px;opacity:0;color:#484848;line-height:1.6;transition:opacity 250ms ease-out}.lces-window[visible]{opacity:1}.lces-window[window-invisible]{margin-left:-9999999%}.lces-window>div{padding:0px}.lces-window>div>div{background:#fff;overflow:hidden;border-radius:4px;box-shadow:0px 2px 5px rgba(0,0,0,0.25)}.lces-window .lces-window-title{padding:15px 10px;font-family:Arial;font-size:14px;font-weight:bold;color:#000;background:rgba(0,0,0,0.1);cursor:default}.lces-window .lces-window-contents{padding:25px 20px 30px 20px}.lces-window .lces-window-buttonpanel{padding:10px;text-align:right;background:rgba(0,0,0,0.1)}.lces-window .lces-window-buttonpanel button{margin-bottom:0px}.lces-window .lces-window-buttonpanel button:last-child,.lces-window .lces-window-buttonpanel div:last-child button{margin:0px}.lces-notification{border-radius:3px;position:static;width:300px;box-shadow:0px 2px 3px rgba(0,0,0,0.2);cursor:default}.lces-notification[visible]{opacity:0.95}.lces-notification>div{padding:0px;margin:4px 0px;border:1px solid #000;border-radius:3px;background:#fff;overflow:hidden;transition:height 400ms cubic-bezier(0.31, 0.26, 0.1, 0.92)}.lces-window.lces-notification>div>div{background:rgba(0,0,0,0.025);box-shadow:none}.notification-alignment.notifi-relative .lces-notification>div{margin:0px !important}.notification-alignment{position:fixed;z-index:1000000}.notification-alignment.notifi-relative{position:static !important}.notifi-top{top:5px}.notifi-bottom{bottom:5px}.notifi-middle{top:45%}.notifi-right{right:5px;text-align:right}.notifi-left{left:5px}.notifi-center{margin-right:auto;margin-left:auto;left:0px;right:0px;text-align:center;width:0px}.notifi-center .lces-window.lces-notification{transform:translate(-50%)}.notifi-center .lces-notification{margin-right:auto;margin-left:auto}.lces-accordion{display:block;margin:0px 0px 10px 0px}.lces-accordion .lces-acc-section{display:block;border:1px solid rgba(0,0,0,0.25);border-radius:3px;overflow:hidden;margin:0px 0px 5px 0px}.lces-accordion .lces-acc-section .lces-acc-title{display:block;padding:5px;font-weight:bold;font-size:13px;background:rgba(0,0,0,0.25);border:0px;border-bottom:0px solid rgba(0,0,0,0.05);cursor:pointer}.lces-accordion .lces-acc-section.lces-acc-open .lces-acc-title{border-bottom-width:1px}.lces-accordion .lces-acc-section .lces-acc-title .lces-acc-arrow{position:relative;top:3px;display:inline-block;width:15px;height:15px;transform:rotate(0deg);padding:0px;margin:0px;margin-right:5px;transition:transform 500ms cubic-bezier(0.1, 0.41, 0, 0.99)}.lces-accordion .lces-acc-section.lces-acc-open .lces-acc-title .lces-acc-arrow{transform:rotate(90deg)}.lces-accordion .lces-acc-section .lces-acc-title .lces-acc-arrow svg{margin:0px}.lces-accordion .lces-acc-section .lces-acc-contents>div{padding:10px}.lces-accordion .lces-acc-section .lces-acc-contents{overflow:hidden;height:0px;transition:height 500ms cubic-bezier(0.1, 0.41, 0, 0.99)}.lces-accordion .lces-acc-section.lces-acc-open .lces-acc-contents{overflow:auto}\n", document.getElementsByClassName("lces-themify-styles")[0]);
 
 if (lces.appendColorize !== false)
   lcesAppendCSS("lces-themify-styles lces-ui-colorize-src", ".lcesoption:after, .lces-file, .lces-themify button, table.lces thead th:before, .lces-slider-scrubber,\n.lces-togglebox, .lces-togglebox .lces-togglebox-handle .lces-togglebox-inner, .lces-scrollbar {\n  background-color: #800070;\n}\n.lces-acc-arrow svg, .checkboxsvg .checkboxcolor, .radiobuttonsvg .radionbuttoncolor, .genreremovesvg .genreremovecolor {\n  fill: #800070;\n}\n.lcesoption:hover, .lcesoption[lces-selected], table.lces tr {\n  background-color: rgba(128, 0, 112, 0.125);\n}\nhr.lces, input.lces[type=\"text\"], input.lces[type=\"password\"], textarea.lces, .lcesdropdown, .lcesdropdown .lcesoptions, table.lces thead th, .lces-slider, .lces-colorchooser .lces-cc-display, .lces-notification>div {\n  border-color: #800070;\n}\n.lces-accordion .lces-acc-section .lces-acc-title, .lces-window .lces-window-title, .lces-window .lces-window-buttonpanel {\n  background-color: rgba(128, 0, 112, 0.1);\n}\n.lces-themify a, .lces-themify h1, .lces-themify h2, .lces-themify h3, .lces-themify h4, .lces-themify h5, .lces-themify h6, .lcesdropdown, table.lces tr, .lces-user-text-color, .lces-window .lces-window-title,\n.lces-togglebox .lces-togglebox-handle .lces-togglebox-inner .lces-togglebox-text {\n  color: #800070;\n}\n.lces-accordion .lces-acc-section {\n  border-color: rgba(128, 0, 112, 0.5);\n}\ntable.lces tr[checker] {\n  background-color: rgba(128, 0, 112, 0.02);\n}\ninput.lces[type=\"text\"]:focus, input.lces[type=\"password\"]:focus, .lces-togglebox:focus {\n  box-shadow: 0px 0px 3px rgba(128, 0, 112, 0.5);\n  outline: none !important;\n}\n");
@@ -1850,7 +1896,7 @@ lces.themify = {
 };
 
 lces.themify.colorize.compile = function compile() {
-  var styles = Array.prototype.slice.call(document.getElementsByClassName("lces-ui-colorize-src"));
+  var styles = jSh.toArr(document.getElementsByClassName("lces-ui-colorize-src"));
   
   styles.forEach(function(st) {
     st.lcesColorizeSrc = st.childNodes[0].nodeValue;
@@ -2154,6 +2200,7 @@ lces.rc[10] = function() {
             userGroup.addStateCondition(name, sett.condition);
             
             userGroup._settings.push(name);
+            userGroup.states[name].settObj = sett;
             
             // Attempt to set it's initial value
             if (userValue !== undf)
@@ -2184,6 +2231,30 @@ lces.rc[10] = function() {
     
     // Scan and check all settings
     scan(defSettings || settings.default || {}, userSettings);
+  }
+  
+  settings.resetGroup = function LCESUserGroupReset(group) {
+    var group = group ? (group._groups && group._settings ? group : settings.groupObtain(group, 2)) : userSettings;
+    
+    if (group) {
+      // Loop and reset all props
+      var settingsArr = group._settings;
+      
+      for (var i=0,l=settingsArr.length; i<l; i++) {
+        var settName = settingsArr[i];
+        
+        group[settName] = group.states[settName].settObj.defValue;
+      }
+      
+      // Traverse into groups
+      var groups = group._groups;
+      
+      for (var i=0,l=groups.length; i<l; i++) {
+        LCESUserGroupReset(group[groups[i]]);
+      }
+    } else {
+      throw new ReferenceError("LCES User Module ERROR: lces.user.settings.resetGroup - \"" + group + "\" group doesn't exist");
+    }
   }
   
   settings.settObtain = function(path, user) {
@@ -2219,7 +2290,17 @@ lces.rc[10] = function() {
     path = path.split(".");
     
     var temporary = false;
-    var curGroup  = getDefault ? settings.default : settings.user;
+    switch (Number(getDefault)) {
+      case 0:
+        var curGroup  = settings.user;
+        break;
+      case 1:
+        var curGroup  = settings.default;
+        break;
+      case 2:
+        var curGroup  = userSettings;
+        break;
+    }
     var group;
     
     if (path[0] === "tmp") {
@@ -2810,7 +2891,6 @@ lces.rc[6] = function() {
       
       var color = lces.ui.RGB2HSV(that.getValueArray()[0] / 255, that.getValueArray()[1] / 255, that.getValueArray()[2] / 255);
       
-      console.log(value, this.component.min, this.component.max);
       that.setCursor(color.h, value / 100);
       that.updateColorValue();
     });
@@ -2927,8 +3007,7 @@ lces.rc[5] = function() {
       });
       this.linkStates("text", "value");
     }
-
-
+    
     this.setState("focused", false);
     lces.focus.addMember(this);
     
@@ -2989,7 +3068,6 @@ lces.rc[5] = function() {
     scrubbar.addEventListener("mousedown", function(e) {
       e.preventDefault();
       var target = e.target || e.srcElement;
-      console.log(e.clientX);
       
       // Focus scrubbar
       that.element.focus();
@@ -2999,21 +3077,21 @@ lces.rc[5] = function() {
       scrubberWidth = scrubber.offsetWidth;
       
       var onScrub = function(e, scrubberTrig) {
+        e.preventDefault();
         var sbRect = scrubbar.getBoundingClientRect();
         
         that.triggerEvent("scrubberX", {
           scrubberTriggered: !scrubberTrig,
           x: e.clientX - sbRect.left - scrubberWidth * 0.5
         });
-        
-        e.preventDefault();
       }
       
       onScrub(e, !(target === scrubber));
       that.classList.add("scrubbing");
       
       window.addEventListener("mousemove", onScrub);
-      window.addEventListener("mouseup", function() {
+      window.addEventListener("mouseup", function(e) {
+        e.preventDefault();
         window.removeEventListener("mousemove", onScrub);
         
         that.classList.remove("scrubbing");
@@ -3258,6 +3336,24 @@ lces.rc[5] = function() {
       return req;
     }
     
+    var lcesph    = jSh.ph ? jSh.ph() : null;
+    var resetForm = jSh.c("form");
+    
+    this.reset = function() {
+      if (lcesph)
+        lcesph.substitute(input);
+      
+      resetForm.appendChild(input);
+      resetForm.reset();
+      
+      if (lcesph)
+        lcesph.replace(input);
+      else
+        that.element.appendChild(input);
+      
+      textDisplay.textContent = "No file chosen";
+    }
+    
     input.addEventListener("change", this.onchange);
   }
   
@@ -3386,15 +3482,22 @@ lces.rc[5] = function() {
     }
     
     this.addEventListener("keydown", function(e) {
+      if (e.ctrlKey)
+        return;
+      
       if (acceptableKeyCodes[e.keyCode.toString()] === undf)
         return e.preventDefault();
       
-      if (e.keyCode == 38)
-        that.increment();
-      if (e.keyCode == 40)
-        that.decrement();
+      switch (e.keyCode) {
+        case 38:
+          that.increment();
+          break;
+        case 40:
+          that.decrement();
+          break;
+      }
       
-      return true;
+      return;
     });
     
     // Check for properties in the attributes
@@ -6134,10 +6237,17 @@ lces._WidgetInit = function() {
 
     this.setState("text", "");
     this.addStateListener("text", function(text) {
-      if (that.element.tagName.toLowerCase() !== "input") {
-        that.element.textContent = text;
-      } else
-        that.element.value = text;
+      var element = that.element;
+      
+      switch (element.tagName.toLowerCase()) {
+        case "input":
+        case "textarea":
+          if (element.value !== text)
+            element.value = text;
+          break;
+        default:
+          that.element.textContent = text;
+      }
     });
     this.states["text"].get = function() {return that.element.value || that.element.textContent};
 
@@ -7500,7 +7610,7 @@ lces.rc[3] = function() {
       parent: null
     };
     
-    this.entities = main;
+    this.entities   = main;
     this.tempEntity = main;
     
     while (this.processTokens(this.tokens[this.tokenIndex], this.tokenIndex, this.tokens)) {
@@ -7570,7 +7680,12 @@ lces.rc[3] = function() {
           entity.parent.element.appendChild(entity.element);
         }
         
-        var curCtx = this.getContext(prop.name);
+        var curCtx    = this.getContext(prop.name);
+        var isNotAuto = this.context._noAutoState[mainProp];
+        
+        if (isNotAuto) {
+          prop.context = this.context;
+        }
         
         // Does the property/state exist?
         var existed = false, oldValue;
@@ -7731,7 +7846,7 @@ lces.rc[3] = function() {
   // Description: Compiles the first argument string provided into dynText's so-called "entities"
   //   that are then made into DOM elements (If .allowTags isn't falsy). Otherwise they are just
   //   preserved for their order and calls the callback provided instead.
-  lces.dynText.compile = function(s, cb) {
+  lces.dynText.compile = function(s, cb, context) {
     if (!s || typeof s !== "string")
       return false;
     
@@ -7751,6 +7866,10 @@ lces.rc[3] = function() {
     this.handlers     = jSh.extendObj({}, this.handlers);
     this.contentProps = [];
     this.paramProps   = [];
+    
+    if (context) {
+      this.context = context;
+    }
     
     // Lexical analysis
     this.lexer(s);
@@ -7786,6 +7905,10 @@ lces.rc[3] = function() {
         mainElement.removeChild(jSh.toArr(mainElement.childNodes));
       
       mainElement.appendChild(mainFrag);
+    }
+    
+    if (context) {
+      this.context = this.component;
     }
     
     // If checking for dyn links, then they exist
@@ -7894,25 +8017,26 @@ lces.rc[3] = function() {
       height = bcr.top + scrollY - ((innerHeight) / 2) + (offH / 2);
     }
     
-    
     if (isNaN(height))
       return false;
-
     
     var diff = height - scrollY;
     var cur  = scrollY;
     
-    clearQS(lces.ui._scrollProcess);
+    scrollTo(scrollX, height);
+    lces.ui.scrollY = undefined;
     
-    function func01(n) {
-      scrollTo(scrollX, cur + (n * diff));
-    }
-    
-    function end01() {
-      lces.ui.scrollY = undefined;
-    }
-    
-    lces.ui._scrollProcess = new qsFadein(func01, 0, 1, 0.35, end01, undf, true, 0.002);
+    // clearQS(lces.ui._scrollProcess);
+    //
+    // function func01(n) {
+    //   scrollTo(scrollX, cur + (n * diff));
+    // }
+    //
+    // function end01() {
+    //   lces.ui.scrollY = undefined;
+    // }
+    //
+    // lces.ui._scrollProcess = new qsFadein(func01, 0, 1, 0.35, end01, undf, true, 0.002);
   });
 
   lces.ui.states["scrollY"].get = function() {
@@ -8168,7 +8292,8 @@ lces.rc[4] = function() {
     REFERENCE: 1, // Variable reference
     PRIMITIVE: 2, // String or number
     MODIFIER: 3, // Addition, subtraction, etc
-    COMPARISON: 4 // Equality or greater/less than
+    COMPARISON: 4, // Equality or greater/less than
+    BOOLEAN: 5 // Logical operators: && or ||
   };
   
   lces.template.expressionLexer = function(source, options) {
@@ -8187,6 +8312,7 @@ lces.rc[4] = function() {
     var isNumber          = /[\d\.]/;
     var isCondOperator    = /[=<>!]/;
     var isGLTOperator     = /[><]/; // Greater/Less Than
+    var isBoolOperator    = /[&|]/;
     var isMutOperator     = /[*\-+\/%]/;
     var isUnaryOperator   = /[!-]/;
     var isStringStart     = /["']/;
@@ -8200,6 +8326,7 @@ lces.rc[4] = function() {
     var inIdentifier = false;
     var finishIdentifierName = false;
     var negated = false;
+    var negatedLogical = false;
     
     function getLastTokenType() {
       var lastToken = tokens[tokens.length - 1];
@@ -8234,6 +8361,7 @@ lces.rc[4] = function() {
         switch (lastTokenType) {
           case tokenTypes.MODIFIER:
           case tokenTypes.COMPARISON:
+          case tokenTypes.BOOLEAN:
             throw new SyntaxError("LCES Template Expression: Unexpected " + type + " at col " + i);
             break;
         }
@@ -8309,7 +8437,8 @@ lces.rc[4] = function() {
             context: ctxPath,
             contextStr: ctxPath.join("."),
             value: null,
-            negated: negated
+            negated: negated,
+            negatedLogical: negatedLogical
           };
           
           tokens.push(newReference);
@@ -8433,8 +8562,10 @@ lces.rc[4] = function() {
         } else if (isUnaryOperator.test(char) &&
                   (getLastTokenType() === tokenTypes.MODIFIER ||
                    getLastTokenType() === tokenTypes.COMPARISON ||
+                   getLastTokenType() === tokenTypes.BOOLEAN ||
                    curTokenID === 0)) {
           negated = true;
+          negatedLogical = char === "!";
         } else if (isMutOperator.test(char)) {
           if (options.noArithmetic)
             throw new SyntaxError("LCES Template Expression: Arithmetic operators disabled in expression. At col " + i);
@@ -8499,6 +8630,26 @@ lces.rc[4] = function() {
           curToken = null;
           curTokenContent = null;
           
+          curTokenID++;
+        } else if (isBoolOperator.test(char)) {
+          checkValidOperatorToken(char, i);
+          
+          var next = source[i + 1];
+          
+          if (next !== char)
+            throw new SyntaxError("LCES Template Expression: Unexpected token \"" + next + "\" at col " + i + " expected \"" + char + "\"");
+          
+          tokens.push({
+            id: curTokenID,
+            type: tokenTypes.BOOLEAN,
+            value: char + char,
+            col: curCol
+          });
+          
+          curToken = null;
+          curTokenContent = null;
+          
+          i += 1;
           curTokenID++;
         } else {
           throw new SyntaxError("LCES Template Expression: Illegal character \"" + char + "\" at col " + i);
@@ -8572,8 +8723,9 @@ lces.rc[4] = function() {
         var group    = groupDepth[j];
         var gTokens  = group.value;
         var newGroup = {
-          sides: [[], []],
-          operator: null,
+          sides: [[[], []]],
+          operator: [null],
+          bool: [null], // && or ||
           value: 0, // During evaluation phases
           negated: group.negated
         };
@@ -8587,8 +8739,11 @@ lces.rc[4] = function() {
         
         newDepth.push(newGroup);
         
-        var lhs = newGroup.sides[0];
-        var rhs = newGroup.sides[1];
+        var curSides      = newGroup.sides[0];
+        var curSidesIndex = 0;
+        
+        var lhs = curSides[0];
+        var rhs = curSides[1];
         
         var onRightSide     = false;
         var compareOperator = null;
@@ -8601,12 +8756,27 @@ lces.rc[4] = function() {
           
           overallTokenCount++;
           
-          if (tokenType === tokenTypes.COMPARISON) {
+          if (tokenType === tokenTypes.BOOLEAN) {
+            onRightSide = false;
+            compareOperator = null;
+            
+            curSides = [[], []];
+            newGroup.sides.push(curSides);
+            newGroup.operator.push(null);
+            newGroup.bool.push(null);
+            newGroup.bool[curSidesIndex] = token.value;
+            
+            lhs = curSides[0];
+            rhs = curSides[1];
+            
+            curSidesIndex++;
+          } else if (tokenType === tokenTypes.COMPARISON) {
             if (onRightSide)
               throw new SyntaxError("LCES Template Expression: Unexpected token \"" + token.value + "\" at col " + token.col + ", multiple adjacent comparison operators aren't allowed");
             
             onRightSide     = true;
             compareOperator = token.value;
+            newGroup.operator[curSidesIndex] = compareOperator;
           } else {
             switch (tokenType) {
               case tokenTypes.PRIMITIVE:
@@ -8631,16 +8801,14 @@ lces.rc[4] = function() {
             }
           }
         }
-        
-        if (compareOperator)
-          newGroup.operator = compareOperator;
       }
       
       newDepth.reverse();
     }
     
+    var opRankArr = ["-", "+", "*", "%", "/"];
     function opRank(char) {
-      return ["-", "+", "*", "%", "/"].indexOf(char);
+      return opRankArr.indexOf(char);
     }
     
     // Order and convert tokens to operations
@@ -8649,149 +8817,200 @@ lces.rc[4] = function() {
       
       for (var j=0,l2=curDepth.length; j<l2; j++) {
         var curGroup = curDepth[j];
-        var sides    = curGroup.sides;
+        var sidesArr = curGroup.sides;
         
-        var lhs = [];
-        var rhs = [];
-        
-        for (var k=0; k<sides.length; k++) {
-          var side = sides[k];
+        for (var jj=0,ll=sidesArr.length; jj<ll; jj++) {
+          var sides = sidesArr[jj];
           
-          var add = [];
-          var subtract = [];
-          var special = []; // Multiplication, division, modulo...
-          var lastOperation = "+";
-          var oldLastOperation = lastOperation;
-          var olderLastOperation = lastOperation;
-          var lastSign = 1;
-          var lastSpecial = null;
-          var curSpecial = null;
-          var lastToken = null;
-          var lastValueToken = null;
+          var lhs = [];
+          var rhs = [];
           
-          function determineGroup(op) {
-            switch (op) {
-              case "+":
-                return add;
-                break;
-              case "-":
-                return subtract;
-                break;
-              default:
-                return lastSpecial;
-                break;
-            }
-          }
-          
-          for (var ii=0,l3=side.length; ii<l3; ii++) {
-            var token     = side[ii];
-            var nextToken = side[ii + 1];
+          for (var k=0; k<sides.length; k++) {
+            var side = sides[k];
             
-            switch (token.type) {
-              case tokenTypes.GROUP:
-              case tokenTypes.REFERENCE:
-              case tokenTypes.PRIMITIVE:
-                // Not sure what to do here...
-                if (lastOperation === "*" ||
-                    lastOperation === "/" ||
-                    lastOperation === "%") {
-                  if (!nextToken || opRank(lastOperation) >= opRank(nextToken.value)) {
-                    if (token.type === tokenTypes.PRIMITIVE)
-                      lastSpecial.push(token.value);
-                    else
-                      lastSpecial.push({id: token.id, type: token.type, LCESValueType: true}); // Group or reference
-                    
-                    lastValueToken = null;
-                  } else {
-                    lastValueToken = token;
-                  }
-                } else if (lastOperation === "+" ||
-                           lastOperation === "-") {
-                  var array = lastOperation === "+" ? add : subtract;
-                  
-                  if (!nextToken || opRank(lastOperation) >= opRank(nextToken.value) || nextToken.value === "+") {
-                    if (token.type === tokenTypes.PRIMITIVE)
-                      array.push(token.value);
-                    else
-                      array.push({id: token.id, type: token.type, LCESValueType: true}); // Group or reference
-                    
-                    lastValueToken = null;
-                  } else {
-                    lastValueToken = token;
-                  }
-                  
-                } else {
-                  lastValueToken = token;
-                }
-                
-                break;
-              case tokenTypes.MODIFIER:
-                olderLastOperation = oldLastOperation;
-                oldLastOperation = lastOperation;
-                lastOperation = token.value;
-                
-                if (lastOperation === "-") {
-                  lastSign = -1;
-                } else if (lastOperation === "+") {
-                  lastSign = 1;
-                } else if (lastOperation === "*" ||
-                           lastOperation === "/" ||
-                           lastOperation === "%") {
-                  var prevOpHigher = opRank(oldLastOperation) > opRank(lastOperation);
-                  
-                  if ((lastOperation === oldLastOperation ||
-                      prevOpHigher)) {
-                    if (lastValueToken) {
-                      var opGroup = determineGroup(oldLastOperation);
-                      
-                      if (lastValueToken.type === tokenTypes.PRIMITIVE)
-                        opGroup.push(lastValueToken.value);
-                      else
-                        opGroup.push({id: lastValueToken.id, type: lastValueToken.type}); // Group or reference
-                      
-                      lastValueToken = null;
-                    }
-                    
-                    if (prevOpHigher && lastOperation !== "+" && lastOperation !== "-") {
-                      var lastSpecial = [lastOperation, lastSign, lastSpecial];
-                      var mergedWithLastSpecial = true;
-                    } else {
-                      var mergedWithLastSpecial = false;
-                    }
-                  } else {
-                    var lastSpecial = [lastOperation, lastSign];
-                    
-                    if (!prevOpHigher && lastValueToken) {
-                      if (lastValueToken.type === tokenTypes.PRIMITIVE)
-                        lastSpecial.push(lastValueToken.value);
-                      else
-                        lastSpecial.push({id: lastValueToken.id, type: lastValueToken.type}); // Group or reference
-                      lastValueToken = null;
-                    }
-                    
-                    var mergedWithLastSpecial = false;
-                  }
-                  
-                  if (mergedWithLastSpecial) {
-                    special[special.length - 1] = lastSpecial;
-                  } else if (lastOperation !== oldLastOperation) {
-                    special.push(lastSpecial);
-                  }
-                  
-                  lastSign = 1; // Since any following operations will likely be merged with this one
-                }
-                
-                break;
+            var add = [];
+            var subtract = [];
+            var special = []; // Multiplication, division, modulo...
+            var lastOperation = "+";
+            var oldLastOperation = lastOperation;
+            var olderLastOperation = lastOperation;
+            var oldLastMajorOperation = null;
+            var oldLastMajorAdditive = true;
+            var lastSign = 1;
+            var lastSpecial = null;
+            // var curSpecial = null; // FIXME: This might be useless
+            var lastToken = null;
+            var lastValueToken = null;
+            var lastMergedSpecial = null;
+            var swapNextToken = false; // Since the previous had a low value
+            
+            function determineGroup(op) {
+              switch (op) {
+                case "+":
+                  return add;
+                  break;
+                case "-":
+                  return subtract;
+                  break;
+                default:
+                  return lastSpecial;
+                  break;
+              }
             }
             
-            lastToken = token;
+            for (var ii=0,l3=side.length; ii<l3; ii++) {
+              var token     = side[ii];
+              var nextToken = side[ii + 1];
+              
+              switch (token.type) {
+                case tokenTypes.GROUP:
+                case tokenTypes.REFERENCE:
+                case tokenTypes.PRIMITIVE:
+                  switch (lastOperation) {
+                    case "*":
+                    case "/":
+                    case "%": {
+                      var higherOpValue = !nextToken || opRank(lastOperation) >= opRank(nextToken.value);
+                      
+                      if (!nextToken || higherOpValue) {
+                        if (token.type === tokenTypes.PRIMITIVE)
+                          lastSpecial.push(token.value);
+                        else
+                          lastSpecial.push({id: token.id, type: token.type, LCESValueType: true}); // Group or reference
+                        
+                        lastValueToken = null;
+                      } else {
+                        lastValueToken = token;
+                        
+                        if (!higherOpValue)
+                          swapNextToken = true;
+                      }
+                      
+                      break;
+                    }
+                    
+                    case "+":
+                    case "-": {
+                      var array = lastOperation === "+" ? add : subtract;
+                      
+                      if (!nextToken || opRank(lastOperation) >= opRank(nextToken.value) || nextToken.value === "+") {
+                        if (token.type === tokenTypes.PRIMITIVE)
+                          array.push(token.value);
+                        else
+                          array.push({id: token.id, type: token.type, LCESValueType: true}); // Group or reference
+                        
+                        lastValueToken = null;
+                      } else {
+                        lastValueToken = token;
+                      }
+                      
+                      break;
+                    }
+                    
+                    default: {
+                      lastValueToken = token;
+                    }
+                  }
+                  
+                  break;
+                case tokenTypes.MODIFIER:
+                  olderLastOperation = oldLastOperation;
+                  oldLastOperation = lastOperation;
+                  oldLastMajorOperation = special[special.length - 1];
+                  lastOperation = token.value;
+                  
+                  switch (lastOperation) {
+                    case "-": {
+                      lastSign = -1;
+                      oldLastMajorAdditive = true;
+                      break;
+                    }
+                    
+                    case "+": {
+                      lastSign = 1;
+                      oldLastMajorAdditive = true;
+                      break;
+                    }
+                    
+                    case "*":
+                    case "/":
+                    case "%": {
+                      var prevOpHigher = opRank(oldLastOperation) > opRank(lastOperation);
+                      var secondMergedWithLastSpecial = false;
+                      
+                      if ((lastOperation === oldLastOperation ||
+                          prevOpHigher)) {
+                        if (lastValueToken) {
+                          var opGroup = determineGroup(oldLastOperation);
+                          
+                          if (lastValueToken.type === tokenTypes.PRIMITIVE)
+                            opGroup.push(lastValueToken.value);
+                          else
+                            opGroup.push({id: lastValueToken.id, type: lastValueToken.type}); // Group or reference
+                          
+                          lastValueToken = null;
+                        }
+                        
+                        if (prevOpHigher && lastOperation !== "+" && lastOperation !== "-") {
+                          if (!oldLastMajorAdditive && oldLastOperation !== "+" && oldLastOperation !== "-" && oldLastMajorOperation && oldLastMajorOperation[0] === lastOperation) {
+                            secondMergedWithLastSpecial = true;
+                          } else {
+                            var lastSpecial = [lastOperation, lastSign, lastSpecial];
+                            var mergedWithLastSpecial = true;
+                          }
+                        } else {
+                          var mergedWithLastSpecial = false;
+                        }
+                      } else {
+                        var lastSpecial    = [lastOperation, lastSign];
+                        var oldLastSpecial = special[special.length - 1];
+                        
+                        if (lastValueToken) {
+                          if (lastValueToken.type === tokenTypes.PRIMITIVE)
+                            lastSpecial.push(lastValueToken.value);
+                          else
+                            lastSpecial.push({id: lastValueToken.id, type: lastValueToken.type}); // Group or reference
+                          lastValueToken = null;
+                        }
+                        
+                        if (!oldLastMajorAdditive && oldLastSpecial) {
+                          var oldLastSpecialOp = oldLastSpecial[0];
+                          
+                          if (opRank(oldLastSpecialOp) < opRank(lastOperation)) {
+                            secondMergedWithLastSpecial = true;
+                            oldLastSpecial.push(lastSpecial);
+                          }
+                        }
+                        
+                        var mergedWithLastSpecial = false;
+                      }
+                      
+                      if (!secondMergedWithLastSpecial) {
+                        if (mergedWithLastSpecial) {
+                          special[special.length - 1] = lastSpecial;
+                        } else if (lastOperation !== oldLastOperation) {
+                          special.push(lastSpecial);
+                        }
+                      }
+                      
+                      oldLastMajorAdditive = false;
+                      lastSign = 1; // Since any following operations will likely be merged with this one
+                      break;
+                    }
+                  }
+                  
+                  break;
+              }
+              
+              lastToken = token;
+            }
+            
+            sides[k] = {
+              add: add,
+              subtract: subtract,
+              special: special
+            };
           }
-          
-          sides[k] = {
-            add: add,
-            subtract: subtract,
-            special: special
-          };
         }
       }
     }
@@ -8833,6 +9052,114 @@ lces.rc[4] = function() {
     return compiledTokens;
   }
   
+  // Return variable reference values from {context}, e.g. `a.b` in: a.b * 5
+  function expressionLoadReferenceValue(reference, context, cache) {
+    var ctxStr  = reference.contextStr;
+    var varName = reference.varName;
+    var negated = reference.negated;
+    
+    if (!ctxStr) {
+      var value = context[varName];
+      
+      if (negated) {
+        if (reference.negatedLogical) {
+          return !value;
+        } else {
+          switch (typeof value) {
+            case "number":
+              return value * -1;
+              break;
+            default:
+              return !value;
+          }
+        }
+      } else {
+        return value;
+      }
+    }
+    
+    var ctx      = reference.context;
+    var path     = reference.name;
+    var pathStr  = reference.nameStr;
+    var cacheCtx = cache[ctxStr];
+    
+    if (cacheCtx) {
+      return cacheCtx[varName];
+    }
+    
+    var lastObject = context;
+    
+    for (var i=0,l=ctx.length; i<l; i++) {
+      try {
+        lastObject = lastObject[ctx];
+      } catch (e) {
+        throw new ReferenceError("LCES Expression Eval: Context object lacks sufficient depth");
+      }
+    }
+    
+    cache[ctxStr] = lastObject;
+    var value = lastObject[varName];
+    
+    if (negated) {
+      if (reference.negatedLogical) {
+        return !value;
+      } else {
+        switch (typeof value) {
+          case "number":
+            return value * -1;
+            break;
+          default:
+            return !value;
+        }
+      }
+    } else {
+      return value;
+    }
+  }
+  
+  // Evaluate * % / multiplication, modulo, division
+  function expressionEvalSpecial(special, context, cache) {
+    var out  = null;
+    var op   = special[0];
+    var sign = special[1];
+    
+    for (var i=2,l=special.length; i<l; i++) {
+      var value     = special[i];
+      var realValue = 0;
+      
+      if (isNaN(value)) {
+        if (value instanceof Array) {
+          realValue = expressionEvalSpecial(value, context, cache);
+        } else if (value.type === tokenTypes.GROUP) {
+          realValue = groupValueMap[value.id];
+        } else {
+          // It's a reference...
+          realValue = expressionLoadReferenceValue(tokenMap[value.id], context, cache);
+        }
+      } else {
+        realValue = value;
+      }
+      
+      if (out !== null) {
+        switch (op) {
+          case "*":
+            out *= realValue;
+            break;
+          case "%":
+            out %= realValue;
+            break;
+          case "/":
+            out /= realValue;
+            break;
+        }
+      } else {
+        out = realValue;
+      }
+    }
+    
+    return out * sign;
+  }
+  
   lces.template.evaluateExpression = function(compiledExpr, context, cache) {
     var tokenTypes    = lces.template.tokenTypes;
     var tokenMap      = compiledExpr.tokenMap;
@@ -8847,198 +9174,159 @@ lces.rc[4] = function() {
       cache = {};
     }
     
-    // Return variable reference values from {context}, e.g. `a.b` in: a.b * 5
-    function loadReferenceValue(reference) {
-      var ctxStr  = reference.contextStr;
-      var varName = reference.varName;
-      var negated = reference.negated;
-      
-      if (!ctxStr) {
-        var value = context[varName];
-        
-        if (negated) {
-          switch (typeof value) {
-            case "number":
-              return value * -1;
-              break;
-            default:
-              return !value;
-          }
-        } else {
-          return value;
-        }
-      }
-      
-      var ctx      = reference.context;
-      var path     = reference.name;
-      var pathStr  = reference.nameStr;
-      var cacheCtx = cache[ctxStr];
-      
-      if (cacheCtx) {
-        return cacheCtx[varName];
-      }
-      
-      var lastObject = context;
-      
-      for (var i=0,l=ctx.length; i<l; i++) {
-        try {
-          lastObject = lastObject[ctx];
-        } catch (e) {
-          throw new ReferenceError("LCES Expression Eval: Context object lacks sufficient depth");
-        }
-      }
-      
-      cache[ctxStr] = lastObject;
-      var value = lastObject[varName];
-      
-      if (negated) {
-        switch (typeof value) {
-          case "number":
-            return value * -1;
-            break;
-          default:
-            return !value;
-        }
-      } else {
-        return value;
-      }
-    }
-    
-    // Evaluate * % / multiplication, modulo, division
-    function evalSpecial(special) {
-      var out  = null;
-      var op   = special[0];
-      var sign = special[1];
-      
-      for (var i=2,l=special.length; i<l; i++) {
-        var value     = special[i];
-        var realValue = 0;
-        
-        if (isNaN(value)) {
-          if (value instanceof Array) {
-            realValue = evalSpecial(value);
-          } else if (value.type === tokenTypes.GROUP) {
-            realValue = groupValueMap[value.id];
-          } else {
-            // It's a reference...
-            realValue = loadReferenceValue(tokenMap[value.id]);
-          }
-        } else {
-          realValue = value;
-        }
-        
-        if (out !== null) {
-          switch (op) {
-            case "*":
-              out *= realValue;
-              break;
-            case "%":
-              out %= realValue;
-              break;
-            case "/":
-              out /= realValue;
-              break;
-          }
-        } else {
-          out = realValue;
-        }
-      }
-      
-      return out * sign;
-    }
-    
     for (var i=0,l=compiledExpr.length; i<l; i++) {
       var depth = compiledExpr[i];
       
+      depthLoop:
       for (var j=0,l2=depth.length; j<l2; j++) {
         var group = depth[j];
         
-        var outValue  = []; // Store value for each side
-        var operator  = group.operator;
-        var sideCount = operator ? 2 : 1;
+        var curSidesValues = [];
         
-        for (var k=0; k<sideCount; k++) {
-          var curSide = group.sides[k];
+        sidesLoop:
+        for (var jj=0,ll=group.sides.length; jj<ll; jj++) {
+          var outValue  = []; // Store value for each side
+          var operator  = group.operator[jj];
+          var sides     = group.sides[jj];
+          var sideCount = operator ? 2 : 1;
           
-          if (curSide.string)
-            var curValue = "";
-          else
-            var curValue = 0;
-          
-          var add      = curSide.add;
-          var subtract = curSide.subtract;
-          var special  = curSide.special;
-          
-          for (var ii=0,l3=add.length; ii<l3; ii++) {
-            var curTokenValue = add[ii];
+          perSideLoop:
+          for (var k=0; k<sideCount; k++) {
+            var curSide = sides[k];
             
-            if (curTokenValue.LCESValueType) {
-              if (curTokenValue.type === tokenTypes.GROUP) {
-                curTokenValue = groupValueMap[curTokenValue.id];
-              } else {
-                // It's a reference...
-                curTokenValue = loadReferenceValue(tokenMap[curTokenValue.id]);
+            if (curSide.string)
+              var curValue = "";
+            else
+              var curValue = 0;
+            
+            var add      = curSide.add;
+            var subtract = curSide.subtract;
+            var special  = curSide.special;
+            
+            for (var ii=0,l3=add.length; ii<l3; ii++) {
+              var curTokenValue = add[ii];
+              
+              if (curTokenValue.LCESValueType) {
+                if (curTokenValue.type === tokenTypes.GROUP) {
+                  curTokenValue = groupValueMap[curTokenValue.id];
+                } else {
+                  // It's a reference...
+                  curTokenValue = expressionLoadReferenceValue(tokenMap[curTokenValue.id], context, cache);
+                }
               }
+              
+              if (!rawValue)
+                curValue += curTokenValue;
+              else
+                outValue = curTokenValue;
+            }
+            
+            for (var ii=0,l3=subtract.length; ii<l3; ii++) {
+              var curTokenValue = subtract[ii];
+              
+              if (curTokenValue.LCESValueType) {
+                if (curTokenValue.type === tokenTypes.GROUP) {
+                  curTokenValue = groupValueMap[curTokenValue.id];
+                } else {
+                  // It's a reference...
+                  curTokenValue = expressionLoadReferenceValue(tokenMap[curTokenValue.id], context, cache);
+                }
+              }
+              
+              curValue -= curTokenValue;
+            }
+            
+            for (var ii=0,l3=special.length; ii<l3; ii++) {
+              curValue += expressionEvalSpecial(special[ii], context, cache);
             }
             
             if (!rawValue)
-              curValue += curTokenValue;
-            else
-              outValue = curTokenValue;
+              outValue.push(curValue);
           }
           
-          for (var ii=0,l3=subtract.length; ii<l3; ii++) {
-            var curTokenValue = subtract[ii];
-            
-            if (curTokenValue.LCESValueType) {
-              if (curTokenValue.type === tokenTypes.GROUP) {
-                curTokenValue = groupValueMap[curTokenValue.id];
-              } else {
-                // It's a reference...
-                curTokenValue = loadReferenceValue(tokenMap[curTokenValue.id]);
-              }
+          if (operator) {
+            switch (operator) {
+              case "==":
+                curSidesValues.push(outValue[0] == outValue[1]);
+                break;
+              case "===":
+                curSidesValues.push(outValue[0] === outValue[1]);
+                break;
+              case "!=":
+                curSidesValues.push(outValue[0] != outValue[1]);
+                break;
+              case "!==":
+                curSidesValues.push(outValue[0] !== outValue[1]);
+                break;
+              case ">=":
+                curSidesValues.push(outValue[0] >= outValue[1]);
+                break;
+              case "<=":
+                curSidesValues.push(outValue[0] <= outValue[1]);
+                break;
+              case ">":
+                curSidesValues.push(outValue[0] > outValue[1]);
+                break;
+              case "<":
+                curSidesValues.push(outValue[0] < outValue[1]);
+                break;
             }
-            
-            curValue -= curTokenValue;
+          } else {
+            curSidesValues.push(curValue);
           }
-          
-          for (var ii=0,l3=special.length; ii<l3; ii++) {
-            curValue += evalSpecial(special[ii]);
-          }
-          
-          if (!rawValue)
-            outValue.push(curValue);
         }
         
-        if (operator) {
-          switch (operator) {
-            case "==":
-              group.value = outValue[0] == outValue[1];
-              break;
-            case "===":
-              group.value = outValue[0] === outValue[1];
-              break;
-            case "!=":
-              group.value = outValue[0] != outValue[1];
-              break;
-            case "!==":
-              group.value = outValue[0] !== outValue[1];
-              break;
-            case ">=":
-              group.value = outValue[0] >= outValue[1];
-              break;
-            case "<=":
-              group.value = outValue[0] <= outValue[1];
-              break;
-            case ">":
-              group.value = outValue[0] > outValue[1];
-              break;
-            case "<":
-              group.value = outValue[0] < outValue[1];
-              break;
-          }
+        if (curSidesValues.length === 1) {
+          // No boolean && or || operators in this group (yay)
+          group.value = curSidesValues[0];
         } else {
-          group.value = curValue;
+          // Ugh, got work to do
+          
+          var booleanResultSummary = true;
+          var boolOps = group.bool;
+          var continueBool = false;
+          var lastValue = curSidesValues[0];
+          // var lastResultSummary = 0;
+          
+          curSideValueLoop:
+          for (var i=0,l=curSidesValues.length - 1; i<l; i++) {
+            var curBool = boolOps[i];
+            
+            if (curBool === "&&") {
+              if (continueBool) {
+                // A chain of &&
+                var curBoolVal = curSidesValues[i];
+                
+                if (!curBoolVal) {
+                  booleanResultSummary = false;
+                  lastValue = curBoolVal;
+                } else if (i + 1 === l && !curSidesValues[i + 1]) {
+                  // The last value after this last && is false, result isn't truthy anymore
+                  booleanResultSummary = false;
+                  lastValue = curSidesValues[i + 1];
+                }
+                
+                if (booleanResultSummary)
+                  lastValue = curBoolVal;
+              } else {
+                booleanResultSummary = !!curSidesValues[i];
+                
+                if (booleanResultSummary)
+                  lastValue = curSidesValues[i + 1];
+                
+                continueBool = true;
+              }
+            } else {
+              continueBool = false;
+              
+              if (!lastValue)
+                lastValue = curSidesValues[i + 1];
+              else
+                break curSideValueLoop; // This value is positive, stop
+            }
+          }
+          
+          group.value = lastValue;
         }
         
         groupValueMap[group.id] = group.value;
@@ -9222,6 +9510,10 @@ lces.rc[4] = function() {
         
         for (var i=0,l=attributeList.length; i<l; i++) {
           var curAttr = attributeList[i];
+          
+          if (curAttr === "dynClass")
+            continue;
+          
           var isNS    = checkNSAttr.test(curAttr);
           
           var nsURI, nsAttr, oldAttrForm = curAttr;
@@ -9239,7 +9531,7 @@ lces.rc[4] = function() {
                 newElm.setAttribute(curAttr, s);
               else
                 newElm.setAttributeNS(nsURI ? nsURI : null, nsAttr, s);
-            });
+            }, dynContext);
             
             if (!dynAttr) {
               if (!isNS)
@@ -9283,7 +9575,7 @@ lces.rc[4] = function() {
         newElm.setAttribute("style", this.getAttribute("style"));
         
       // Check innerHTML and textContent
-      if (dynContext && !this.__lclogic) {
+      if (dynContext && notLogic) {
         dynContext.dynText.element = newElm;
         
         // Remove the innerHTML/textContent from the exclusion array
@@ -9299,7 +9591,7 @@ lces.rc[4] = function() {
           
           var resC = dynContext.dynText.compile(this._textContent, function(s) {
             textNode.textContent = s;
-          });
+          }, dynContext);
           
           newElm.appendChild(textNode);
           
@@ -9310,7 +9602,7 @@ lces.rc[4] = function() {
         } else if (this._innerHTML) {
           dynContext.dynText.allowTags = true;
           
-          var c = dynContext.dynText.compile(this._innerHTML);
+          var c = dynContext.dynText.compile(this._innerHTML, null, dynContext);
           
           jSh.extendObj(jSh.MockupElementOnlyPropsMap, {
             "innerHTML": 1,
@@ -9336,7 +9628,7 @@ lces.rc[4] = function() {
             if (dynContext && typeof propValue === "string") {
               let dyn = dynContext.dynText.compile(propValue + "", function(s) {
                 newElm[newPropName] = s;
-              });
+              }, dynContext);
               
               if (!dyn)
                 newElm[newPropName] = propValue;
@@ -9351,6 +9643,148 @@ lces.rc[4] = function() {
             newElm.className = this.className;
           else
             newElm.setAttribute("class", this.className);
+        }
+        
+        // Check for dynClass
+        if (!clone && dynContext) {
+          if (this.dynClass instanceof Object) {
+            var classExpressions = Object.getOwnPropertyNames(this.dynClass);
+            var classExprRefs = [];
+            var refCache = {};
+            var classStates = {};
+            
+            for (var i=0,l=classExpressions.length; i<l; i++) {
+              var curRawClassExpr = classExpressions[i];
+              
+              var classes = this.dynClass[curRawClassExpr].replace(/\s+/g, "").split(".").filter(function(c) {
+                return c;
+              });
+              
+              var curCompiledExpr = lces.template.parseExpression(curRawClassExpr);
+              var curClassExpr = {
+                rawExpr: curRawClassExpr,
+                expr: curCompiledExpr,
+                classes: classes
+              };
+              
+              for (var j=0,l2=classes.length; j<l2; j++) {
+                var className = classes[j];
+                var classObj  = classStates[className];
+                
+                if (!classObj) {
+                  classObj = classStates[className] = {};
+                  classObj.actualState = false;
+                  classObj.stateExpr = {};
+                  classObj.states = [];
+                }
+                
+                classObj.stateExpr[curRawClassExpr] = classObj.states.length;
+                classObj.states.push(false);
+              }
+              
+              for (var j=0,l2=curCompiledExpr.references.length; j<l2; j++) {
+                var ref = curCompiledExpr.references[j];
+                var refName = ref.nameStr;
+                var refObj = classExprRefs["ref" + refName];
+                
+                if (!refObj) {
+                  refObj = classExprRefs["ref" + refName] = {};
+                  refObj.expr = [];
+                  refObj.ref = ref;
+                  
+                  classExprRefs.push(refObj);
+                }
+                
+                refObj.expr.push(curClassExpr);
+              }
+            }
+            
+            function classDynTrigger(classExprRef, dynContext) {
+              var refObj = classExprRef;
+              
+              for (var j=0,l2=refObj.expr.length; j<l2; j++) {
+                var curExpr = refObj.expr[j];
+                var curExprRaw = curExpr.rawExpr;
+                var classes = curExpr.classes;
+                
+                var result = !!lces.template.evaluateExpression(curExpr.expr, dynContext);
+                for (var k=0,l3=classes.length; k<l3; k++) {
+                  var className = classes[k];
+                  var classObj = classStates[className];
+                  var classInd = classObj[curExprRaw];
+                  var curClassStates = classObj.states;
+                  
+                  curClassStates[classInd] = result;
+                  var setClass = result;
+                  
+                  if (!setClass) {
+                    for (var i=0,l=curClassStates.length; i<l; i++) {
+                      if (curClassStates[i]) {
+                        setClass = true;
+                        break;
+                      }
+                    }
+                  }
+                  
+                  if (classObj.actualState !== setClass) {
+                    classObj.actualState = setClass;
+                    
+                    if (setClass) {
+                      newElm.classList.add(className);
+                    } else {
+                      newElm.classList.remove(className);
+                    }
+                  }
+                }
+              }
+            }
+            
+            function dynClassCallback(name) {
+              return function LCESDynClassCallback(value) {
+                var refObj = classExprRefs["ref" + name];
+                
+                classDynTrigger(refObj, this.component);
+              }
+            }
+            
+            // Add listeners to states
+            for (var i=0,l=classExprRefs.length; i<l; i++) {
+              var ref     = classExprRefs[i].ref;
+              var ctxStr  = ref.ctxStr;
+              var pathStr = ref.nameStr;
+              
+              if (!refCache[pathStr]) {
+                if (!ctxStr) {
+                    dynContext.addStateListener(pathStr, dynClassCallback(pathStr));
+                    refCache[pathStr] = dynContext;
+                } else {
+                  var varName = ref.varName;
+                  
+                  if (refCache[ctxStr]) {
+                    refCache[ctxStr].addStateListener(varName, dynClassCallback(pathStr));
+                  } else {
+                    var ctxPath = ref.context;
+                    var curObj  = dynContext;
+                    
+                    for (var j=0,l2=ctxPath.length; j<l2; j++) {
+                      curObj = curObj[ctxPath[j]];
+                      refCache[ctxPath.slice(0, j + 1).join(".")] = curObj;
+                    }
+                    
+                    curObj.addStateListener(varName, trigger);
+                    refCache[pathStr] = curObj;
+                  }
+                }
+              }
+              
+              // Try to initially update states
+              try {
+                classDynTrigger(classExprRefs[i], dynContext);
+              } catch(e) {
+                // Welp...
+              }
+            }
+          }
         }
       }
       
@@ -9667,6 +10101,7 @@ lces.rc[4] = function() {
     
     // Set our fake nodeType
     this.nodeType = Node.ELEMENT_NODE;
+    this.isjShMockup = true;
     
     // Add the tagname
     Object.defineProperty(this, "tagName", {
@@ -9774,9 +10209,6 @@ lces.rc[4] = function() {
       writable: false
     });
     
-    // Add all the methods
-    jSh.extendObj(this, jSh.MockupElementMethods);
-    
     // Add classList functionality
     Object.defineProperty(this, "classList", {
       value: jSh.extendObj({classes: [], classlookup: {}, element: this}, jSh.MockupElementClassList),
@@ -9807,9 +10239,12 @@ lces.rc[4] = function() {
       }
     });
   }
-
+  
   jSh.MockupElement.prototype.constructor = jSh.MockupElement;
-
+  
+  // Add all the methods
+  jSh.extendObj(jSh.MockupElement.prototype, jSh.MockupElementMethods);
+  
   // MockupText, similar to document.createTextNode
   jSh.__MockupTextConceive = function(d, dynContext) {
     if (dynContext) {
@@ -10054,6 +10489,8 @@ lces.rc[4] = function() {
     var countName = this.__lccountName;
     var initTimes = false;
     
+    var noAutoStateObj = jSh.extendObj(Object.create(dynContext._noAutoState), {[countName]: 1});
+    
     function trigger(change) {
       if (!marker.parentNode || rendering)
         return;
@@ -10069,8 +10506,11 @@ lces.rc[4] = function() {
           
           for (var i=0; i<diff; i++) {
             for (var j=0,l=childNodes.length; j<l; j++) {
-              dynContext[countName] = i + 1;
-              var child = childNodes[j].conceive(true, dynContext);
+              var newContext = Object.create(dynContext); // Create new inhereting context
+              newContext._noAutoState = noAutoStateObj;
+              newContext[countName] = count + i + 1;
+              
+              var child = childNodes[j].conceive(true, newContext);
               
               frag.appendChild(child);
               children.push(child);
@@ -10144,7 +10584,7 @@ lces.rc[4] = function() {
       }
     }
     
-    marker.LCESTrigger  = trigger;
+    marker.LCESTrigger   = trigger;
     marker.LCESInvisible = invisible;
     
     for (var i=0,l=refs.length; i<l; i++) {
