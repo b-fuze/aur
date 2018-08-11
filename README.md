@@ -4,17 +4,21 @@ AUR is a Javascript module system (with inherent bundling capabilities) with a s
 _AUR is no longer maintained_
 
 ## Screenshots/casts
-![AUR window mods tab](https://i.imgur.com/TsuvQBF.png)
 Modules' tab
 
-![Module specific options](https://i.imgur.com/cPcaqXW.png)
+![AUR window mods tab](https://i.imgur.com/TsuvQBF.png)
+
 Module specific options
 
-![AUR window about tab](https://i.imgur.com/CZCYYH2.png)
+![Module specific options](https://i.imgur.com/cPcaqXW.png)
+
 About tab
 
-![Screencast](https://i.imgur.com/fGMqMrb.gif)
+![AUR window about tab](https://i.imgur.com/CZCYYH2.png)
+
 Screencast
+
+![Screencast](https://i.imgur.com/fGMqMrb.gif)
 
 ## Credits
 AUR was created by [b-fuze](https://github.com/b-fuze) and [Samu](https://github.com/Saman-00)
