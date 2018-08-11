@@ -1,2 +1,2 @@
-AnimeUltima EnRadiant — Shit's Getting Real — is a project that aims to improve/fix the functions of AnimeUltima, an Anime site. 
-It's currently in development by two community members, Mike32 (b-fuze), and Samu (TDN).
+# AUR
+AUR is a Javascript module system (with inherent bundling capabilities) with a strong focus on providing end-users with control over what modules can be loaded with an API for module authors to easily provide configuration options for end-users.
