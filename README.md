@@ -1,6 +1,11 @@
 # AUR
 AUR is a Javascript module system (with inherent bundling capabilities) with a strong focus on providing end-users with control over what modules can be loaded with an API for module authors to easily provide configuration options for end-users.
 
+## Made with AUR
+ - [Drupal Filter Toolbar](https://github.com/b-fuze/Drupal-Module-Filter-Toolbar)
+ - [AUD Downloader](https://imgur.com/a/FSPs5tP)
+ - [AU Modules](https://github.com/b-fuze/aur-au)
+
 _AUR is no longer maintained_
 
 ## Screenshots/casts
